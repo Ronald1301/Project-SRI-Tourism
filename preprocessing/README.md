@@ -75,3 +75,4 @@ python3 -m preprocessing.pipeline --language spanish
 Notas:
 - Si una columna de texto no puede detectarse, el pipeline reporta el error y sigue con el siguiente dataset.
 - Los JSON generados quedan en `data/processed/` (un archivo por documento).
+  - Importante: el pipeline asume `1 fila del CSV = 1 documento`. Por eso, si un dataset tiene 10,000 filas, se crean ~10,000 archivos JSON.
