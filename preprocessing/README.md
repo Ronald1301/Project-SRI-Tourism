@@ -4,13 +4,12 @@ Este paquete implementa el **modulo de preprocesamiento** del pipeline clasico d
 
 Adquisicion -> Preprocesamiento -> Indexacion -> Recuperacion
 
-El objetivo es transformar texto crudo (por ejemplo resenas en CSV) en una lista de **tokens normalizados** lista para indexar.
+El objetivo es transformar texto crudo (CSV, TXT, MD, HTML, DOCX) en una lista de **tokens normalizados** lista para indexar.
 
 ## Por que existe `pipeline.py`?
 
 Los modulos `cleaner.py`, `tokenizer.py` y `stemmer.py` son piezas pequenas y reutilizables.
-Pero para cumplir el flujo completo del proyecto (leer CSV -> detectar columna -> procesar cada documento -> guardar JSON en `data/processed/`), hace falta una capa que **orqueste** esos pasos y maneje multiples datasets y errores.
-Esa capa es `pipeline.py`.
+Pero para cumplir el flujo completo del proyecto (descubrir archivos -> detectar/extraer texto -> procesar documentos -> guardar JSON en `data/processed/`), hace falta una capa que **orqueste** esos pasos y maneje multiples formatos y errores. Esa capa es `pipeline.py` y se expone desde `preprocessing/__init__.py`.
 
 ## Modulos
 
@@ -35,20 +34,25 @@ Esa capa es `pipeline.py`.
   - Ingles: `PorterStemmer` (NLTK)
   - Espanol: `SnowballStemmer("spanish")` (NLTK)
 
-### `pipeline.py`
+### `pipeline.py` (orquestador)
 
 Provee el pipeline end-to-end:
 
-- Descubre multiples CSV en `data/raw/` (recursivo).
+- Descubre multiples fuentes en `data/raw/` (CSV, TXT, MD, HTML, DOCX; extensiones configurables).
 - Detecta automaticamente la columna de texto (por nombres tipicos como `review`, `text`, `review_text`, o por heuristica de longitud).
-- Procesa cada fila: `clean -> tokenize -> stopwords -> stemming`.
-- Devuelve el diccionario esperado por el indexador: `{doc_id: [tokens]}`
-- Guarda cada documento procesado como JSON en `data/processed/`:
+- Procesa cada documento (fila en CSV, archivo completo en otros formatos): `clean -> tokenize -> stopwords -> stemming`.
+- Devuelve el diccionario esperado por el indexador: `{doc_id: [tokens]}`.
+- Guarda **un solo JSON por fuente** en `data/processed/<nombre_fuente>.json`:
 
 ```json
 {
-  "doc_id": "reviews_doc_1",
-  "tokens": ["hotel", "clean", "room", "good", "servic"]
+  "source": "reviews",
+  "document_count": 3,
+  "documents": [
+    {"doc_id": "reviews_doc_1", "tokens": ["hotel", "clean", "room", "good", "servic"]},
+    {"doc_id": "reviews_doc_2", "tokens": ["beach", "resort", "beauti", "view"]},
+    {"doc_id": "reviews_doc_3", "tokens": ["food", "poor"]}
+  ]
 }
 ```
 
@@ -60,7 +64,7 @@ Instalar dependencias:
 pip install -r requirements.txt
 ```
 
-Ejecutar el pipeline sobre todos los CSV:
+Ejecutar el pipeline sobre todas las fuentes soportadas:
 
 ```bash
 python3 -m preprocessing.pipeline --raw-dir data/raw --out-dir data/processed --language english
@@ -72,7 +76,11 @@ Para espanol:
 python3 -m preprocessing.pipeline --language spanish
 ```
 
+Opciones utiles:
+- `--language spanish` para stopwords/stemming en espanol.
+- `--extensions .csv,.txt,.md,.html,.docx` para controlar los formatos a procesar.
+
 Notas:
-- Si una columna de texto no puede detectarse, el pipeline reporta el error y sigue con el siguiente dataset.
-- Los JSON generados quedan en `data/processed/` (un archivo por documento).
-  - Importante: el pipeline asume `1 fila del CSV = 1 documento`. Por eso, si un dataset tiene 10,000 filas, se crean ~10,000 archivos JSON.
+- Si una columna de texto en CSV no puede detectarse, el pipeline reporta el error y sigue con la siguiente fuente.
+- Para CSV se asume `1 fila = 1 documento`; para TXT/MD/HTML/DOCX se asume `1 archivo = 1 documento`.
+- Cada fuente produce **un** archivo JSON en `data/processed/`, evitando miles de archivos sueltos.

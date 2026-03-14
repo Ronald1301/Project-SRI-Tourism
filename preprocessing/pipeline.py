@@ -1,13 +1,13 @@
 """
-Dataset preprocessing pipeline (CSV -> tokens) for the SRI project.
+Dataset preprocessing pipeline (multiformato -> tokens) para el SRI.
 
-Reads one or many CSV files, detects a text column, applies:
-cleaning -> tokenization -> stopword removal -> stemming
+Lee fuentes en CSV, TXT, MD, HTML, DOCX, detecta/extrae texto y aplica:
+cleaning -> tokenization -> stopword removal -> stemming.
 
 Outputs:
 - In-memory `documents` mapping: {doc_id: [tokens]}
-- Per-document JSON files under `data/processed/`:
-  { "doc_id": "...", "tokens": [...] }
+- Un JSON por fuente procesada en `data/processed/<fuente>.json`:
+  { "source": "...", "document_count": n, "documents": [ { "doc_id": "...", "tokens": [...] } ] }
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
+from bs4 import BeautifulSoup
+from docx import Document
 
 try:
     from .cleaner import TextCleaner
@@ -98,6 +100,26 @@ def detect_text_column(columns: Sequence[object], preferred: Optional[str] = Non
             return normalized_to_original[cand_norm]
 
     return None
+
+
+def _read_text_file(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _read_md_file(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _read_html_file(path: Path) -> str:
+    html_text = path.read_text(encoding="utf-8", errors="replace")
+    soup = BeautifulSoup(html_text, "html.parser")
+    return soup.get_text(" ", strip=True)
+
+
+def _read_docx_file(path: Path) -> str:
+    doc = Document(str(path))
+    paragraphs = [p.text for p in doc.paragraphs if p.text]
+    return "\n".join(paragraphs)
 
 
 def guess_text_column_by_length(df: "pd.DataFrame", sample_size: int = 200) -> Optional[str]:
@@ -206,10 +228,18 @@ class PreprocessingPipeline:
         prefix = doc_id_prefix or "doc"
         return self.process_dataframe(df, text_column=text_column, doc_id_prefix=prefix)
 
+    def process_text_blob(
+        self,
+        text: str,
+        *,
+        doc_id: str = "doc_1",
+    ) -> Dict[str, List[str]]:
+        return {doc_id: self.process_text(text)}
+
 
 def save_processed_documents(documents: Dict[str, List[str]], output_dir: Path) -> None:
     """
-    Save documents as individual JSON files in `output_dir`.
+    Deprecated: kept for backwards compatibility (per-document JSON).
     """
 
     output_dir = Path(output_dir)
@@ -222,57 +252,102 @@ def save_processed_documents(documents: Dict[str, List[str]], output_dir: Path) 
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
-def discover_csv_files(raw_dir: Path) -> List[Path]:
+def save_source_documents(source_id: str, documents: Dict[str, List[str]], output_dir: Path) -> Path:
+    """
+    Save a single JSON per source:
+    {
+      "source": "<archivo>",
+      "document_count": N,
+      "documents": [{ "doc_id": ..., "tokens": [...] }]
+    }
+    """
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "source": source_id,
+        "document_count": len(documents),
+        "documents": [{"doc_id": doc_id, "tokens": tokens} for doc_id, tokens in documents.items()],
+    }
+    out_path = output_dir / f"{source_id}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return out_path
+
+
+def discover_sources(raw_dir: Path, extensions: Sequence[str]) -> List[Path]:
     raw_dir = Path(raw_dir)
     if not raw_dir.exists():
         return []
-    return sorted([p for p in raw_dir.rglob("*.csv") if p.is_file()])
+    ext_set = {e.lower() for e in extensions}
+    return sorted([p for p in raw_dir.rglob("*") if p.is_file() and p.suffix.lower() in ext_set])
 
 
-def process_all_datasets(
-    raw_dir: Path = Path("data/raw"),
-    processed_dir: Path = Path("data/processed"),
-    *,
-    language: str = "english",
-    text_column: Optional[str] = None,
-) -> Dict[str, List[str]]:
-    """
-    Process all CSV datasets under `raw_dir` and save JSON files into `processed_dir`.
-    """
+def process_generic_file(path: Path, pipeline: PreprocessingPipeline, text_column: Optional[str] = None) -> Dict[str, List[str]]:
+    suffix = path.suffix.lower()
+    dataset_id = _slugify(path.stem)
 
-    pipeline = PreprocessingPipeline(language=language)
-    all_documents: Dict[str, List[str]] = {}
-
-    csv_files = discover_csv_files(raw_dir)
-    if not csv_files:
-        print(f"[preprocessing] No se encontraron CSV en: {raw_dir}", file=sys.stderr)
-        return {}
-
-    for csv_path in csv_files:
-        dataset_id = _slugify(csv_path.stem)
-        out_dir = Path(processed_dir)
+    if suffix == ".csv":
         try:
-            docs = pipeline.process_csv(
-                csv_path,
+            return pipeline.process_csv(
+                path,
                 text_column=text_column,
                 doc_id_prefix=f"{dataset_id}_doc",
                 read_csv_kwargs={"on_bad_lines": "skip"},
             )
         except TypeError:
-            # For older pandas versions where on_bad_lines may not exist.
-            docs = pipeline.process_csv(
-                csv_path,
-                text_column=text_column,
-                doc_id_prefix=f"{dataset_id}_doc",
+            return pipeline.process_csv(path, text_column=text_column, doc_id_prefix=f"{dataset_id}_doc")
+
+    if suffix in {".txt", ".md"}:
+        text = _read_text_file(path)
+        return pipeline.process_text_blob(text, doc_id=f"{dataset_id}_doc_1")
+
+    if suffix == ".html":
+        text = _read_html_file(path)
+        return pipeline.process_text_blob(text, doc_id=f"{dataset_id}_doc_1")
+
+    if suffix in {".docx"}:
+        text = _read_docx_file(path)
+        return pipeline.process_text_blob(text, doc_id=f"{dataset_id}_doc_1")
+
+    raise ValueError(f"Formato no soportado: {suffix}")
+
+
+def process_all_sources(
+    raw_dir: Path = Path("data/raw"),
+    processed_dir: Path = Path("data/processed"),
+    *,
+    language: str = "english",
+    text_column: Optional[str] = None,
+    extensions: Sequence[str] = (".csv", ".txt", ".md", ".html", ".docx"),
+) -> Dict[str, List[str]]:
+    """
+    Procesa todas las fuentes soportadas bajo `raw_dir` y guarda un JSON por archivo en `processed_dir`.
+    """
+
+    pipeline = PreprocessingPipeline(language=language)
+    all_documents: Dict[str, List[str]] = {}
+
+    sources = discover_sources(raw_dir, extensions)
+    if not sources:
+        print(f"[preprocessing] No se encontraron fuentes en: {raw_dir}", file=sys.stderr)
+        return {}
+
+    for path in sources:
+        dataset_id = _slugify(path.stem)
+        try:
+            docs = (
+                process_generic_file(path, pipeline, text_column=text_column)
             )
         except Exception as exc:
-            print(f"[preprocessing] {csv_path.name}: error -> {exc}", file=sys.stderr)
+            print(f"[preprocessing] {path.name}: error -> {exc}", file=sys.stderr)
             continue
 
-        save_processed_documents(docs, out_dir)
+        save_source_documents(dataset_id, docs, processed_dir)
         all_documents.update(docs)
         print(
-            f"[preprocessing] {csv_path.name}: {len(docs)} documentos -> {out_dir}/",
+            f"[preprocessing] {path.name}: {len(docs)} documentos -> {processed_dir}/{dataset_id}.json",
             file=sys.stderr,
         )
 
@@ -280,9 +355,9 @@ def process_all_datasets(
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Preprocesa datasets CSV (turismo/viajes) para indexacion.")
-    parser.add_argument("--raw-dir", default="data/raw", help="Directorio con CSV sin procesar.")
-    parser.add_argument("--out-dir", default="data/processed", help="Directorio de salida para JSON procesados.")
+    parser = argparse.ArgumentParser(description="Preprocesa fuentes (CSV, TXT, MD, HTML, DOCX) para indexacion.")
+    parser.add_argument("--raw-dir", default="data/raw", help="Directorio con fuentes sin procesar.")
+    parser.add_argument("--out-dir", default="data/processed", help="Directorio de salida para JSON procesados (1 por fuente).")
     parser.add_argument(
         "--language",
         default="english",
@@ -293,16 +368,23 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Nombre de columna de texto (opcional). Si no se indica, se autodetecta.",
     )
+    parser.add_argument(
+        "--extensions",
+        default=".csv,.txt,.md,.html,.docx",
+        help="Extensiones a procesar, separadas por coma (ej: .csv,.txt).",
+    )
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _build_arg_parser().parse_args(argv)
-    process_all_datasets(
+    extensions = [ext.strip() for ext in args.extensions.split(",") if ext.strip()]
+    process_all_sources(
         Path(args.raw_dir),
         Path(args.out_dir),
         language=args.language,
         text_column=args.text_column,
+        extensions=extensions,
     )
     return 0
 
