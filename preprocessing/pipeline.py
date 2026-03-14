@@ -24,6 +24,8 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from docx import Document
 
+DEFAULT_EXTENSIONS: Tuple[str, ...] = (".csv", ".txt", ".md", ".html", ".docx")
+
 try:
     from .cleaner import TextCleaner
     from .stemmer import Stemmer
@@ -319,7 +321,7 @@ def process_all_sources(
     *,
     language: str = "english",
     text_column: Optional[str] = None,
-    extensions: Sequence[str] = (".csv", ".txt", ".md", ".html", ".docx"),
+    extensions: Optional[Sequence[str]] = None,
 ) -> Dict[str, List[str]]:
     """
     Procesa todas las fuentes soportadas bajo `raw_dir` y guarda un JSON por archivo en `processed_dir`.
@@ -328,7 +330,8 @@ def process_all_sources(
     pipeline = PreprocessingPipeline(language=language)
     all_documents: Dict[str, List[str]] = {}
 
-    sources = discover_sources(raw_dir, extensions)
+    ext_list = list(extensions) if extensions else list(DEFAULT_EXTENSIONS)
+    sources = discover_sources(raw_dir, ext_list)
     if not sources:
         print(f"[preprocessing] No se encontraron fuentes en: {raw_dir}", file=sys.stderr)
         return {}
@@ -367,23 +370,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Nombre de columna de texto (opcional). Si no se indica, se autodetecta.",
     )
-    parser.add_argument(
-        "--extensions",
-        default=".csv,.txt,.md,.html,.docx",
-        help="Extensiones a procesar, separadas por coma (ej: .csv,.txt).",
-    )
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _build_arg_parser().parse_args(argv)
-    extensions = [ext.strip() for ext in args.extensions.split(",") if ext.strip()]
     process_all_sources(
         Path(args.raw_dir),
         Path(args.out_dir),
         language=args.language,
         text_column=args.text_column,
-        extensions=extensions,
     )
     return 0
 

@@ -38,7 +38,7 @@ Pero para cumplir el flujo completo del proyecto (descubrir archivos -> detectar
 
 Provee el pipeline end-to-end:
 
-- Descubre multiples fuentes en `data/raw/` (CSV, TXT, MD, HTML, DOCX; extensiones configurables).
+- Descubre multiples fuentes en `data/raw/` (CSV, TXT, MD, HTML, DOCX; se detectan automaticamente).
 - Detecta automaticamente la columna de texto (por nombres tipicos como `review`, `text`, `review_text`, o por heuristica de longitud).
 - Procesa cada documento (para CSV se junta todo el texto de la columna detectada; para TXT/MD/HTML/DOCX es el archivo completo): `clean -> tokenize -> stopwords -> stemming`.
 - Devuelve el diccionario esperado por el indexador: `{doc_id: [tokens]}`.
@@ -78,7 +78,6 @@ python3 -m preprocessing.pipeline --language spanish
 
 Opciones utiles:
 - `--language spanish` para stopwords/stemming en espanol.
-- `--extensions .csv,.txt,.md,.html,.docx` para controlar los formatos a procesar.
 
 Notas:
 - Si una columna de texto en CSV no puede detectarse, el pipeline reporta el error y sigue con la siguiente fuente.
