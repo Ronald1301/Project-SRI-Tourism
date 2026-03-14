@@ -181,7 +181,7 @@ class PreprocessingPipeline:
         df: "pd.DataFrame",
         *,
         text_column: Optional[str] = None,
-        doc_id_prefix: str = "doc",
+        doc_id: str = "doc_1",
     ) -> Dict[str, List[str]]:
         if df is None or df.empty:
             return {}
@@ -202,11 +202,10 @@ class PreprocessingPipeline:
                 f"Columnas disponibles: {list(df.columns)}"
             )
 
-        documents: Dict[str, List[str]] = {}
-        for idx, raw_text in enumerate(df[chosen_col], start=1):
-            doc_id = f"{doc_id_prefix}_{idx}"
-            documents[doc_id] = self.process_text(raw_text)
-        return documents
+        # Concatenate all rows of the chosen column into a single text blob.
+        series = df[chosen_col].dropna().astype(str)
+        full_text = "\n".join(series.tolist())
+        return {doc_id: self.process_text(full_text)}
 
     def process_csv(
         self,
@@ -225,8 +224,8 @@ class PreprocessingPipeline:
             kwargs.update(read_csv_kwargs)
 
         df = pd.read_csv(csv_path, **kwargs)
-        prefix = doc_id_prefix or "doc"
-        return self.process_dataframe(df, text_column=text_column, doc_id_prefix=prefix)
+        doc_id = doc_id_prefix or "doc_1"
+        return self.process_dataframe(df, text_column=text_column, doc_id=doc_id)
 
     def process_text_blob(
         self,

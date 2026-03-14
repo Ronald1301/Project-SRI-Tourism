@@ -40,7 +40,7 @@ Provee el pipeline end-to-end:
 
 - Descubre multiples fuentes en `data/raw/` (CSV, TXT, MD, HTML, DOCX; extensiones configurables).
 - Detecta automaticamente la columna de texto (por nombres tipicos como `review`, `text`, `review_text`, o por heuristica de longitud).
-- Procesa cada documento (fila en CSV, archivo completo en otros formatos): `clean -> tokenize -> stopwords -> stemming`.
+- Procesa cada documento (para CSV se junta todo el texto de la columna detectada; para TXT/MD/HTML/DOCX es el archivo completo): `clean -> tokenize -> stopwords -> stemming`.
 - Devuelve el diccionario esperado por el indexador: `{doc_id: [tokens]}`.
 - Guarda **un solo JSON por fuente** en `data/processed/<nombre_fuente>.json`:
 
@@ -82,5 +82,5 @@ Opciones utiles:
 
 Notas:
 - Si una columna de texto en CSV no puede detectarse, el pipeline reporta el error y sigue con la siguiente fuente.
-- Para CSV se asume `1 fila = 1 documento`; para TXT/MD/HTML/DOCX se asume `1 archivo = 1 documento`.
+- Para CSV se toma la columna de texto, se concatenan todas sus filas y se procesa como un solo documento; para TXT/MD/HTML/DOCX se procesa el archivo completo como un solo documento.
 - Cada fuente produce **un** archivo JSON en `data/processed/`, evitando miles de archivos sueltos.
