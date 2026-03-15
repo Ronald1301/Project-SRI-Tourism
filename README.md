@@ -10,7 +10,7 @@ sri_turismo/
 │   ├── raw/          # Datos sin procesar
 │   ├── processed/    # Datos procesados
 │   └── index/        # Índices generados
-├── crawler/          # Web scraping
+├── web_crawler/      # Web crawling / scraping
 ├── preprocessing/    # Preprocesamiento de texto
 ├── indexing/         # Creación de índices
 ├── retrieval/        # Recuperación de documentos
@@ -29,12 +29,15 @@ pip install -r requirements.txt
 ## Uso
 
 ```bash
-python main.py
+python3 main.py crawl
 ```
+
+El crawler usa valores por defecto definidos en `web_crawler/preset.py`.
+Edita ese archivo para cambiar seeds, dominios, limites y politicas.
 
 ## Módulos
 
-- **crawler**: Descarga reseñas de turismo
+- **web_crawler**: Descarga y extrae reseñas de turismo
 - **preprocessing**: Limpieza y normalización de texto
 - **indexing**: Creación de índices de búsqueda
 - **retrieval**: Motor de búsqueda y recuperación
