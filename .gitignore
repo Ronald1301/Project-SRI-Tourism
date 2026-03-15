@@ -183,4 +183,4 @@ cython_debug/
 #Carpetas
 .LNCS Templates/
 ._MACOSX/
-Pipeline/
+Pipelines/
