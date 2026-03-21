@@ -1,0 +1,194 @@
+\documentclass[12pt]{article}
+
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{hyperref}
+
+\geometry{margin=1in}
+
+\title{Sistema de Recuperación de Información\\
+	Dominio: Turismo y Viajes\\
+	Corte 1: Adquisición, Indexación y Recuperación Básica}
+
+\author{Equipo de Trabajo}
+\date{\today}
+
+\begin{document}
+	
+	\maketitle
+	
+	\section{Introducción}
+	
+	El presente proyecto tiene como objetivo el desarrollo de un Sistema de Recuperación de Información (SRI) enfocado en el dominio de turismo y viajes. Este sistema permite procesar, indexar y recuperar documentos textuales, principalmente reseñas de usuarios, con el fin de ofrecer resultados relevantes ante consultas en lenguaje natural.
+	
+	En este primer corte se implementan los componentes fundamentales del sistema: adquisición de datos, preprocesamiento, indexación y un modelo de recuperación basado en semántica latente.
+	
+	\section{Definición del dominio}
+	
+	El dominio seleccionado corresponde al área de turismo y viajes. Este incluye información como reseñas de hoteles, opiniones de usuarios y descripciones de destinos turísticos.
+	
+	Se trata de un dominio particularmente interesante para la recuperación de información debido a que los datos provienen de lenguaje natural no estructurado, donde es común encontrar sinonimia, ambigüedad y distintas formas de expresar una misma idea.
+	
+	\section{Selección del modelo de recuperación}
+	
+	La elección del modelo de recuperación no se realizó de manera arbitraria, sino considerando las características propias del dominio.
+	
+	En el contexto del turismo, las consultas de los usuarios suelen estar formuladas en lenguaje natural, lo que implica una alta variabilidad en la forma de expresar necesidades de información. Por ejemplo, diferentes usuarios pueden referirse a un mismo concepto utilizando términos distintos, como “hotel”, “alojamiento” o “lugar para hospedarse”.
+	
+	Además, existe ambigüedad en ciertas palabras, lo cual puede afectar la precisión de los modelos basados únicamente en coincidencias exactas.
+	
+	Inicialmente se consideraron varios enfoques clásicos:
+	
+	\begin{itemize}
+		\item El modelo booleano fue descartado debido a su rigidez y a la ausencia de ranking.
+		\item El modelo vectorial basado en TF-IDF resulta adecuado como base, pero presenta limitaciones al no capturar relaciones semánticas.
+		\item Modelos probabilísticos como BM25 ofrecen buen rendimiento en ranking, pero siguen siendo dependientes de coincidencias léxicas.
+	\end{itemize}
+	
+	Dado lo anterior, se optó por utilizar \textbf{Latent Semantic Indexing (LSI)}, ya que permite representar documentos en un espacio semántico reducido, capturando relaciones latentes entre términos.
+	
+	\section{Adquisición de datos}
+	
+	Para la construcción del corpus se utilizaron datasets de reseñas turísticas en formato CSV, así como información proveniente de fuentes como guías de viaje.
+	
+	Los datos se almacenan en el directorio \texttt{data/raw/}, lo que permite mantener una separación clara entre datos originales y datos procesados, facilitando la reproducibilidad del sistema.
+	
+	\section{Pipeline del sistema}
+	
+	El sistema sigue una arquitectura tipo pipeline, donde cada módulo cumple una función específica dentro del flujo de procesamiento.
+	
+	\begin{verbatim}
+		RAW DATA (CSV / Crawling)
+		↓
+		Preprocesamiento
+		(cleaner, tokenizer, stemmer)
+		↓
+		Texto normalizado
+		(data/processed/)
+		↓
+		Vectorización TF-IDF
+		↓
+		Reducción dimensional (LSI - SVD)
+		↓
+		Vectores latentes de documentos
+		(data/index/)
+		↓
+		Consulta del usuario
+		↓
+		Preprocesamiento de consulta
+		↓
+		Vectorización TF-IDF
+		↓
+		Proyección LSI
+		↓
+		Similitud coseno
+		↓
+		Ranking (Top-K documentos)
+	\end{verbatim}
+	
+	Este flujo permite transformar datos crudos en representaciones numéricas eficientes que facilitan la recuperación de información relevante.
+	
+	\section{Preprocesamiento}
+	
+	El preprocesamiento constituye una etapa fundamental dentro del sistema, ya que permite normalizar los documentos antes de su indexación.
+	
+	En este proyecto se implementaron las siguientes etapas:
+	
+	\begin{itemize}
+		\item Limpieza de texto (eliminación de caracteres especiales)
+		\item Tokenización
+		\item Eliminación de stopwords
+		\item Aplicación de stemming
+	\end{itemize}
+	
+	El resultado de este proceso se almacena en el directorio \texttt{data/processed/}.
+	
+	\section{Indexación}
+	
+	Para la indexación se utilizaron dos enfoques principales. Por un lado, se construyó un índice invertido que permite mapear términos a los documentos en los que aparecen. Por otro lado, se generó una representación vectorial basada en TF-IDF.
+	
+	La matriz TF-IDF se define como:
+	
+	\[
+	A \in \mathbb{R}^{D \times T}
+	\]
+	
+	donde $D$ es el número de documentos y $T$ el número de términos del vocabulario.
+	\section{Modelo de recuperación: LSI}
+	
+	El modelo de recuperación implementado corresponde a Latent Semantic Indexing (LSI), el cual extiende el modelo vectorial clásico mediante técnicas de reducción de dimensionalidad.
+	
+	El enfoque implementado se fundamenta en los principios descritos en \textit{Introduction to Information Retrieval} de Manning et al. (2008), donde se introduce el uso de descomposición en valores singulares como técnica para capturar estructura semántica latente en colecciones documentales.
+	
+	Matemáticamente, se aplica una descomposición SVD sobre la matriz TF-IDF:
+	
+	\[
+	A \approx U_k \Sigma_k V_k^T
+	\]
+	
+	A partir de esta descomposición, los documentos se representan como $U_k \Sigma_k$ y las consultas se proyectan como $q_k = q V_k^T$.
+	
+	La similitud entre consulta y documentos se calcula mediante la similitud coseno:
+	
+	\[
+	\text{sim}(q, d) = \frac{q \cdot d}{||q|| \, ||d||}
+	\]
+	
+	En la implementación, se utiliza \texttt{TruncatedSVD} de \texttt{scikit-learn} para obtener una aproximación de rango reducido.
+	
+	Los artefactos generados por el modelo se almacenan en:
+	
+	\begin{itemize}
+		\item \texttt{data/index/lsi_model.pkl}
+		\item \texttt{data/index/doc_vectors.npy}
+	\end{itemize}
+	
+	\section{Motor de búsqueda}
+	
+	El sistema permite procesar consultas en lenguaje natural siguiendo un flujo estructurado:
+	
+	\begin{enumerate}
+		\item Preprocesamiento de la consulta
+		\item Vectorización utilizando TF-IDF
+		\item Proyección al espacio latente (LSI)
+		\item Cálculo de similitud coseno
+		\item Recuperación de los documentos más relevantes (Top-K)
+	\end{enumerate}
+	
+	Este enfoque permite obtener resultados ordenados por relevancia, mejorando la experiencia del usuario.
+	
+	\section{Estadísticas del corpus}
+	
+	A partir del corpus utilizado, se obtuvieron las siguientes estadísticas:
+	
+	\begin{itemize}
+		\item Número de documentos: 100
+		\item Total de palabras: 56164
+		\item Promedio de palabras por documento: 561.64
+		\item Tamaño del vocabulario: (|V| términos únicos)
+		\item Mínimo: 0
+		\item Máximo: 11383
+	\end{itemize}
+	
+	\section{Conclusiones}
+	
+	En este primer corte se logró implementar un sistema funcional de recuperación de información que integra todos los componentes fundamentales: adquisición de datos, preprocesamiento, indexación y recuperación.
+	
+	La elección del modelo LSI no solo responde a criterios técnicos, sino a una alineación directa con las características del dominio, permitiendo capturar relaciones semánticas que no son evidentes en modelos basados únicamente en coincidencias exactas.
+	
+	Este sistema constituye una base sólida para futuras extensiones, como la integración con modelos de generación de lenguaje y técnicas avanzadas de recuperación.
+	
+	\section{Bibliografía}
+	
+	\begin{itemize}
+		\item Deerwester, S. et al. (1990). Indexing by Latent Semantic Analysis.
+		\item Manning, C. D., Raghavan, P., Schütze, H. (2008). Introduction to Information Retrieval.
+		\item Baeza-Yates, R., Ribeiro-Neto, B. (1999). Modern Information Retrieval.
+	\end{itemize}
+	
+\end{document}
