@@ -8,7 +8,7 @@ semantic space. Core concepts:
 - SVD decomposition: U Σ V^T where Σ ≈ diagonal matrix of singular values
 - Dimensionality reduction: retain only k largest singular values
 - Document vectors: rows of U_k × Σ_k (semantic representation)
-- Query projection: q_semantic ← (q_tfidf × V_k × Σ_k^-1)
+- Query projection: q_semantic ← (q_tfidf × V_k^T)
 
 Benefits:
 - Reduces noise and sparsity of TF-IDF
@@ -120,53 +120,62 @@ class LSIModel:
         Project a query vector to the LSI semantic space.
         
         Mathematical operation:
-        q_lsi = q_tfidf × V × Σ^-1
-        where V is the term matrix and Σ is singular values diagonal matrix.
+        q_lsi = q_tfidf × V^T
+        where V^T are the components learned by TruncatedSVD.
         
         This allows comparison between the query and document semantic vectors
         using standard similarity measures (e.g., cosine similarity).
         
         Args:
             query_vector (ndarray): query TF-IDF vector
-                                   Shape: (num_terms,) — single document
+                                   Shape: (num_terms,) or (1, num_terms)
                                    Must have same dimension as training matrix columns
                                    
         Returns:
             ndarray: query in LSI space
                     Shape: (n_components,)
-                    Normalized like document vectors
                     
         Raises:
             RuntimeError: if model has not been trained
             ValueError: if query vector has incompatible shape/dtype
             
         Notes:
-            - The query is projected using the inverse singular values,
-              accounting for variance captured in each dimension.
+            - The query is projected into the same space as self.doc_vectors.
             - Result can be compared to self.doc_vectors via cosine similarity.
         """
         if not self.is_trained or self.svd_model is None:
             raise RuntimeError("Model must be trained before transforming queries")
         
-        if query_vector is None or len(query_vector) == 0:
+        if query_vector is None:
             raise ValueError("Query vector cannot be None or empty")
-        
+
         if not isinstance(query_vector, np.ndarray):
             query_vector = np.array(query_vector, dtype=float)
-        
+
+        if query_vector.size == 0:
+            raise ValueError("Query vector cannot be None or empty")
+
         if query_vector.dtype not in [np.float32, np.float64]:
             query_vector = query_vector.astype(float)
-        
-        expected_shape = self.svd_model.components_.shape[1]
-        if query_vector.shape[0] != expected_shape:
+
+        if query_vector.ndim == 1:
+            query_matrix = query_vector.reshape(1, -1)
+        elif query_vector.ndim == 2 and query_vector.shape[0] == 1:
+            query_matrix = query_vector
+        else:
             raise ValueError(
-                f"Query vector shape {query_vector.shape[0]} does not match "
+                "Query vector must be 1D or a single-row 2D array"
+            )
+
+        expected_shape = self.svd_model.components_.shape[1]
+        if query_matrix.shape[1] != expected_shape:
+            raise ValueError(
+                f"Query vector size {query_matrix.shape[1]} does not match "
                 f"expected vocabulary size {expected_shape}"
             )
         
-        # Project query: q_lsi = q_tfidf @ V @ Σ^-1
-        # svd_model.transform() implements this automatically
-        query_lsi = self.svd_model.transform(query_vector.reshape(1, -1))[0]
+        # Project query: q_lsi = q_tfidf @ V^T
+        query_lsi = self.svd_model.transform(query_matrix)[0]
         
         return query_lsi
     
