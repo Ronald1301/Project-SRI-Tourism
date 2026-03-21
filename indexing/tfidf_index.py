@@ -100,6 +100,40 @@ class TFIDFIndex:
             return math.log(ratio)
         return math.log(ratio, self.log_base)
 
+    def vectorize_query(self, tokens):
+        """
+        Vectorize a query using the same TF-IDF scheme as the index.
+
+        tokens: list[str]
+        returns: numpy array shape (vocab_size,)
+        """
+        if not self.vocabulary:
+            raise ValueError("Vocabulary is empty. Build or load the index first.")
+        if self.idf is None or len(self.idf) == 0:
+            raise ValueError("IDF is missing. Load index metadata or rebuild the index.")
+
+        if not tokens:
+            return np.zeros(len(self.vocabulary), dtype=float)
+
+        term_freq = {}
+        for token in tokens:
+            if token is None:
+                continue
+            if token not in self.vocabulary:
+                continue
+            term_freq[token] = term_freq.get(token, 0) + 1
+
+        if not term_freq:
+            return np.zeros(len(self.vocabulary), dtype=float)
+
+        max_freq = max(term_freq.values()) if term_freq else 0
+        vector = np.zeros(len(self.vocabulary), dtype=float)
+        for term, freq in term_freq.items():
+            col_idx = self.vocabulary[term]
+            vector[col_idx] = self._tf(freq, max_freq) * self.idf[col_idx]
+
+        return vector
+
     def save(self, matrix_path, vocab_path, meta_path=None):
         """
         Save artifacts.
