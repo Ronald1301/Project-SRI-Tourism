@@ -77,9 +77,11 @@ python3 -m preprocessing.pipeline --language spanish
 ```
 
 Opciones utiles:
+
 - `--language spanish` para stopwords/stemming en espanol.
 
 Notas:
+
 - Si una columna de texto en CSV no puede detectarse, el pipeline reporta el error y sigue con la siguiente fuente.
 - Para CSV se toma la columna de texto, se concatenan todas sus filas y se procesa como un solo documento; para TXT/MD/HTML/DOCX se procesa el archivo completo como un solo documento.
 - Cada fuente produce **un** archivo JSON en `data/processed/`, evitando miles de archivos sueltos.
