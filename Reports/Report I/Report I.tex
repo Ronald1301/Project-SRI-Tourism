@@ -11,16 +11,27 @@
 
 \geometry{margin=1in}
 
-\title{Sistema de Recuperación de Información\\
-	Dominio: Turismo y Viajes\\
-	Corte 1: Adquisición, Indexación y Recuperación Básica}
-
-\author{Equipo de Trabajo}
-\date{\today}
-
 \begin{document}
-	
-	\maketitle
+
+	\begin{titlepage}
+		\centering
+		{\LARGE Sistema de Recuperación de Información\par}
+		\vspace{0.5cm}
+		{\Large Dominio: Turismo y Viajes\par}
+		\vspace{0.5cm}
+		{\Large Corte 1: Adquisición, Indexación y Recuperación Básica\par}
+		\vspace{0.8cm}
+		{\large Universidad de La Habana (MATCOM)\par}
+		\vspace{1.5cm}
+		{\large Grupo 312\par}
+		\vspace{0.5cm}
+		{\large Desarrolladores:\par}
+		{\large Ronald Provance Valladares\par}
+		{\large Agustin Alberto Carbajal Romero\par}
+		{\large Dylan Ramses Cabrera Morales\par}
+		\vfill
+		{\large \today\par}
+	\end{titlepage}
 	
 	\section{Introducción}
 	
@@ -119,6 +130,7 @@
 	\]
 	
 	donde $D$ es el número de documentos y $T$ el número de términos del vocabulario.
+	
 	\section{Modelo de recuperación: LSI}
 	
 	El modelo de recuperación implementado corresponde a Latent Semantic Indexing (LSI), el cual extiende el modelo vectorial clásico mediante técnicas de reducción de dimensionalidad.
@@ -131,7 +143,12 @@
 	A \approx U_k \Sigma_k V_k^T
 	\]
 	
-	A partir de esta descomposición, los documentos se representan como $U_k \Sigma_k$ y las consultas se proyectan como $q_k = q V_k^T$.
+	A partir de esta descomposición:
+	
+	\begin{itemize}
+		\item Los documentos se representan como $U_k \Sigma_k$
+		\item Las consultas se proyectan como $q_k = q V_k^T$
+	\end{itemize}
 	
 	La similitud entre consulta y documentos se calcula mediante la similitud coseno:
 	
@@ -144,8 +161,8 @@
 	Los artefactos generados por el modelo se almacenan en:
 	
 	\begin{itemize}
-		\item \texttt{data/index/lsi_model.pkl}
-		\item \texttt{data/index/doc_vectors.npy}
+		\item \texttt{data/index/lsi\_model.pkl}
+		\item \texttt{data/index/doc\_vectors.npy}
 	\end{itemize}
 	
 	\section{Motor de búsqueda}
@@ -170,7 +187,7 @@
 		\item Número de documentos: 100
 		\item Total de palabras: 56164
 		\item Promedio de palabras por documento: 561.64
-		\item Tamaño del vocabulario: (|V| términos únicos)
+		\item Tamaño del vocabulario: ($|V|$ términos únicos)
 		\item Mínimo: 0
 		\item Máximo: 11383
 	\end{itemize}
