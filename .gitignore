@@ -185,3 +185,4 @@ cython_debug/
 ._MACOSX/
 Pipelines/
 .tmp/
+docs/
