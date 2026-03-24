@@ -65,7 +65,7 @@
 	
 	\section{Adquisición de datos}
 	
-	Para la construcción del corpus se utilizaron datasets de reseñas turísticas en formato CSV, así como información proveniente de fuentes como guías de viaje.
+	Para la construcción del corpus se utilizaron datasets de reseñas turísticas en formato CSV,HTML,MD,TXT, así como información proveniente de fuentes como guías de viaje.
 	
 	Los datos se almacenan en el directorio \texttt{data/raw/}, lo que permite mantener una separación clara entre datos originales y datos procesados, facilitando la reproducibilidad del sistema.
 	
@@ -74,7 +74,7 @@
 	El sistema sigue una arquitectura tipo pipeline, donde cada módulo cumple una función específica dentro del flujo de procesamiento.
 	
 	\begin{verbatim}
-		RAW DATA (CSV / Crawling)
+		RAW DATA (Documents / Crawling)
 		↓
 		Preprocesamiento
 		(cleaner, tokenizer, stemmer)
