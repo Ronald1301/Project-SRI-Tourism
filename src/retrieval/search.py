@@ -4,9 +4,9 @@ from typing import List, Tuple
 
 import numpy as np
 
-from indexing.tfidf_index import TFIDFIndex
-from preprocessing.pipeline import PreprocessingPipeline
-from retrieval.lsi_model import LSIModel
+from src.indexing.tfidf_index import TFIDFIndex
+from src.preprocessing.pipeline import PreprocessingPipeline
+from src.retrieval.lsi_model import LSIModel
 
 DEFAULT_TFIDF_MATRIX = "data/index/tfidf_matrix.npy"
 DEFAULT_TFIDF_VOCAB = "data/index/vocabulary.json"

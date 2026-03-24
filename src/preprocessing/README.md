@@ -9,7 +9,7 @@ El objetivo es transformar texto crudo (CSV, TXT, MD, HTML, DOCX) en una lista d
 ## Por que existe `pipeline.py`?
 
 Los modulos `cleaner.py`, `tokenizer.py` y `stemmer.py` son piezas pequenas y reutilizables.
-Pero para cumplir el flujo completo del proyecto (descubrir archivos -> detectar/extraer texto -> procesar documentos -> guardar JSON en `data/processed/`), hace falta una capa que **orqueste** esos pasos y maneje multiples formatos y errores. Esa capa es `pipeline.py` y se expone desde `preprocessing/__init__.py`.
+Pero para cumplir el flujo completo del proyecto (descubrir archivos -> detectar/extraer texto -> procesar documentos -> guardar JSON en `data/processed/`), hace falta una capa que **orqueste** esos pasos y maneje multiples formatos y errores. Esa capa es `pipeline.py` y se expone desde `src/preprocessing/__init__.py`.
 
 ## Modulos
 
@@ -67,13 +67,13 @@ pip install -r requirements.txt
 Ejecutar el pipeline sobre todas las fuentes soportadas:
 
 ```bash
-python3 -m preprocessing.pipeline --raw-dir data/raw --out-dir data/processed --language english
+python3 -m src.preprocessing.pipeline --raw-dir data/raw --out-dir data/processed --language english
 ```
 
 Para espanol:
 
 ```bash
-python3 -m preprocessing.pipeline --language spanish
+python3 -m src.preprocessing.pipeline --language spanish
 ```
 
 Opciones utiles:

@@ -26,7 +26,7 @@ import pickle
 import numpy as np
 from sklearn.decomposition import TruncatedSVD
 
-from utils.file_manager import load_json, load_numpy, load_pickle, save_json, save_numpy, save_pickle
+from src.utils.file_manager import load_json, load_numpy, load_pickle, save_json, save_numpy, save_pickle
 
 
 class LSIModel:

@@ -4,7 +4,7 @@ Inverted index implementation.
 Structure: term -> {doc_id: frequency}
 """
 
-from utils.file_manager import load_pickle, save_pickle
+from src.utils.file_manager import load_pickle, save_pickle
 
 
 class InvertedIndex:

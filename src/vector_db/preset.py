@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vector_store import VectorDatabase
+from src.vector_db.vector_store import VectorDatabase
 
 DOCUMENTS_JSONL_PATH: Path | None = None
 CRAWL_STRUCTURED_DIR = Path("data/raw/crawl/structured")

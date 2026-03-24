@@ -10,12 +10,13 @@ sri_turismo/
 │   ├── raw/          # Datos sin procesar
 │   ├── processed/    # Datos procesados
 │   └── index/        # Índices generados
-├── web_crawler/      # Web crawling / scraping
-├── vector_db/        # Base de datos vectorial inicial
-├── preprocessing/    # Preprocesamiento de texto
-├── indexing/         # Creación de índices
-├── retrieval/        # Recuperación de documentos
-├── utils/            # Utilidades
+├── src/              # Código fuente
+│   ├── web_crawler/  # Web crawling / scraping
+│   ├── vector_db/    # Base de datos vectorial inicial
+│   ├── preprocessing/# Preprocesamiento de texto
+│   ├── indexing/     # Creación de índices
+│   ├── retrieval/    # Recuperación de documentos
+│   └── utils/        # Utilidades
 ├── main.py           # Punto de entrada
 ├── requirements.txt  # Dependencias
 └── README.md        # Este archivo
@@ -33,7 +34,7 @@ pip install -r requirements.txt
 python3 main.py crawl
 ```
 
-El crawler usa valores por defecto definidos en `web_crawler/preset.py`.
+El crawler usa valores por defecto definidos en `src/web_crawler/preset.py`.
 Edita ese archivo para cambiar seeds, dominios, limites y politicas.
 
 Para construir la base de datos vectorial inicial:
@@ -42,7 +43,7 @@ Para construir la base de datos vectorial inicial:
 python3 main.py vectordb
 ```
 
-Configura la entrada en `vector_db/preset.py`.
+Configura la entrada en `src/vector_db/preset.py`.
 
 ## Módulos
 

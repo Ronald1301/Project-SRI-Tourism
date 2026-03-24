@@ -9,7 +9,7 @@ from typing import Iterable
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from utils.file_manager import load_json, save_json
+from src.utils.file_manager import load_json, save_json
 
 def iter_jsonl(path : Path) -> Iterable[dict]:
     with path.open("r", encoding="utf-8") as file:

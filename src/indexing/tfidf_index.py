@@ -11,7 +11,7 @@ import os
 
 import numpy as np
 
-from utils.file_manager import load_json, load_numpy, save_json, save_numpy
+from src.utils.file_manager import load_json, load_numpy, save_json, save_numpy
 
 
 class TFIDFIndex:

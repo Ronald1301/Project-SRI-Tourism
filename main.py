@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from vector_db.preset import OUTPUT_DIR, build_vector_db_from_preset, resolve_documents_path
-from web_crawler import WebCrawler, build_default_config
+from src.vector_db.preset import OUTPUT_DIR, build_vector_db_from_preset, resolve_documents_path
+from src.web_crawler import WebCrawler, build_default_config
 
 
 def _build_parser() -> argparse.ArgumentParser:

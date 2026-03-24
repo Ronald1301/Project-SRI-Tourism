@@ -31,13 +31,13 @@ try:
     from .stemmer import Stemmer
     from .tokenizer import Tokenizer
 except ImportError:  # pragma: no cover
-    # Allows running as: `python3 preprocessing/pipeline.py`
-    root_dir = Path(__file__).resolve().parents[1]
+    # Allows running as: `python3 src/preprocessing/pipeline.py`
+    root_dir = Path(__file__).resolve().parents[2]
     if str(root_dir) not in sys.path:
         sys.path.insert(0, str(root_dir))
-    from preprocessing.cleaner import TextCleaner
-    from preprocessing.stemmer import Stemmer
-    from preprocessing.tokenizer import Tokenizer
+    from src.preprocessing.cleaner import TextCleaner
+    from src.preprocessing.stemmer import Stemmer
+    from src.preprocessing.tokenizer import Tokenizer
 
 
 def _slugify(value: str) -> str:
