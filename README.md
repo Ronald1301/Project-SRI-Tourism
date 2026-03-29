@@ -30,8 +30,25 @@ pip install -r requirements.txt
 
 ## Uso
 
+Para probar el flujo integrado:
+
+```bash
+python3 main.py pipeline
+```
+
+Comandos individuales:
+
+```bash
+python3 main.py crawl
+python3 main.py vectordb
+python3 main.py query "playas en cuba" --top-k 5
+```
+
+Entradas directas por modulo:
+
 ```bash
 python3 src/web_crawler/run.py
+python3 src/vector_db/run.py
 ```
 
 El crawler usa valores por defecto definidos en `src/web_crawler/preset.py`.

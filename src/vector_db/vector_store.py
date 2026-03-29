@@ -33,7 +33,7 @@ class VectorDatabase:
     @classmethod
     def build_from_jsonl(
         cls,
-        json_path : Path,
+        jsonl_path : Path,
         text_fields : Iterable[str],
         id_field : str = "doc_id",
         store_fields : Iterable[str] | None = None,
@@ -43,8 +43,8 @@ class VectorDatabase:
         normalize_embeddings : bool = True,
         show_progress_bar : bool = True,
     ) -> "VectorDatabase":
-        if not json_path.exists():
-            raise FileNotFoundError(f"JSONL not found: {json_path}")
+        if not jsonl_path.exists():
+            raise FileNotFoundError(f"JSONL not found: {jsonl_path}")
         
         text_fields = [field for field in text_fields if field]
         if not text_fields:
@@ -55,7 +55,7 @@ class VectorDatabase:
         metadata : list[dict] = []
         store_fields = list(store_fields or [])
 
-        for idx, doc in enumerate(iter_jsonl(json_path)):
+        for idx, doc in enumerate(iter_jsonl(jsonl_path)):
             doc_id = doc.get(id_field) or f"doc_{idx}"
             parts = []
             for field_name in text_fields:
@@ -98,7 +98,7 @@ class VectorDatabase:
     def get_model(self) -> SentenceTransformer:
         if self.model is None:
             self.model = SentenceTransformer(self.model_name)
-        return self.model_name
+        return self.model
     
     def save(self, output_dir : Path) -> None:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -125,12 +125,12 @@ class VectorDatabase:
         embeddings = np.load(embeddings_path)
         meta = load_json(str(meta_path))
         return cls(
-            model_name = meta.get("model_name", "all-MiniLM-L6_v2"),
+            model_name = meta.get("model_name", "all-MiniLM-L6-v2"),
             embeddings = embeddings,
             doc_ids = meta.get("doc_ids", []),
             metadata = meta.get("metadata", []),
             text_fields = meta.get("text_fields", []),
-            id_field = meta.get("id_field", []),
+            id_field = meta.get("id_field", "doc_id"),
             normalize_embeddings = bool(meta.get("normalize_embeddings", True)),
         )
     
