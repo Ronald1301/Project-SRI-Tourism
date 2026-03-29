@@ -17,7 +17,7 @@ sri_turismo/
 │   ├── indexing/     # Creación de índices
 │   ├── retrieval/    # Recuperación de documentos
 │   └── utils/        # Utilidades
-├── main.py           # Punto de entrada
+├── main.py           # Archivo principal (vacio)
 ├── requirements.txt  # Dependencias
 └── README.md        # Este archivo
 ```
@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ## Uso
 
 ```bash
-python3 main.py crawl
+python3 src/web_crawler/run.py
 ```
 
 El crawler usa valores por defecto definidos en `src/web_crawler/preset.py`.
@@ -40,7 +40,7 @@ Edita ese archivo para cambiar seeds, dominios, limites y politicas.
 Para construir la base de datos vectorial inicial:
 
 ```bash
-python3 main.py vectordb
+python3 src/vector_db/run.py
 ```
 
 Configura la entrada en `src/vector_db/preset.py`.

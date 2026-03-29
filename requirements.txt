@@ -9,3 +9,6 @@ scikit-learn>=1.4.0; python_version >= "3.10"
 nltk>=3.8.1
 python-docx>=0.8.11
 beautifulsoup4>=4.11.2
+requests>=2.31.0
+lxml>=4.9.0
+sentence-transformers>=2.2.2
