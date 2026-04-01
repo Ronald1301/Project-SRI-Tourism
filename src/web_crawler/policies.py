@@ -66,10 +66,12 @@ class CrawlPolicies:
         self.robots_cache[host_key] = parser
         return parser
     
-    def is_allowed_by_robots(self, url : str, user_agent : str) -> bool:
+    def is_allowed_by_robots(self, url : str, user_agent : str) -> bool: 
         if not self.config.obey_robots:
             return True
         parser = self.get_robots_parser(url)
+        if parser is None:
+            return True
         try:
             return parser.can_fetch(user_agent,url)
         except Exception:

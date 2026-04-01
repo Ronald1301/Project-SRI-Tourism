@@ -17,11 +17,11 @@ DEFAULT_EXCLUDE_URL_PATTERNS = [
     r"\.rar$",
     r"\.mp4$",
     r"\.mp3$",
-    r"/wiki/File:",
-    r"/wiki/Category:",
-    r"/wiki/Categor[ií]a:",
-    r"/wiki/Special:",
-    r"/wiki/Template:",
+    # r"/wiki/File:",
+    # r"/wiki/Category:",
+    # r"/wiki/Categor[ií]a:",
+    # r"/wiki/Special:",
+    # r"/wiki/Template:",
 ]
 
 @dataclass(slots=True)
@@ -39,6 +39,7 @@ class CrawlerConfig:
     include_url_patterns : list[str] = field(default_factory=list)
     exclude_url_patterns : list[str] = field(default_factory=lambda: DEFAULT_EXCLUDE_URL_PATTERNS.copy())
     allowed_schemes : tuple[str, ...] = ("http", "https")
+    progress_every_pages : int = 10
 
     @classmethod
     def from_iterables(

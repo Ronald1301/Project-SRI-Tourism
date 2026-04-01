@@ -17,7 +17,7 @@ sri_turismo/
 │   ├── indexing/     # Creación de índices
 │   ├── retrieval/    # Recuperación de documentos
 │   └── utils/        # Utilidades
-├── main.py           # Archivo principal (vacio)
+├── main.py           # Orquestador de pruebas
 ├── requirements.txt  # Dependencias
 └── README.md        # Este archivo
 ```
@@ -47,12 +47,12 @@ python3 main.py query "playas en cuba" --top-k 5
 Entradas directas por modulo:
 
 ```bash
-python3 src/web_crawler/run.py
+python3 -m  src.web_crawler.run
 python3 src/vector_db/run.py
 ```
 
-El crawler usa valores por defecto definidos en `src/web_crawler/preset.py`.
-Edita ese archivo para cambiar seeds, dominios, limites y politicas.
+El crawler usa valores por defecto definidos en `src/web_crawler/sites.py`.
+Edita ese archivo para cambiar seeds, dominios, limites y politicas por sitio.
 
 Para construir la base de datos vectorial inicial:
 
