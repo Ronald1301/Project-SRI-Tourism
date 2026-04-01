@@ -137,6 +137,7 @@ class WebCrawler:
             
             self.storage.append_document(document)
             self.stats["documents_saved"] += 1
+            self.print_progress()
 
             if depth >= self.config.max_depth:
                 continue
@@ -172,3 +173,19 @@ class WebCrawler:
         report_path = self.storage.save_report(report)
         report["paths"]["report_json"] = report_path
         return report
+
+    def print_progress(self) -> None:
+        pages = self.stats["pages_fetched"]
+        if pages <= 0:
+            return
+
+        by_pages = (
+            self.config.progress_every_pages > 0
+            and pages % self.config.progress_every_pages == 0
+        )
+        if not by_pages:
+            return
+        print(
+            f"[crawler] pages={pages} saved={self.stats['documents_saved']} "
+            f"queued={len(self.queued)} visited={self.stats['urls_visited']}"
+        )
