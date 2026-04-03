@@ -42,13 +42,14 @@ Comandos individuales:
 python3 main.py crawl
 python3 main.py vectordb
 python3 main.py query "playas en cuba" --top-k 5
+python3 main.py lsi_train
+python3 main.py lsi_query "turismo en cuba" --top-k 5
 ```
 
 Entradas directas por modulo:
 
 ```bash
 python3 -m  src.web_crawler.run
-python3 src/vector_db/run.py
 ```
 
 El crawler usa valores por defecto definidos en `src/web_crawler/sites.py`.
