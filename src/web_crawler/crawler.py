@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
+from pathlib import Path
 from urllib.parse import urlparse
 import requests
 from .config import CrawlerConfig
@@ -21,6 +22,9 @@ class WebCrawler:
 
         self.last_request_at : dict[str,float] = {}
         self.queued : set[str] = set()
+        self.visited_urls : set[str] = set()
+        if self.config.persist_visited:
+            self.visited_urls = self.load_visited_urls(self.config.visited_urls_path)
 
         self.stats : dict[str , int] = {
             "seed_urls" : len(config.seed_urls),
@@ -34,6 +38,7 @@ class WebCrawler:
             "skipped_robots" : 0,
             "skipped_non_html" : 0,
             "skipped_duplicate" : 0,
+            "skipped_persisted" : 0,
         }
     
     def respect_delay(self , url : str) -> None:
@@ -115,6 +120,35 @@ class WebCrawler:
                 self.stats["skipped_robots"] += 1
                 continue
 
+            if self.config.persist_visited and current_url in self.visited_urls:
+                visited.add(current_url)
+                self.stats["urls_visited"] += 1
+                self.stats["skipped_persisted"] += 1
+
+                fetched = self.fetch(current_url, depth)
+                if fetched is None:
+                    continue
+                final_url, html, content_type = fetched
+                if "text/html" not in content_type:
+                    self.stats["skipped_non_html"] += 1
+                    continue
+                self.stats["pages_fetched"] += 1
+
+                links = extract_links(html, final_url, self.policies)
+                self.stats["links_discovered"] += len(links)
+                for link in links:
+                    if link in visited or link in self.queued:
+                        continue
+                    queue.append((link, depth + 1, final_url))
+                    self.queued.add(link)
+                    self.stats["links_enqueued"] += 1
+
+                if self.config.persist_visited:
+                    self.append_visited_url(final_url)
+
+                self.print_progress()
+                continue
+
             visited.add(current_url)
             self.stats["urls_visited"] += 1
 
@@ -132,12 +166,16 @@ class WebCrawler:
             document["depth"] = depth
             document["parent_url"] = parent_url
 
+            raw_html_path = None
             if self.config.save_html:
-                document["raw_html_path"] = self.storage.save_html(final_url,html,document["doc_id"])
+                raw_html_path = self.storage.save_html(final_url,html,document["doc_id"])
+                document["raw_html_path"] = raw_html_path
             
             self.storage.append_document(document)
             self.stats["documents_saved"] += 1
             self.print_progress()
+            if self.config.persist_visited:
+                self.append_visited_url(final_url)
 
             if depth >= self.config.max_depth:
                 continue
@@ -189,3 +227,30 @@ class WebCrawler:
             f"[crawler] pages={pages} saved={self.stats['documents_saved']} "
             f"queued={len(self.queued)} visited={self.stats['urls_visited']}"
         )
+
+    def load_visited_urls(self, path: Path) -> set[str]:
+        urls: set[str] = set()
+        try:
+            if not path.exists():
+                return urls
+            with path.open("r", encoding="utf-8") as file:
+                for line in file:
+                    url = line.strip()
+                    if url:
+                        urls.add(url)
+        except OSError:
+            return urls
+        return urls
+
+    def append_visited_url(self, url: str) -> None:
+        if not url or url in self.visited_urls:
+            return
+        self.visited_urls.add(url)
+        path = self.config.visited_urls_path
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as file:
+                file.write(url)
+                file.write("\n")
+        except OSError:
+            return

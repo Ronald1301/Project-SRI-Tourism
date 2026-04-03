@@ -24,6 +24,8 @@ DEFAULT_EXCLUDE_URL_PATTERNS = [
     # r"/wiki/Template:",
 ]
 
+DEFAULT_VISITED_URLS_PATH = Path(__file__).resolve().parent / "visited_urls.txt"
+
 @dataclass(slots=True)
 class CrawlerConfig:
     seed_urls : list[str]
@@ -40,6 +42,8 @@ class CrawlerConfig:
     exclude_url_patterns : list[str] = field(default_factory=lambda: DEFAULT_EXCLUDE_URL_PATTERNS.copy())
     allowed_schemes : tuple[str, ...] = ("http", "https")
     progress_every_pages : int = 10
+    persist_visited : bool = True
+    visited_urls_path : Path = DEFAULT_VISITED_URLS_PATH
 
     @classmethod
     def from_iterables(
