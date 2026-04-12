@@ -130,7 +130,7 @@ def _run_lsi_query(query_text: str, top_k: int) -> int:
 
 
 def _run_lsi_train() -> int:
-    raw_dir = resolve_documents_path()
+    raw_dir = resolve_documents_path().parent
     processed_dir = Path("data/processed/lsi_training")
     language = "spanish"
     n_components = 100
