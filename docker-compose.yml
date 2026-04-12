@@ -1,0 +1,11 @@
+services:
+  sri-tourism:
+    build: .
+    image: sri-tourism:latest
+    working_dir: /app
+    volumes:
+      - ./data:/app/data
+    stdin_open: true
+    tty: true
+    # command: ["python3", "main.py", "--help"]
+    command: ["/bin/bash"]

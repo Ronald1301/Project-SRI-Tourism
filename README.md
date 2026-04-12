@@ -28,6 +28,52 @@ sri_turismo/
 pip install -r requirements.txt
 ```
 
+## Docker
+
+Construir la imagen:
+
+```bash
+docker build -t sri-tourism .
+```
+
+Ejecutar con volumen para datos (recomendado):
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)/data:/app/data" \
+  sri-tourism python3 main.py pipeline
+```
+
+Nota: `data/` está excluido en `.dockerignore` para mantener la imagen liviana.
+
+Ejecutar consultas:
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)/data:/app/data" \
+  sri-tourism python3 main.py lsi_query "turismo en cuba" --top-k 5
+```
+
+### Docker Compose
+
+Construir:
+
+```bash
+docker compose build
+```
+
+Ejecutar el pipeline:
+
+```bash
+docker compose run --rm sri-tourism
+```
+
+Consultar LSI:
+
+```bash
+docker compose run --rm sri-tourism python3 main.py lsi_query "turismo en cuba" --top-k 5
+```
+
 ## Uso
 
 Para probar el flujo integrado:

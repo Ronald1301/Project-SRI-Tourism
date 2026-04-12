@@ -24,7 +24,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from docx import Document
 
-DEFAULT_EXTENSIONS: Tuple[str, ...] = (".csv", ".txt", ".md", ".html", ".docx")
+DEFAULT_EXTENSIONS: Tuple[str, ...] = (".csv", ".txt", ".md", ".html", ".docx", ".json", ".jsonl")
 
 try:
     from .cleaner import TextCleaner
@@ -123,6 +123,50 @@ def _read_docx_file(path: Path) -> str:
     paragraphs = [p.text for p in doc.paragraphs if p.text]
     return "\n".join(paragraphs)
 
+
+def _collect_json_strings(obj: object, text_fields: Optional[Sequence[str]] = None) -> List[str]:
+    texts: List[str] = []
+
+    if isinstance(obj, dict):
+        if text_fields:
+            for key in text_fields:
+                value = obj.get(key)
+                if isinstance(value, str) and value.strip():
+                    texts.append(value.strip())
+                elif isinstance(value, list):
+                    texts.extend([str(v).strip() for v in value if isinstance(v, str) and v.strip()])
+            if texts:
+                return texts
+        for value in obj.values():
+            texts.extend(_collect_json_strings(value, text_fields=None))
+        return texts
+
+    if isinstance(obj, list):
+        for item in obj:
+            texts.extend(_collect_json_strings(item, text_fields=text_fields))
+        return texts
+
+    if isinstance(obj, str) and obj.strip():
+        texts.append(obj.strip())
+    return texts
+
+
+def _read_json_file(path: Path, *, text_fields: Optional[Sequence[str]] = None) -> str:
+    data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    texts = _collect_json_strings(data, text_fields=text_fields)
+    return "\n".join(texts)
+
+
+def _iter_jsonl(path: Path) -> Iterable[dict]:
+    with path.open("r", encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                continue
 
 def guess_text_column_by_length(df: "pd.DataFrame", sample_size: int = 200) -> Optional[str]:
     """
@@ -311,6 +355,29 @@ def process_generic_file(path: Path, pipeline: PreprocessingPipeline, text_colum
     if suffix in {".docx"}:
         text = _read_docx_file(path)
         return pipeline.process_text_blob(text, doc_id=f"{dataset_id}_doc_1")
+
+    if suffix == ".json":
+        text = _read_json_file(path)
+        return pipeline.process_text_blob(text, doc_id=f"{dataset_id}_doc_1")
+
+    if suffix == ".jsonl":
+        documents: Dict[str, List[str]] = {}
+        for idx, obj in enumerate(_iter_jsonl(path), start=1):
+            doc_id = None
+            if isinstance(obj, dict):
+                if isinstance(obj.get("doc_id"), str):
+                    doc_id = obj.get("doc_id")
+                elif isinstance(obj.get("id"), str):
+                    doc_id = obj.get("id")
+            if not doc_id:
+                doc_id = f"{dataset_id}_doc_{idx}"
+
+            text = "\n".join(_collect_json_strings(obj))
+            if not text.strip():
+                continue
+            documents[doc_id] = pipeline.process_text(text)
+
+        return documents
 
     raise ValueError(f"Formato no soportado: {suffix}")
 
