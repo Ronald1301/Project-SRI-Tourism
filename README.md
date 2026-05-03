@@ -66,6 +66,14 @@ docker run --rm -it \
   sri-tourism python3 main.py evaluate_rec01 --top-k 5
 ```
 
+Consultar el RAG:
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)/data:/app/data" \
+  sri-tourism python3 main.py rag_query "playas en cuba" --top-k 4
+```
+
 ### Docker Compose
 
 Construir:
@@ -92,6 +100,12 @@ Evaluar REC-01:
 docker compose run --rm sri-tourism python3 main.py evaluate_rec01 --top-k 5
 ```
 
+Consultar el RAG:
+
+```bash
+docker compose run --rm sri-tourism python3 main.py rag_query "playas en cuba" --top-k 4
+```
+
 ## Uso
 
 Para probar el flujo integrado:
@@ -113,11 +127,14 @@ Comandos individuales:
 ```bash
 python3 main.py crawl
 python3 main.py vectordb
+python3 main.py pipeline
 python3 main.py query "playas en cuba" --top-k 5
 python3 main.py rag_query "playas en cuba" --top-k 4
+python3 main.py rag_query "playas en cuba" --top-k 4 --show-prompt
 python3 main.py lsi_train
 python3 main.py lsi_query "turismo en cuba" --top-k 5
 python3 main.py evaluate_rec01 --top-k 5
+python3 main.py evaluate_rec01 --qrels data/evaluation/rec01_qrels.json --top-k 5 --report-out data/evaluation/reports/rec01_eval_report.json
 ```
 
 Comandos que devuelven ranking:
@@ -131,6 +148,16 @@ python3 main.py evaluate_rec01 --top-k 5
 - `query`: ranking de la base vectorial (`vector_db`).
 - `lsi_query`: ranking del recuperador clasico refinado (`TF-IDF + LSI + rerank + threshold`).
 - `evaluate_rec01`: compara el ranking baseline vs refinado con `P@3`, `P@5`, `MAP` y `NDCG@5`.
+
+Comandos RAG:
+
+```bash
+python3 main.py rag_query "playas en cuba" --top-k 4
+python3 main.py rag_query "playas en cuba" --top-k 4 --show-prompt
+```
+
+- `rag_query`: recupera documentos desde la base vectorial y construye una respuesta RAG basada en el contexto recuperado.
+- `--show-prompt`: imprime el prompt completo construido para inspeccion o depuracion.
 
 Entradas directas por modulo:
 
