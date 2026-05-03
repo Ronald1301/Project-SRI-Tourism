@@ -1,7 +1,41 @@
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 from pathlib import Path
+import subprocess
+import sys
+
+
+def _binary_supports_arm64(binary_path: Path) -> bool:
+    try:
+        output = subprocess.check_output(
+            ["/usr/bin/lipo", "-archs", str(binary_path)],
+            text=True,
+        ).strip()
+    except Exception:
+        return False
+    return "arm64" in output.split()
+
+
+def _maybe_reexec_in_venv() -> None:
+    project_dir = Path(__file__).resolve().parent
+    venv_python = project_dir / ".venv" / "bin" / "python"
+    if not venv_python.exists():
+        return
+
+    if sys.prefix != getattr(sys, "base_prefix", sys.prefix):
+        return
+
+    current_machine = platform.machine().lower()
+    if current_machine == "x86_64" and _binary_supports_arm64(venv_python):
+        os.execv("/usr/bin/arch", ["/usr/bin/arch", "-arm64", str(venv_python), *sys.argv])
+
+    os.execv(str(venv_python), [str(venv_python), *sys.argv])
+
+
+_maybe_reexec_in_venv()
 
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import process_all_sources
@@ -15,8 +49,6 @@ from src.retrieval.search import (
     DEFAULT_TFIDF_VOCAB,
     SemanticSearcher,
 )
-from src.vector_db.preset import OUTPUT_DIR, build_vector_db_from_preset, resolve_documents_path
-from src.vector_db.vector_store import VectorDatabase
 from src.web_crawler import WebCrawler, build_default_config
 
 
@@ -32,6 +64,14 @@ def _build_parser() -> argparse.ArgumentParser:
     query_parser = subparsers.add_parser("query", help="Consulta la base vectorial.")
     query_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     query_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados.")
+    rag_parser = subparsers.add_parser("rag_query", help="Consulta el RAG sobre la base vectorial.")
+    rag_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
+    rag_parser.add_argument("--top-k", type=int, default=4, help="Cantidad de documentos recuperados.")
+    rag_parser.add_argument(
+        "--show-prompt",
+        action="store_true",
+        help="Muestra el prompt construido para la respuesta.",
+    )
     subparsers.add_parser("lsi_train", help="Entrena y guarda TF-IDF + LSI.")
     lsi_parser = subparsers.add_parser("lsi_query", help="Consulta el modelo LSI.")
     lsi_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
@@ -56,6 +96,8 @@ def _run_crawl() -> int:
 
 
 def _run_vector_db() -> int:
+    from src.vector_db.preset import OUTPUT_DIR, build_vector_db_from_preset, resolve_documents_path
+
     try:
         source_path = resolve_documents_path()
         db = build_vector_db_from_preset()
@@ -78,6 +120,9 @@ def _run_pipeline() -> int:
 
 
 def _run_vector_db_query(query_text: str, top_k: int) -> int:
+    from src.vector_db.preset import OUTPUT_DIR
+    from src.vector_db.vector_store import VectorDatabase
+
     output_dir = Path(OUTPUT_DIR)
     try:
         db = VectorDatabase.load(output_dir)
@@ -98,6 +143,36 @@ def _run_vector_db_query(query_text: str, top_k: int) -> int:
         print(f"{idx}. score={score:.4f}  {title}")
         if url:
             print(f"   {url}")
+    return 0
+
+
+def _run_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
+    from src.retrieval.rag import RAGPipeline
+
+    try:
+        rag = RAGPipeline.from_preset()
+    except FileNotFoundError as exc:
+        print(str(exc))
+        print("Ejecuta antes: python3 main.py vectordb")
+        return 1
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+
+    result = rag.answer_query(query_text, top_k=top_k)
+    print(f"Respuesta RAG para: {query_text}")
+    print(result.answer)
+    print("")
+    print("Fuentes:")
+    for doc in result.documents:
+        print(f"[{doc.citation_id}] score={doc.score:.4f}  {doc.title}")
+        if doc.url:
+            print(f"   {doc.url}")
+
+    if show_prompt:
+        print("")
+        print("Prompt:")
+        print(result.prompt)
     return 0
 
 def _run_lsi_query(query_text: str, top_k: int) -> int:
@@ -130,6 +205,8 @@ def _run_lsi_query(query_text: str, top_k: int) -> int:
 
 
 def _run_lsi_train() -> int:
+    from src.vector_db.preset import resolve_documents_path
+
     raw_dir = resolve_documents_path().parent
     processed_dir = Path("data/processed/lsi_training")
     language = "spanish"
@@ -173,6 +250,8 @@ def main() -> int:
         return _run_pipeline()
     if args.command == "query":
         return _run_vector_db_query(" ".join(args.query), args.top_k)
+    if args.command == "rag_query":
+        return _run_rag_query(" ".join(args.query), args.top_k, args.show_prompt)
     if args.command == "lsi_train":
         return _run_lsi_train()
     if args.command == "lsi_query":
