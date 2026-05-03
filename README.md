@@ -25,8 +25,12 @@ sri_turismo/
 ## Instalación
 
 ```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+Si ejecutas `python3 main.py ...` desde la raíz del proyecto y existe `.venv/`, el script se relanza automáticamente usando `.venv/bin/python`.
 
 ## Docker
 
@@ -110,6 +114,7 @@ Comandos individuales:
 python3 main.py crawl
 python3 main.py vectordb
 python3 main.py query "playas en cuba" --top-k 5
+python3 main.py rag_query "playas en cuba" --top-k 4
 python3 main.py lsi_train
 python3 main.py lsi_query "turismo en cuba" --top-k 5
 python3 main.py evaluate_rec01 --top-k 5

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.vector_db.vector_store import VectorDatabase
+if TYPE_CHECKING:
+    from src.vector_db.vector_store import VectorDatabase
 
 DOCUMENTS_JSONL_PATH: Path | None = None
 CRAWL_STRUCTURED_DIR = Path("data/raw/crawl/structured")
@@ -44,7 +46,9 @@ def resolve_documents_path() -> Path:
             "No documents.jsonl found. Set DOCUMENTS_JSONL_PATH in vector_db/preset.py"
         )
 
-def build_vector_db_from_preset() -> VectorDatabase:
+def build_vector_db_from_preset() -> "VectorDatabase":
+    from src.vector_db.vector_store import VectorDatabase
+
     jsonl_path = resolve_documents_path()
     db = VectorDatabase.build_from_jsonl(
         jsonl_path = jsonl_path,
