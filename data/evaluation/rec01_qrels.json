@@ -1,0 +1,84 @@
+{
+  "name": "REC-01 offline evaluation set",
+  "description": "Consultas manuales del dominio turismo en Cuba para comparar el recuperador baseline LSI contra la version refinada con threshold, reranking y snippets.",
+  "queries": [
+    {
+      "query_id": "q1",
+      "query": "que ver en la habana vieja",
+      "relevant_doc_ids": [
+        "6d8ff6b6566feb406f04976e2dfc44ce32bdb457",
+        "4e40003ace3706a1e1b7210bd67e78a1100f5f71",
+        "d5de2bc28e031b23e113b5e13aeba47168348d32",
+        "9535b47901220da36808ecd4b04c666f1c3ebc70"
+      ]
+    },
+    {
+      "query_id": "q2",
+      "query": "senderismo en cuba",
+      "relevant_doc_ids": [
+        "6b7decff7c3b1420ee44e92407470056c7465b96",
+        "018a1ef5a32ba8101b3beaa6aaa6d6ef66f4cf8d",
+        "202d8043a95460ea581f4d8e032314ab2e1880f2",
+        "28c3eee00809e0c262389cdfaf88e7664ef2452b",
+        "d0d886c0d2065de5a614efb5867c9268100c7824"
+      ]
+    },
+    {
+      "query_id": "q3",
+      "query": "luna de miel en cuba",
+      "relevant_doc_ids": [
+        "f2144800cb5975561a2d88c099a4d12afaf9e744",
+        "816edbf58845f156eaf069a50f5f394dd9219f15",
+        "d37e835651bfa5eea90d7e8250c886581b42dd0f",
+        "bad3a91e09ad0524a2a402eaad17421fe838109c",
+        "6b3553ba4d03e84f16f62114fb1e3c85948072f3"
+      ]
+    },
+    {
+      "query_id": "q4",
+      "query": "internet en cuba",
+      "relevant_doc_ids": [
+        "95f38fcb3711e3de2751ebd02ae68530b28fd28d"
+      ]
+    },
+    {
+      "query_id": "q5",
+      "query": "casas particulares en trinidad",
+      "relevant_doc_ids": [
+        "32f7b4e389b65085e63c59125b5ca50adc5eeed2",
+        "6c8616f8f756b6f05124d834a4bdebf909d01581",
+        "cb4eeea8b5c06293531efaf9361d1fa721999952"
+      ]
+    },
+    {
+      "query_id": "q6",
+      "query": "playas en cayo coco",
+      "relevant_doc_ids": [
+        "bad3a91e09ad0524a2a402eaad17421fe838109c",
+        "6b3553ba4d03e84f16f62114fb1e3c85948072f3",
+        "0d80482014ab0e1921885043ab0bb5fc91afc0b6"
+      ]
+    },
+    {
+      "query_id": "q7",
+      "query": "alojamiento en varadero",
+      "relevant_doc_ids": [
+        "816edbf58845f156eaf069a50f5f394dd9219f15",
+        "1b418601c2eb53e131f7c376904cc2dad6e022d9",
+        "cb4eeea8b5c06293531efaf9361d1fa721999952"
+      ]
+    },
+    {
+      "query_id": "q8",
+      "query": "parques naturales en cuba",
+      "relevant_doc_ids": [
+        "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
+        "9fb9cd71aa0494227c52845a8a597be625a6c1f2",
+        "5f6d1a0e4c4b9871d2c80c08a15ca323f6ef12f6",
+        "018a1ef5a32ba8101b3beaa6aaa6d6ef66f4cf8d",
+        "202d8043a95460ea581f4d8e032314ab2e1880f2",
+        "28c3eee00809e0c262389cdfaf88e7664ef2452b"
+      ]
+    }
+  ]
+}

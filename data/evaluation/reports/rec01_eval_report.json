@@ -1,0 +1,272 @@
+{
+  "query_count": 8,
+  "top_k": 5,
+  "baseline": {
+    "system": "tfidf+lsi",
+    "summary": {
+      "p_at_3": 0.16666666666666666,
+      "p_at_5": 0.125,
+      "map": 0.19375,
+      "ndcg_at_5": 0.26180175272278844
+    },
+    "queries": [
+      {
+        "query_id": "q1",
+        "query": "que ver en la habana vieja",
+        "retrieved_doc_ids": [
+          "e981680ab7a7b3b36866cbee2364fe4aa833b1cb",
+          "eae0c52f68d3c41968be6246ac9b538808e23e54",
+          "0c8238c1aa0fdac6d083d1f97c076f09809b288e",
+          "40ace1d1922ace153ba5521049329bd8818d4583",
+          "c8b8fa04032e89581cf9a29d775063935dc17c16"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.0,
+        "ap": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      {
+        "query_id": "q2",
+        "query": "senderismo en cuba",
+        "retrieved_doc_ids": [
+          "8ea89385642cf30940f8b7c272cb2de6223778bb",
+          "6b7decff7c3b1420ee44e92407470056c7465b96",
+          "646cfa896b220ed7e54a11caad3e74b5745f5585",
+          "409c1d812bd015b8b38d697824fa29d23880da2a",
+          "a2a10699da0a0a2db7d0c1d89b51ccd6974cea9e"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.1,
+        "ndcg_at_5": 0.21398626473452756
+      },
+      {
+        "query_id": "q3",
+        "query": "luna de miel en cuba",
+        "retrieved_doc_ids": [
+          "f2144800cb5975561a2d88c099a4d12afaf9e744",
+          "62eeb13d4b617ad755c83442c36e213f8f112297",
+          "9929be9c5ea680b05e9d024f5f804667484e8e04",
+          "18b36186714de70cab3060a9c0a15303e1f3b512",
+          "fd9088b27e7ed8820ba716fb4ef3a9dc1940e67e"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.2,
+        "ndcg_at_5": 0.3391602052736161
+      },
+      {
+        "query_id": "q4",
+        "query": "internet en cuba",
+        "retrieved_doc_ids": [
+          "95f38fcb3711e3de2751ebd02ae68530b28fd28d",
+          "047c611a7670d6d889271eb16b6cb1cb3d6923ff",
+          "14d85c693d73001fd9c30890ab0be79fcbf73e06",
+          "7e023320fa474a8999b620e7d9fe33dd2eda0213",
+          "8d96fe59c87859b2c2a1da008b9e6f0969942b92"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "query_id": "q5",
+        "query": "casas particulares en trinidad",
+        "retrieved_doc_ids": [
+          "cfa6659700451f63c13ee847c1f99b5fbb50fc3d",
+          "7b7cea92db0eca591b57f687011a61a74099c6ea",
+          "27aa7d28adfc1da78845c87a1e691565025a7477",
+          "32f7b4e389b65085e63c59125b5ca50adc5eeed2",
+          "7d302cff76d42dc531d9422de25394c08b86e2fc"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.2,
+        "ap": 0.08333333333333333,
+        "ndcg_at_5": 0.20210734650054757
+      },
+      {
+        "query_id": "q6",
+        "query": "playas en cayo coco",
+        "retrieved_doc_ids": [
+          "73a7e0550466ca432e796fb5197f912f7d74816f",
+          "6cee50202e15fa91ecca0aa5372361f72d8af815",
+          "48f2d7d0d53511dc97881505d0333e2f813beb55",
+          "9275e9d765f4732d0d2dd6fa94ee5475655009b2",
+          "87a31fc1a407e00729674b5f6583b130363c6911"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.0,
+        "ap": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      {
+        "query_id": "q7",
+        "query": "alojamiento en varadero",
+        "retrieved_doc_ids": [
+          "ed2d04f8c23a5fc13536942b7009e95f06d60cc0",
+          "5a31844bfc471598a51747fac2f5b1105eb0626e",
+          "d6a2a392f519acc6e838823f38a7d2b7dd9c2eb8",
+          "9199c847b46d6f70a598ac8c9eea42b8ff17de9d",
+          "bc1239e3cd00bbc60be1c59930f796054b76704e"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.0,
+        "ap": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      {
+        "query_id": "q8",
+        "query": "parques naturales en cuba",
+        "retrieved_doc_ids": [
+          "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
+          "7d08a0c407011f2dec95fcdb383aecdbfdcaf70b",
+          "ad957580e3e4c88e2bcc7652cec24b49db9853b0",
+          "646cfa896b220ed7e54a11caad3e74b5745f5585",
+          "8592f75bf838e292d1c4ed7c8f2267027cb98bad"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.16666666666666666,
+        "ndcg_at_5": 0.3391602052736161
+      }
+    ]
+  },
+  "refined": {
+    "system": "tfidf+lsi+rerank+threshold",
+    "summary": {
+      "p_at_3": 0.20833333333333331,
+      "p_at_5": 0.15000000000000002,
+      "map": 0.24375,
+      "ndcg_at_5": 0.32972237000892624
+    },
+    "queries": [
+      {
+        "query_id": "q1",
+        "query": "que ver en la habana vieja",
+        "retrieved_doc_ids": [
+          "e981680ab7a7b3b36866cbee2364fe4aa833b1cb",
+          "eae0c52f68d3c41968be6246ac9b538808e23e54",
+          "6cad0b78a83819e4d1f4d63605ba7992d6e6abc6",
+          "0c8238c1aa0fdac6d083d1f97c076f09809b288e",
+          "4e40003ace3706a1e1b7210bd67e78a1100f5f71"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.2,
+        "ap": 0.05,
+        "ndcg_at_5": 0.15101961822780524
+      },
+      {
+        "query_id": "q2",
+        "query": "senderismo en cuba",
+        "retrieved_doc_ids": [
+          "6b7decff7c3b1420ee44e92407470056c7465b96",
+          "8ea89385642cf30940f8b7c272cb2de6223778bb",
+          "646cfa896b220ed7e54a11caad3e74b5745f5585",
+          "409c1d812bd015b8b38d697824fa29d23880da2a",
+          "a2a10699da0a0a2db7d0c1d89b51ccd6974cea9e"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.2,
+        "ndcg_at_5": 0.3391602052736161
+      },
+      {
+        "query_id": "q3",
+        "query": "luna de miel en cuba",
+        "retrieved_doc_ids": [
+          "f2144800cb5975561a2d88c099a4d12afaf9e744",
+          "62eeb13d4b617ad755c83442c36e213f8f112297",
+          "9929be9c5ea680b05e9d024f5f804667484e8e04",
+          "fd9088b27e7ed8820ba716fb4ef3a9dc1940e67e",
+          "e7d6f6ca23d1930ebfeaa65619888de1191157da"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.2,
+        "ndcg_at_5": 0.3391602052736161
+      },
+      {
+        "query_id": "q4",
+        "query": "internet en cuba",
+        "retrieved_doc_ids": [
+          "95f38fcb3711e3de2751ebd02ae68530b28fd28d",
+          "047c611a7670d6d889271eb16b6cb1cb3d6923ff",
+          "14d85c693d73001fd9c30890ab0be79fcbf73e06",
+          "7e023320fa474a8999b620e7d9fe33dd2eda0213",
+          "8d96fe59c87859b2c2a1da008b9e6f0969942b92"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 1.0,
+        "ndcg_at_5": 1.0
+      },
+      {
+        "query_id": "q5",
+        "query": "casas particulares en trinidad",
+        "retrieved_doc_ids": [
+          "32f7b4e389b65085e63c59125b5ca50adc5eeed2",
+          "cfa6659700451f63c13ee847c1f99b5fbb50fc3d",
+          "7b7cea92db0eca591b57f687011a61a74099c6ea",
+          "27aa7d28adfc1da78845c87a1e691565025a7477",
+          "7d302cff76d42dc531d9422de25394c08b86e2fc"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.3333333333333333,
+        "ndcg_at_5": 0.46927872602275644
+      },
+      {
+        "query_id": "q6",
+        "query": "playas en cayo coco",
+        "retrieved_doc_ids": [
+          "9275e9d765f4732d0d2dd6fa94ee5475655009b2",
+          "73a7e0550466ca432e796fb5197f912f7d74816f",
+          "6cee50202e15fa91ecca0aa5372361f72d8af815",
+          "87a31fc1a407e00729674b5f6583b130363c6911",
+          "a0a357f78fef958dc4a0e6500d98017d17624ee7"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.0,
+        "ap": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      {
+        "query_id": "q7",
+        "query": "alojamiento en varadero",
+        "retrieved_doc_ids": [
+          "ed2d04f8c23a5fc13536942b7009e95f06d60cc0",
+          "d0e28034fbda304640c22bbafec451a7a253abd4",
+          "3a9b0eff112fa76787e33dc19fd5606e88309e52",
+          "4a57ceae30ec1d399b2da9dd7afda8be1f21a9f8",
+          "d6a2a392f519acc6e838823f38a7d2b7dd9c2eb8"
+        ],
+        "p_at_3": 0.0,
+        "p_at_5": 0.0,
+        "ap": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      {
+        "query_id": "q8",
+        "query": "parques naturales en cuba",
+        "retrieved_doc_ids": [
+          "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
+          "7d08a0c407011f2dec95fcdb383aecdbfdcaf70b",
+          "646cfa896b220ed7e54a11caad3e74b5745f5585",
+          "ad957580e3e4c88e2bcc7652cec24b49db9853b0",
+          "95f7293187e19e47723cff1075bbc4562562a17a"
+        ],
+        "p_at_3": 0.3333333333333333,
+        "p_at_5": 0.2,
+        "ap": 0.16666666666666666,
+        "ndcg_at_5": 0.3391602052736161
+      }
+    ]
+  },
+  "delta": {
+    "p_at_3": 0.04166666666666666,
+    "p_at_5": 0.025000000000000022,
+    "map": 0.04999999999999999,
+    "ndcg_at_5": 0.0679206172861378
+  }
+}

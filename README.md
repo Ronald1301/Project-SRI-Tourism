@@ -54,6 +54,14 @@ docker run --rm -it \
   sri-tourism python3 main.py lsi_query "turismo en cuba" --top-k 5
 ```
 
+Evaluar baseline vs recuperador refinado:
+
+```bash
+docker run --rm -it \
+  -v "$(pwd)/data:/app/data" \
+  sri-tourism python3 main.py evaluate_rec01 --top-k 5
+```
+
 ### Docker Compose
 
 Construir:
@@ -74,12 +82,26 @@ Consultar LSI:
 docker compose run --rm sri-tourism python3 main.py lsi_query "turismo en cuba" --top-k 5
 ```
 
+Evaluar REC-01:
+
+```bash
+docker compose run --rm sri-tourism python3 main.py evaluate_rec01 --top-k 5
+```
+
 ## Uso
 
 Para probar el flujo integrado:
 
 ```bash
 python3 main.py pipeline
+```
+
+Nota: `pipeline` solo ejecuta `crawl + vectordb`. No construye el indice clasico TF-IDF/LSI ni muestra ranking.
+
+Para habilitar consultas LSI y la evaluacion offline, primero debes entrenar el indice:
+
+```bash
+python3 main.py lsi_train
 ```
 
 Comandos individuales:
@@ -90,7 +112,20 @@ python3 main.py vectordb
 python3 main.py query "playas en cuba" --top-k 5
 python3 main.py lsi_train
 python3 main.py lsi_query "turismo en cuba" --top-k 5
+python3 main.py evaluate_rec01 --top-k 5
 ```
+
+Comandos que devuelven ranking:
+
+```bash
+python3 main.py query "playas en cuba" --top-k 5
+python3 main.py lsi_query "turismo en cuba" --top-k 5
+python3 main.py evaluate_rec01 --top-k 5
+```
+
+- `query`: ranking de la base vectorial (`vector_db`).
+- `lsi_query`: ranking del recuperador clasico refinado (`TF-IDF + LSI + rerank + threshold`).
+- `evaluate_rec01`: compara el ranking baseline vs refinado con `P@3`, `P@5`, `MAP` y `NDCG@5`.
 
 Entradas directas por modulo:
 
