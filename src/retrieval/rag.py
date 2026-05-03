@@ -108,6 +108,22 @@ class RAGPipeline:
             documents=documents,
         )
 
+    def answer_with_lsi(
+        self,
+        query: str,
+        lsi_results: list[dict],
+        top_k: int = 4,
+    ) -> RAGResult:
+        documents = self._convert_lsi_results(lsi_results[:top_k])
+        prompt = self.build_prompt(query, documents)
+        answer = self.generate_answer(query, documents)
+        return RAGResult(
+            query=query,
+            prompt=prompt,
+            answer=answer,
+            documents=documents,
+        )
+
     def retrieve(self, query: str, top_k: int = 4) -> list[RetrievedDocument]:
         if self._vector_search_available:
             try:
@@ -151,6 +167,41 @@ class RAGPipeline:
                 )
             )
 
+        return documents
+
+    def _convert_lsi_results(self, lsi_results: list[dict]) -> list[RetrievedDocument]:
+        documents: list[RetrievedDocument] = []
+        for citation_id, item in enumerate(lsi_results, start=1):
+            doc_id = str(item.get("doc_id") or "").strip()
+            source_doc = self.repository.get(doc_id) or {}
+
+            merged = dict(source_doc)
+            for key, value in item.items():
+                merged.setdefault(key, value)
+
+            title = str(
+                merged.get("title")
+                or merged.get("entity_name")
+                or merged.get("doc_id")
+                or f"Documento {citation_id}"
+            ).strip()
+            summary = str(merged.get("summary") or "").strip()
+            content_text = str(merged.get("content") or merged.get("content_text") or "").strip()
+            url = str(merged.get("url") or "").strip()
+            score = float(item.get("score", 0.0))
+
+            documents.append(
+                RetrievedDocument(
+                    citation_id=citation_id,
+                    doc_id=doc_id,
+                    title=title,
+                    url=url,
+                    score=score,
+                    summary=summary,
+                    content_text=content_text,
+                    metadata=merged,
+                )
+            )
         return documents
 
     def _tfidf_search(self, query: str, top_k: int = 4) -> list[dict]:
