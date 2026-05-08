@@ -12,3 +12,4 @@ beautifulsoup4>=4.11.2
 requests>=2.31.0
 lxml>=4.9.0
 sentence-transformers>=2.2.2
+ddgs>=9.13.0
