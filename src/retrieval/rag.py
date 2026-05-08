@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-import numpy as np
+import numpy as np # type: ignore
 
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
