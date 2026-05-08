@@ -108,6 +108,14 @@ def _build_parser() -> argparse.ArgumentParser:
     lsi_parser = subparsers.add_parser("lsi_query", help="Consulta el modelo LSI.")
     lsi_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     lsi_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados.")
+    web_search_parser = subparsers.add_parser("web_search", help="Prueba solo el modulo de busqueda web.")
+    web_search_parser.add_argument("query", nargs="+", help="Texto de la consulta web.")
+    web_search_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados web.")
+    web_search_parser.add_argument(
+        "--output",
+        default="data/raw/web_search/documents.jsonl",
+        help="Archivo JSONL donde guardar los documentos extraidos.",
+    )
     eval_parser = subparsers.add_parser("evaluate_rec01", help="Compara baseline LSI vs recuperador refinado.")
     eval_parser.add_argument("--qrels", default=str(DEFAULT_QRELS_PATH), help="Archivo JSON con consultas y documentos relevantes.")
     eval_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados a evaluar por consulta.")
@@ -285,6 +293,29 @@ def _run_lsi_query(query_text: str, top_k: int) -> int:
     return 0
 
 
+def _run_web_search(query_text: str, top_k: int, output_path: str) -> int:
+    from src.utils.file_manager import save_documents_to_jsonl
+    from src.web_crawler import build_default_config
+    from src.web_search import DuckDuckGoWebSearchClient
+
+    crawler_config = build_default_config()
+    client = DuckDuckGoWebSearchClient(visited_urls_path=crawler_config.visited_urls_path)
+    documents = client.search(query_text, max_results=top_k)
+
+    print(f"Resultados Web para: {query_text}")
+    if not documents:
+        print("- Sin documentos nuevos (posiblemente ya visitados o no accesibles)")
+        return 0
+
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    save_documents_to_jsonl(documents, output_file)
+
+    print(f"- Documentos extraidos: {len(documents)}")
+    print(f"- Guardados en: {output_file}")
+    return 0
+
+
 def _run_lsi_train() -> int:
     from src.vector_db.preset import resolve_documents_path
 
@@ -378,6 +409,8 @@ def main() -> int:
         return _run_lsi_train()
     if args.command == "lsi_query":
         return _run_lsi_query(" ".join(args.query), args.top_k)
+    if args.command == "web_search":
+        return _run_web_search(" ".join(args.query), args.top_k, args.output)
     if args.command == "evaluate_rec01":
         return _run_rec01_evaluation(args.qrels, args.top_k, args.report_out)
 

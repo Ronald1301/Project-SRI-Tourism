@@ -118,6 +118,7 @@ python3 main.py rag_query "playas en cuba" --top-k 4
 python3 main.py lsi_train
 python3 main.py lsi_query "turismo en cuba" --top-k 5
 python3 main.py evaluate_rec01 --top-k 5
+python3 python3 main.py web_search "playas cubanas" --top-k 10 --output data/raw/web_search/documents.jsonl
 ```
 
 Comandos que devuelven ranking:

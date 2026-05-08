@@ -9,6 +9,7 @@ import os
 import pickle
 
 import numpy as np
+from pathlib import Path
 
 
 def _ensure_parent_dir(path):
@@ -46,3 +47,23 @@ def save_numpy(array, path):
 
 def load_numpy(path):
     return np.load(path, allow_pickle=False)
+
+def save_documents_to_jsonl(documents: list[dict[str,object]], output_file: Path) -> None:
+    """Guarda los resultados en formato JSONL (una línea JSON por resultado)"""
+    with open(output_file, 'a', encoding='utf-8') as f:
+        for document in documents:
+            f.write(json.dumps(document, ensure_ascii=False) + '\n')
+
+def load_visited_urls(path: Path) -> set[str]:
+    urls: set[str] = set()
+    try:
+        if not path.exists():
+            return urls
+        with path.open("r", encoding="utf-8") as file:
+            for line in file:
+                url = line.strip()
+                if url:
+                    urls.add(url)
+    except OSError:
+        return urls
+    return urls
