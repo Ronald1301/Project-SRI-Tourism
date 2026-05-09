@@ -13,3 +13,4 @@ requests>=2.31.0
 lxml>=4.9.0
 sentence-transformers>=2.2.2
 ddgs>=9.13.0
+faiss-cpu>=1.8.0
