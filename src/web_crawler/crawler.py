@@ -88,31 +88,6 @@ class WebCrawler:
         response.encoding = response.apparent_encoding or response.encoding
         content_type = response.headers.get("Content-Type","").lower()
         return final_url , response.text , content_type
-
-    def _build_report(self, start_time: datetime, *, interrupted: bool = False) -> dict[str, Any]:
-        end_time = datetime.now(UTC)
-        elapsed_seconds = (end_time - start_time).total_seconds()
-        report : dict[str,Any] = {
-            "run_id" : self.storage.run_id,
-            "started_at" : start_time.isoformat(),
-            "finished_at" : end_time.isoformat(),
-            "elapsed_seconds" : round(elapsed_seconds,3),
-            "interrupted" : interrupted,
-            "config" : {
-                **asdict(self.config),
-                "output_dir" : str(self.config.output_dir),
-                "allowed_domains" : sorted(self.config.allowed_domains),
-            },
-            "stats" : self.stats,
-            "paths" : {
-                "html_dir" : str(self.storage.html_dir),
-                "documents_jsonl" : str(self.storage.documents_path),
-                "errors_jsonl" : str(self.storage.errors_path),
-            },
-        }
-        report_path = self.storage.save_report(report)
-        report["paths"]["report_json"] = report_path
-        return report
     
     def crawl(self) -> dict[str,Any]:
         start_time = datetime.now(UTC)
@@ -129,75 +104,113 @@ class WebCrawler:
             queue.append((normalized,0,None))
             self.queued.add(normalized)
         
-        try:
-            while queue and self.stats["pages_fetched"] < self.config.max_pages:
-                current_url , depth , parent_url = queue.popleft()
-                self.queued.discard(current_url)
+        while queue and self.stats["pages_fetched"] < self.config.max_pages:
+            current_url , depth , parent_url = queue.popleft()
+            self.queued.discard(current_url)
 
-                if current_url in visited:
-                    self.stats["skipped_duplicate"] += 1
-                    continue
+            if current_url in visited:
+                self.stats["skipped_duplicate"] += 1
+                continue
 
-                if not self.policies.is_allowed(current_url):
-                    self.stats["skipped_policy"] += 1
-                    continue
+            if not self.policies.is_allowed(current_url):
+                self.stats["skipped_policy"] += 1
+                continue
 
-                if not self.policies.is_allowed_by_robots(current_url,self.config.user_agent):
-                    self.stats["skipped_robots"] += 1
-                    continue
+            if not self.policies.is_allowed_by_robots(current_url,self.config.user_agent):
+                self.stats["skipped_robots"] += 1
+                continue
 
-                # Allow seed URLs to be revisited so the crawler can discover fresh links
-                # without re-downloading the entire persisted frontier on every run.
-                if self.config.persist_visited and depth > 0 and current_url in self.visited_urls:
-                    visited.add(current_url)
-                    self.stats["urls_visited"] += 1
-                    self.stats["skipped_persisted"] += 1
-                    continue
-
+            if self.config.persist_visited and current_url in self.visited_urls:
                 visited.add(current_url)
                 self.stats["urls_visited"] += 1
+                self.stats["skipped_persisted"] += 1
 
-                fetched = self.fetch(current_url,depth)
+                fetched = self.fetch(current_url, depth)
                 if fetched is None:
                     continue
-                final_url,html,content_type = fetched
-
+                final_url, html, content_type = fetched
                 if "text/html" not in content_type:
                     self.stats["skipped_non_html"] += 1
                     continue
-
                 self.stats["pages_fetched"] += 1
-                document = extract_document(html,final_url)
-                document["depth"] = depth
-                document["parent_url"] = parent_url
 
-                raw_html_path = None
-                if self.config.save_html:
-                    raw_html_path = self.storage.save_html(final_url,html,document["doc_id"])
-                    document["raw_html_path"] = raw_html_path
-                
-                self.storage.append_document(document)
-                self.stats["documents_saved"] += 1
-                self.print_progress()
-                if self.config.persist_visited:
-                    self.append_visited_url(final_url)
-
-                if depth >= self.config.max_depth:
-                    continue
-
-                links = extract_links(html,final_url,self.policies)
+                links = extract_links(html, final_url, self.policies)
                 self.stats["links_discovered"] += len(links)
                 for link in links:
                     if link in visited or link in self.queued:
                         continue
-                    queue.append((link,depth+1,final_url))
+                    queue.append((link, depth + 1, final_url))
                     self.queued.add(link)
                     self.stats["links_enqueued"] += 1
-        except KeyboardInterrupt:
-            print("\n[crawler] Interrumpido por el usuario. Guardando reporte parcial...")
-            return self._build_report(start_time, interrupted=True)
 
-        return self._build_report(start_time, interrupted=False)
+                if self.config.persist_visited:
+                    self.append_visited_url(final_url)
+
+                self.print_progress()
+                continue
+
+            visited.add(current_url)
+            self.stats["urls_visited"] += 1
+
+            fetched = self.fetch(current_url,depth)
+            if fetched is None:
+                continue
+            final_url,html,content_type = fetched
+
+            if "text/html" not in content_type:
+                self.stats["skipped_non_html"] += 1
+                continue
+
+            self.stats["pages_fetched"] += 1
+            document = extract_document(html,final_url)
+            document["depth"] = depth
+            document["parent_url"] = parent_url
+
+            raw_html_path = None
+            if self.config.save_html:
+                raw_html_path = self.storage.save_html(final_url,html,document["doc_id"])
+                document["raw_html_path"] = raw_html_path
+            
+            self.storage.append_document(document)
+            self.stats["documents_saved"] += 1
+            self.print_progress()
+            if self.config.persist_visited:
+                self.append_visited_url(final_url)
+
+            if depth >= self.config.max_depth:
+                continue
+
+            links = extract_links(html,final_url,self.policies)
+            self.stats["links_discovered"] += len(links)
+            for link in links:
+                if link in visited or link in self.queued:
+                    continue
+                queue.append((link,depth+1,final_url))
+                self.queued.add(link)
+                self.stats["links_enqueued"] += 1
+        
+        end_time = datetime.now(UTC)
+        elapsed_seconds = (end_time - start_time).total_seconds()
+        report : dict[str,Any] = {
+            "run_id" : self.storage.run_id,
+            "started_at" : start_time.isoformat(),
+            "finished_at" : end_time.isoformat(),
+            "elapsed_seconds" : round(elapsed_seconds,3),
+            "config" : {
+                **asdict(self.config),
+                "output_dir" : str(self.config.output_dir),
+                "allowed_domains" : sorted(self.config.allowed_domains),
+            },
+            "stats" : self.stats,
+            "paths" : {
+                "html_dir" : str(self.storage.html_dir),
+                "documents_jsonl" : str(self.storage.documents_path),
+                "errors_jsonl" : str(self.storage.errors_path),
+            },
+        }
+        report_path = self.storage.save_report(report)
+        report["paths"]["report_json"] = report_path
+        return report
 
     def print_progress(self) -> None:
         pages = self.stats["pages_fetched"]
