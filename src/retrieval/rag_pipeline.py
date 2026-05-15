@@ -8,6 +8,7 @@ from typing import Iterable
 
 import numpy as np # type: ignore
 
+from src.generator import RAGAnswerGenerator
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path
@@ -79,6 +80,7 @@ class RAGPipeline:
     ) -> None:
         self.vector_db = vector_db
         self.repository = repository
+        self.answer_generator = RAGAnswerGenerator()
         self.preprocessing = PreprocessingPipeline(language=language)
         self._document_token_cache: dict[str, set[str]] = {}
         self._title_token_cache: dict[str, set[str]] = {}
@@ -99,8 +101,8 @@ class RAGPipeline:
 
     def answer_query(self, query: str, top_k: int = 4) -> RAGResult:
         documents = self.retrieve(query, top_k=top_k)
-        prompt = self.build_prompt(query, documents)
-        answer = self.generate_answer(query, documents)
+        prompt = self.answer_generator.build_prompt(query, documents)
+        answer = self.answer_generator.generate(query, documents, prompt=prompt)
         return RAGResult(
             query=query,
             prompt=prompt,
@@ -115,8 +117,8 @@ class RAGPipeline:
         top_k: int = 4,
     ) -> RAGResult:
         documents = self._convert_lsi_results(lsi_results[:top_k])
-        prompt = self.build_prompt(query, documents)
-        answer = self.generate_answer(query, documents)
+        prompt = self.answer_generator.build_prompt(query, documents)
+        answer = self.answer_generator.generate(query, documents, prompt=prompt)
         return RAGResult(
             query=query,
             prompt=prompt,
