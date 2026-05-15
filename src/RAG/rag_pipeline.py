@@ -8,7 +8,7 @@ from typing import Iterable
 
 import numpy as np # type: ignore
 
-from src.generator import RAGAnswerGenerator
+from src.RAG.rag_answer_generator import RAGAnswerGenerator
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path

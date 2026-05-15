@@ -191,7 +191,7 @@ def _run_vector_db_query(query_text: str, top_k: int) -> int:
 
 
 def _run_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
-    from src.retrieval.rag_pipeline import RAGPipeline
+    from src.RAG.rag_pipeline import RAGPipeline
 
     try:
         rag = RAGPipeline.from_preset()
@@ -221,7 +221,7 @@ def _run_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
 
 
 def _run_lsi_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
-    from src.retrieval.rag_pipeline import RAGPipeline
+    from src.RAG.rag_pipeline import RAGPipeline
 
     missing = _missing_lsi_artifacts()
     if missing:
