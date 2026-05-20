@@ -1,0 +1,90 @@
+You are a senior frontend engineer.
+
+Build a modular frontend using Python and Flet for an Information Retrieval System.
+
+Context:
+- The frontend communicates with a FastAPI backend via REST.
+- The frontend does NOT implement retrieval logic.
+- It only sends: query, mode, top_k
+- The backend returns structured JSON with results, scores, explanations, and optionally a RAG answer.
+
+Architecture:
+src/frontend_flet/
+  app.py
+  state.py
+  enums.py
+  theme.py
+  api/client.py
+  views/search_page.py
+  components/
+
+Requirements:
+
+1. State Management:
+- Create an AppState class
+- Use an Enum called UIState
+- States:
+  IDLE, LOADING, SUCCESS, EMPTY, ERROR
+
+2. UI Design:
+- Dark theme inspired by ChatGPT
+- Clean and minimal layout
+- Single screen interface
+
+3. Components:
+
+SearchBar:
+- query input
+- mode selector (vectorial, lsi, rag)
+- top-k selector
+- search button
+
+ResultCard:
+- rank
+- title
+- snippet
+- score
+- metadata
+
+RagAnswerCard:
+- generated answer
+- sources
+- optional prompt
+
+StatusBanner:
+- loading state
+- error state
+- empty state
+
+4. Behavior:
+- On search:
+  - set state to LOADING
+  - call FastAPI endpoint
+  - update state based on response
+- Render UI reactively using AppState
+
+5. API:
+- Create a client in api/client.py
+- Use requests library
+- Endpoint: POST /search
+- Send JSON: { query, mode, top_k }
+
+6. Code Quality:
+- Clean and readable
+- Modular design
+- Separation of concerns
+
+7. Avoid:
+- No business logic in frontend
+- No subprocess calls
+- No tight coupling with backend
+
+Task:
+Generate working code for:
+- app.py
+- state.py
+- enums.py
+- views/search_page.py
+- components/search_bar.py
+
+The code must be functional, modular, and ready to run with Flet.
