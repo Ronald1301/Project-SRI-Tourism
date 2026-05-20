@@ -1,13 +1,21 @@
+import sys
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import flet as ft
-from views.search_page import SearchPage
-from theme import get_dark_theme
+from src.frontend.theme import get_dark_theme
+from src.frontend.views.search_page import SearchPage
 
 def main(page: ft.Page):
-    # page.title = "SRI - Tourism Recommender System"
-    page.title= "SRI - Sistema de Recomendação de Turismo"
+    page.title = "SRI - Sistema de Recuperacion de Turismo"
+    page.theme_mode = ft.ThemeMode.DARK
     page.theme = get_dark_theme()
     page.bgcolor = "#0f0f0f"
+    page.scroll = ft.ScrollMode.AUTO
 
     page.add(SearchPage(page))
 
-ft.app(target=main)
+ft.run(main)

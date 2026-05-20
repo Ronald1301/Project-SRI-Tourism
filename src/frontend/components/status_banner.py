@@ -1,6 +1,6 @@
 import flet as ft
 
-from state import UIState
+from src.frontend.state import UIState
 
 def StatusBanner(state):
 
