@@ -1,6 +1,6 @@
 
 import requests
-from api.mock_client import mock_search
+from src.frontend.api.mock_client import mock_search
 
 USE_MOCK = True
 

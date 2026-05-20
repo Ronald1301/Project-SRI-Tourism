@@ -10,16 +10,16 @@ def SearchBar(on_search):
     mode_selector = ft.Dropdown(
         width=150,
         options=[
-            ft.dropdown.Option("Vectorial"),
-            ft.dropdown.Option("LSI"),
-            ft.dropdown.Option("RAG"),
+            ft.dropdown.Option(key="vectorial", text="Vectorial"),
+            ft.dropdown.Option(key="lsi", text="LSI"),
+            ft.dropdown.Option(key="rag", text="RAG"),
         ],
-        value="Vectorial"
+        value="vectorial"
     )
 
     topk_selector = ft.Dropdown(
         width=100,
-        options=[ft.dropdown.Option(str(i)) for i in [3,5,10]],
+        options=[ft.dropdown.Option(str(i)) for i in [3, 5, 10]],
         value="5"
     )
 
