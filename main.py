@@ -96,10 +96,26 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Muestra el prompt construido para la respuesta.",
     )
+    lsi_rag_parser = subparsers.add_parser("lsi_rag", help="Consulta RAG usando recuperador LSI refinado.")
+    lsi_rag_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
+    lsi_rag_parser.add_argument("--top-k", type=int, default=4, help="Cantidad de documentos recuperados.")
+    lsi_rag_parser.add_argument(
+        "--show-prompt",
+        action="store_true",
+        help="Muestra el prompt construido para la respuesta.",
+    )
     subparsers.add_parser("lsi_train", help="Entrena y guarda TF-IDF + LSI.")
     lsi_parser = subparsers.add_parser("lsi_query", help="Consulta el modelo LSI.")
     lsi_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     lsi_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados.")
+    web_search_parser = subparsers.add_parser("web_search", help="Prueba solo el modulo de busqueda web.")
+    web_search_parser.add_argument("query", nargs="+", help="Texto de la consulta web.")
+    web_search_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados web.")
+    web_search_parser.add_argument(
+        "--output",
+        default="data/raw/web_search/documents.jsonl",
+        help="Archivo JSONL donde guardar los documentos extraidos.",
+    )
     eval_parser = subparsers.add_parser("evaluate_rec01", help="Compara baseline LSI vs recuperador refinado.")
     eval_parser.add_argument("--qrels", default=str(DEFAULT_QRELS_PATH), help="Archivo JSON con consultas y documentos relevantes.")
     eval_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados a evaluar por consulta.")
@@ -175,7 +191,7 @@ def _run_vector_db_query(query_text: str, top_k: int) -> int:
 
 
 def _run_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
-    from src.retrieval.rag import RAGPipeline
+    from src.RAG.rag_pipeline import RAGPipeline
 
     try:
         rag = RAGPipeline.from_preset()
@@ -202,6 +218,49 @@ def _run_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
         print("Prompt:")
         print(result.prompt)
     return 0
+
+
+def _run_lsi_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
+    from src.RAG.rag_pipeline import RAGPipeline
+
+    missing = _missing_lsi_artifacts()
+    if missing:
+        _print_missing_lsi_artifacts()
+        return 1
+
+    searcher = SemanticSearcher()
+    lsi_results = searcher.search(query_text, top_k=top_k)
+
+    if not lsi_results:
+        print(f"No se encontraron resultados LSI para: {query_text}")
+        return 0
+
+    try:
+        rag = RAGPipeline.from_preset()
+    except FileNotFoundError as exc:
+        print(str(exc))
+        print("Ejecuta antes: python3 main.py vectordb")
+        return 1
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+
+    result = rag.answer_with_lsi(query_text, lsi_results, top_k=top_k)
+    print(f"Respuesta RAG+LSI para: {query_text}")
+    print(result.answer)
+    print("")
+    print("Fuentes:")
+    for doc in result.documents:
+        print(f"[{doc.citation_id}] score={doc.score:.4f}  {doc.title}")
+        if doc.url:
+            print(f"   {doc.url}")
+
+    if show_prompt:
+        print("")
+        print("Prompt:")
+        print(result.prompt)
+    return 0
+
 
 def _run_lsi_query(query_text: str, top_k: int) -> int:
     missing = _missing_lsi_artifacts()
@@ -231,6 +290,29 @@ def _run_lsi_query(query_text: str, top_k: int) -> int:
             print(f"   {url}")
         if snippet:
             print(f"   snippet: {snippet}")
+    return 0
+
+
+def _run_web_search(query_text: str, top_k: int, output_path: str) -> int:
+    from src.utils.file_manager import save_documents_to_jsonl
+    from src.web_crawler import build_default_config
+    from src.web_search import DuckDuckGoWebSearchClient
+
+    crawler_config = build_default_config()
+    client = DuckDuckGoWebSearchClient(visited_urls_path=crawler_config.visited_urls_path)
+    documents = client.search(query_text, max_results=top_k)
+
+    print(f"Resultados Web para: {query_text}")
+    if not documents:
+        print("- Sin documentos nuevos (posiblemente ya visitados o no accesibles)")
+        return 0
+
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    save_documents_to_jsonl(documents, output_file)
+
+    print(f"- Documentos extraidos: {len(documents)}")
+    print(f"- Guardados en: {output_file}")
     return 0
 
 
@@ -321,10 +403,14 @@ def main() -> int:
         return _run_vector_db_query(" ".join(args.query), args.top_k)
     if args.command == "rag_query":
         return _run_rag_query(" ".join(args.query), args.top_k, args.show_prompt)
+    if args.command == "lsi_rag":
+        return _run_lsi_rag_query(" ".join(args.query), args.top_k, args.show_prompt)
     if args.command == "lsi_train":
         return _run_lsi_train()
     if args.command == "lsi_query":
         return _run_lsi_query(" ".join(args.query), args.top_k)
+    if args.command == "web_search":
+        return _run_web_search(" ".join(args.query), args.top_k, args.output)
     if args.command == "evaluate_rec01":
         return _run_rec01_evaluation(args.qrels, args.top_k, args.report_out)
 

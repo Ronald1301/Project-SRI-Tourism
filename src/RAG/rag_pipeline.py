@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-import numpy as np
+import numpy as np # type: ignore
 
+from src.RAG.rag_answer_generator import RAGAnswerGenerator
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path
@@ -79,6 +80,7 @@ class RAGPipeline:
     ) -> None:
         self.vector_db = vector_db
         self.repository = repository
+        self.answer_generator = RAGAnswerGenerator()
         self.preprocessing = PreprocessingPipeline(language=language)
         self._document_token_cache: dict[str, set[str]] = {}
         self._title_token_cache: dict[str, set[str]] = {}
@@ -99,8 +101,24 @@ class RAGPipeline:
 
     def answer_query(self, query: str, top_k: int = 4) -> RAGResult:
         documents = self.retrieve(query, top_k=top_k)
-        prompt = self.build_prompt(query, documents)
-        answer = self.generate_answer(query, documents)
+        prompt = self.answer_generator.build_prompt(query, documents)
+        answer = self.answer_generator.generate(query, documents, prompt=prompt)
+        return RAGResult(
+            query=query,
+            prompt=prompt,
+            answer=answer,
+            documents=documents,
+        )
+
+    def answer_with_lsi(
+        self,
+        query: str,
+        lsi_results: list[dict],
+        top_k: int = 4,
+    ) -> RAGResult:
+        documents = self._convert_lsi_results(lsi_results[:top_k])
+        prompt = self.answer_generator.build_prompt(query, documents)
+        answer = self.answer_generator.generate(query, documents, prompt=prompt)
         return RAGResult(
             query=query,
             prompt=prompt,
@@ -151,6 +169,41 @@ class RAGPipeline:
                 )
             )
 
+        return documents
+
+    def _convert_lsi_results(self, lsi_results: list[dict]) -> list[RetrievedDocument]:
+        documents: list[RetrievedDocument] = []
+        for citation_id, item in enumerate(lsi_results, start=1):
+            doc_id = str(item.get("doc_id") or "").strip()
+            source_doc = self.repository.get(doc_id) or {}
+
+            merged = dict(source_doc)
+            for key, value in item.items():
+                merged.setdefault(key, value)
+
+            title = str(
+                merged.get("title")
+                or merged.get("entity_name")
+                or merged.get("doc_id")
+                or f"Documento {citation_id}"
+            ).strip()
+            summary = str(merged.get("summary") or "").strip()
+            content_text = str(merged.get("content") or merged.get("content_text") or "").strip()
+            url = str(merged.get("url") or "").strip()
+            score = float(item.get("score", 0.0))
+
+            documents.append(
+                RetrievedDocument(
+                    citation_id=citation_id,
+                    doc_id=doc_id,
+                    title=title,
+                    url=url,
+                    score=score,
+                    summary=summary,
+                    content_text=content_text,
+                    metadata=merged,
+                )
+            )
         return documents
 
     def _tfidf_search(self, query: str, top_k: int = 4) -> list[dict]:

@@ -18,6 +18,13 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 BATCH_SIZE = 32
 NORMALIZE_EMBEDDINGS = True
 SHOW_PROGRESS_BAR = True
+CHUNK_SIZE = 120
+CHUNK_OVERLAP = 30
+FAISS_METRIC = "ip"
+FAISS_INDEX_TYPE = "hnsw"
+HNSW_M = 32
+HNSW_EF_CONSTRUCTION = 200
+HNSW_EF_SEARCH = 64
 
 def find_lastest_jsonl(base_dir : Path) -> Path | None:
     if not base_dir.exists():
@@ -59,6 +66,13 @@ def build_vector_db_from_preset() -> "VectorDatabase":
         batch_size = BATCH_SIZE,
         normalize_embeddings = NORMALIZE_EMBEDDINGS,
         show_progress_bar = SHOW_PROGRESS_BAR,
+        chunk_size = CHUNK_SIZE,
+        chunk_overlap = CHUNK_OVERLAP,
+        faiss_metric = FAISS_METRIC,
+        faiss_index_type = FAISS_INDEX_TYPE,
+        hnsw_m = HNSW_M,
+        hnsw_ef_construction = HNSW_EF_CONSTRUCTION,
+        hnsw_ef_search = HNSW_EF_SEARCH,
     )
     db.save(OUTPUT_DIR)
     return db
