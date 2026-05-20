@@ -1,0 +1,48 @@
+DATA SOURCES
+    ↓
+CRAWLING / DATASETS
+    ↓
+data/raw
+    ↓
+PREPROCESSING
+    ↓
+data/processed
+    ↓
+INVERTED INDEX
+    ↓
+TF-IDF MATRIX
+    ↓
+LSI MODEL
+    ↓
+DOCUMENT VECTOR DATABASE
+    ↓
+QUERY PROCESSING
+    ↓
+QUERY VECTOR
+    ↓
+QUERY → LSI SPACE
+    ↓
+COSINE SIMILARITY
+    ↓
+DOCUMENT RANKING
+    ↓
+RESULTS
+
+
+
+
+defensa:
+El sistema sigue el pipeline clásico de los 
+Sistemas de Recuperación de Información. Primero 
+se adquieren documentos del dominio turismo mediante 
+datasets o crawling. Luego los textos son 
+preprocesados mediante limpieza, tokenización, 
+eliminación de stopwords y stemming. Posteriormente 
+se construye un índice invertido y una representación 
+vectorial TF-IDF. Sobre esta representación se 
+aplica el modelo LSI para capturar relaciones 
+semánticas latentes entre términos y documentos.
+ Finalmente las consultas de usuario se proyectan 
+ al mismo espacio semántico y se calcula la 
+ similitud coseno para recuperar y rankear los 
+ documentos más relevantes.

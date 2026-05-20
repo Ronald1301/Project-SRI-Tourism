@@ -1,0 +1,82 @@
+PROYECTO SRI — CORTE 3
+Sistema completo
+
+Objetivo:
+Convertir el sistema en un motor de búsqueda funcional con interfaz de usuario.
+
+--------------------------------------------------
+
+PASO 1 — Crear interfaz de usuario
+
+Opciones:
+
+CLI (terminal)
+o
+interfaz web
+
+Recomendación:
+
+Streamlit
+
+Archivo posible:
+
+interface/app.py
+
+Función:
+permitir al usuario escribir consultas.
+
+
+--------------------------------------------------
+
+PASO 2 — Visualización de resultados
+
+Mostrar:
+
+Top-K documentos relevantes
+
+Cada resultado debe incluir:
+
+ID del documento
+score de relevancia
+fragmento del texto
+
+
+--------------------------------------------------
+
+PASO 3 — Optimización del sistema
+
+Mejoras posibles:
+
+caching de consultas
+carga rápida del índice
+persistencia de modelos
+
+Esto evita reconstruir el sistema cada vez que se ejecuta.
+
+
+--------------------------------------------------
+
+PASO 4 — Documentación final
+
+Debe incluir:
+
+descripción del dominio
+modelo de recuperación utilizado (LSI)
+fuentes bibliográficas
+explicación de la arquitectura
+resultados de evaluación
+
+
+--------------------------------------------------
+
+PASO 5 — Presentación del sistema
+
+Preparar demostración:
+
+consulta ejemplo
+↓
+recuperación de documentos
+↓
+visualización de resultados
+
+Esto mostrará el funcionamiento completo del sistema.

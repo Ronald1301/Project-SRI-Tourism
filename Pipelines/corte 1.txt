@@ -1,0 +1,217 @@
+consulta usuario
+      ↓
+preprocesamiento
+      ↓
+vector TF-IDF
+      ↓
+proyección LSI
+      ↓
+similitud coseno
+      ↓
+ranking
+
+
+PROYECTO SRI — CORTE 1
+Adquisición, indexación y recuperación básica
+
+Objetivo:
+Construir un sistema de recuperación de información funcional que pueda:
+- cargar documentos
+- procesarlos
+- indexarlos
+- recuperar documentos relevantes a partir de una consulta.
+
+--------------------------------------------------
+
+PASO 1 — Definir dominio y corpus
+
+Archivos:
+data/raw/
+
+Función:
+Definir el dominio del sistema (turismo y viajes) y reunir el corpus inicial de documentos.
+
+Tareas:
+- recopilar datasets de turismo
+- almacenar los archivos en data/raw
+- verificar que el corpus tenga más de 2000 documentos
+
+Salida esperada:
+corpus inicial de documentos.
+
+
+--------------------------------------------------
+
+PASO 2 — Carga del corpus
+
+Archivos:
+utils/file_manager.py
+utils/corpus_checker.py
+
+Función:
+Leer los datasets y convertirlos en una colección de documentos procesables.
+
+Tareas:
+- leer archivos CSV o texto
+- extraer el campo que contiene el texto de las reseñas
+- asignar un ID a cada documento
+
+Salida esperada:
+lista de documentos en memoria.
+
+
+--------------------------------------------------
+
+PASO 3 — Preprocesamiento de texto
+
+Archivos:
+preprocessing/cleaner.py
+preprocessing/tokenizer.py
+preprocessing/stemmer.py
+
+Función:
+Transformar texto crudo en tokens normalizados que puedan ser indexados.
+
+Pipeline:
+
+texto crudo
+↓
+limpieza
+↓
+tokenización
+↓
+eliminación de stopwords
+↓
+stemming
+↓
+tokens finales
+
+Salida esperada:
+documentos representados como listas de tokens.
+
+Ejemplo:
+
+doc1 → ["hotel", "clean", "room"]
+
+
+--------------------------------------------------
+
+PASO 4 — Construcción del índice invertido
+
+Archivo:
+indexing/inverted_index.py
+
+Función:
+Crear una estructura que permita saber en qué documentos aparece cada término.
+
+Estructura:
+
+termino → {doc_id : frecuencia}
+
+Ejemplo:
+
+hotel → {1:2, 3:1, 8:4}
+
+Salida esperada:
+data/index/inverted_index.pkl
+
+
+--------------------------------------------------
+
+PASO 5 — Construcción del modelo TF-IDF
+
+Archivo:
+indexing/tfidf_index.py
+
+Función:
+Representar cada documento como un vector numérico basado en la importancia de los términos.
+
+Proceso:
+
+tokens
+↓
+matriz término-documento
+↓
+cálculo TF-IDF
+
+Salida esperada:
+
+data/index/tfidf_matrix.npy
+data/index/vocabulary.json
+
+
+--------------------------------------------------
+
+PASO 6 — Implementación del modelo LSI
+
+Archivo:
+retrieval/lsi_model.py
+
+Función:
+Reducir dimensionalidad del espacio vectorial y capturar relaciones semánticas entre términos.
+
+Proceso:
+
+TF-IDF
+↓
+SVD (TruncatedSVD)
+↓
+espacio semántico latente
+
+Salida esperada:
+
+data/index/lsi_model.pkl
+data/index/doc_vectors.npy
+
+
+--------------------------------------------------
+
+PASO 7 — Implementación del recuperador básico
+
+Archivo:
+retrieval/search.py
+
+Función:
+Procesar consultas del usuario y recuperar documentos relevantes.
+
+Pipeline:
+
+consulta
+↓
+preprocesamiento
+↓
+vector TF-IDF
+↓
+proyección al espacio LSI
+↓
+similitud coseno
+↓
+ranking
+
+Salida esperada:
+lista ordenada de documentos relevantes.
+
+
+--------------------------------------------------
+
+PASO 8 — Integración del sistema
+
+Archivo:
+main.py
+
+Función:
+Coordinar todos los módulos del sistema.
+
+Flujo completo:
+
+cargar corpus
+↓
+preprocesar documentos
+↓
+crear índice invertido
+↓
+generar TF-IDF
+↓
+entrenar modelo LSI
+↓
+ejecutar búsqueda

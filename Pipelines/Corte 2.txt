@@ -1,0 +1,100 @@
+PROYECTO SRI — CORTE 2
+Mejoras del sistema y evaluación
+
+Objetivo:
+Mejorar la calidad de recuperación del sistema y evaluar su rendimiento.
+
+--------------------------------------------------
+
+PASO 1 — Mejorar procesamiento de consultas
+
+Archivo:
+retrieval/search.py
+
+Función:
+Aplicar el mismo preprocesamiento de documentos a las consultas.
+
+Tareas:
+- limpiar consulta
+- tokenizar
+- eliminar stopwords
+- aplicar stemming
+
+Esto garantiza consistencia entre consultas y documentos.
+
+
+--------------------------------------------------
+
+PASO 2 — Mejorar ranking de documentos
+
+Archivo:
+retrieval/search.py
+
+Función:
+Mejorar la forma en que se ordenan los documentos recuperados.
+
+Método:
+
+similitud coseno entre:
+
+vector consulta
+y
+vector documento (LSI)
+
+Salida esperada:
+ranking más preciso de resultados.
+
+
+--------------------------------------------------
+
+PASO 3 — Implementar evaluación del sistema
+
+Nueva carpeta:
+
+evaluation/
+
+Archivos posibles:
+
+evaluation/metrics.py
+
+Función:
+Medir la calidad del sistema de recuperación.
+
+Métricas a implementar:
+
+precision
+recall
+F1-score
+MAP (Mean Average Precision)
+
+Estas métricas permiten comparar modelos.
+
+
+--------------------------------------------------
+
+PASO 4 — Realizar experimentos
+
+Comparar modelos:
+
+TF-IDF
+vs
+LSI
+
+Objetivo:
+demostrar que LSI mejora la recuperación semántica.
+
+
+--------------------------------------------------
+
+PASO 5 — Generar estadísticas del corpus
+
+Archivo:
+utils/corpus_checker.py
+
+Estadísticas:
+
+número de documentos
+tamaño promedio de documentos
+términos más frecuentes
+
+Esto forma parte de la documentación del proyecto.

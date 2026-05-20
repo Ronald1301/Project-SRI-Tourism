@@ -1,0 +1,31 @@
+Fuentes de datos
+      ↓
+Adquisición de documentos (Crawler / Dataset loader)
+      ↓
+Almacenamiento inicial (data/raw)
+      ↓
+Preprocesamiento de texto
+      ↓
+Documentos tokenizados (data/processed)
+      ↓
+Indexación
+      ↓
+Índice invertido
+      ↓
+Representación vectorial (TF-IDF)
+      ↓
+Modelo semántico (LSI)
+      ↓
+Base vectorial de documentos
+      ↓
+Procesamiento de consultas
+      ↓
+Transformación de consulta a vector
+      ↓
+Proyección al espacio LSI
+      ↓
+Cálculo de similitud
+      ↓
+Ranking de documentos
+      ↓
+Resultados al usuario
