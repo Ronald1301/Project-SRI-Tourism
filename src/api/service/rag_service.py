@@ -22,7 +22,7 @@ class RAGSearchService:
             lsi_meta_path=DEFAULT_LSI_META,
             documents_path=DEFAULT_DOCUMENTS,
         )
-        self.rag_pipeline = RAGPipeline.from_preset()
+        self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
 
     def search(
         self,
@@ -31,34 +31,12 @@ class RAGSearchService:
         top_k: int = 5,
         include_explanations: bool = False,
     ) -> tuple[list[RetrievedDocument], str]:
-        if search_mode == "lsi":
-            raw_results = self.searcher.search(
-                query,
-                top_k=top_k,
-                include_explanations=include_explanations,
-            )
-        else:
-            raw_results = self.searcher.search_baseline(
-                query,
-                top_k=top_k,
-                include_explanations=include_explanations,
-            )
-
-        lsi_results: list[dict[str, object]] = []
-        for result in raw_results:
-            payload: dict[str, object] = {
-                "doc_id": result["doc_id"],
-                "title": result["title"],
-                "score": result["score"],
-                "summary": result.get("snippet") or result.get("summary") or "",
-                "url": result.get("url") or "",
-            }
-            explanation = result.get("explanation")
-            if include_explanations and isinstance(explanation, dict):
-                payload["explanation"] = explanation
-            lsi_results.append(payload)
-
-        rag_result = self.rag_pipeline.answer_with_lsi(query, lsi_results, top_k=top_k)
+        rag_result = self.rag_pipeline.answer_query(
+            query=query,
+            top_k=top_k,
+            search_mode=search_mode,
+            include_explanations=include_explanations,
+        )
         return rag_result.documents, rag_result.answer
 
 
