@@ -10,6 +10,7 @@ import numpy as np
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.retrieval.lsi_model import LSIModel
+from src.retrieval.reranker import SignalReranker
 from src.vector_db.preset import resolve_documents_path
 
 DEFAULT_TFIDF_MATRIX = "data/index/tfidf_matrix.npy"
@@ -111,6 +112,7 @@ class SemanticSearcher:
 
         self.documents_path = self._resolve_documents_path(documents_path)
         self.documents_by_id = self._load_documents_by_id(self.documents_path)
+        self.reranker = SignalReranker()
 
     def _resolve_documents_path(self, documents_path: str | Path | None) -> Path | None:
         if documents_path:
@@ -134,6 +136,11 @@ class SemanticSearcher:
             title = str(item.get("title") or item.get("entity_name") or "").strip()
             content = str(item.get("content_text") or item.get("summary") or "").strip()
             full_text = "\n".join(part for part in [title, content] if part).strip()
+            normalized_title = _normalize_whitespace(title).lower()
+            normalized_content = _normalize_whitespace(content).lower()
+            normalized_full_text = " ".join(
+                part for part in [normalized_title, normalized_content] if part
+            ).strip()
             title_tokens = self.pipeline.process_text(title) if title else []
             content_tokens = self.pipeline.process_text(full_text) if full_text else []
 
@@ -151,6 +158,9 @@ class SemanticSearcher:
                 "word_count": int(item.get("word_count") or 0),
                 "source": "local",
                 "metadata": item,
+                "normalized_title": normalized_title,
+                "normalized_content": normalized_content,
+                "normalized_full_text": normalized_full_text,
                 "title_tokens": set(title_tokens),
                 "content_tokens": set(content_tokens),
             }
@@ -199,6 +209,8 @@ class SemanticSearcher:
         lexical_overlap: float,
         title_match: float,
         length_signal: float,
+        extra_score_components: dict[str, float] | None = None,
+        score_debug: dict[str, float] | None = None,
         query: str,
         query_tokens: list[str],
         retrieval_model: str,
@@ -208,17 +220,21 @@ class SemanticSearcher:
         content = str(document.get("content") or document.get("summary") or "")
         snippet = self._extract_best_snippet(query, query_tokens, document)
 
-        return {
+        score_components = {
+            "lsi_score": float(lsi_score),
+            "lexical_overlap": float(lexical_overlap),
+            "title_match": float(title_match),
+            "length_signal": float(length_signal),
+        }
+        if extra_score_components:
+            score_components.update(extra_score_components)
+
+        payload = {
             "doc_id": doc_id,
             "rank": rank,
             "score": float(final_score),
             "lsi_score": float(lsi_score),
-            "score_components": {
-                "lsi_score": float(lsi_score),
-                "lexical_overlap": float(lexical_overlap),
-                "title_match": float(title_match),
-                "length_signal": float(length_signal),
-            },
+            "score_components": score_components,
             "title": title,
             "content": content,
             "snippet": snippet,
@@ -230,38 +246,25 @@ class SemanticSearcher:
             "source": document.get("source", "local"),
             "retrieval_model": retrieval_model,
         }
+        if score_debug:
+            payload["score_debug"] = score_debug
+        return payload
 
     def _score_candidate(
         self,
         *,
         doc_id: str,
         lsi_score: float,
-        query_tokens: list[str],
-    ) -> tuple[float, float, float, float]:
+        query_context: Any,
+        debug: bool = False,
+    ) -> dict[str, Any]:
         document = self.documents_by_id.get(doc_id, {})
-        query_token_set = set(query_tokens)
-        content_tokens = document.get("content_tokens") or set()
-        title_tokens = document.get("title_tokens") or set()
-        word_count = int(document.get("word_count") or 0)
-
-        lexical_overlap = (
-            len(query_token_set & content_tokens) / max(len(query_token_set), 1)
-            if query_token_set
-            else 0.0
+        return self.reranker.score(
+            base_score=float(lsi_score),
+            query_context=query_context,
+            document=document,
+            debug=debug,
         )
-        title_match = (
-            len(query_token_set & title_tokens) / max(len(query_token_set), 1)
-            if query_token_set
-            else 0.0
-        )
-        length_signal = min(word_count / 120.0, 1.0)
-        final_score = (
-            0.70 * float(lsi_score)
-            + 0.20 * lexical_overlap
-            + 0.08 * title_match
-            + 0.02 * length_signal
-        )
-        return final_score, lexical_overlap, title_match, length_signal
 
     def _prepare_query(self, query: str) -> tuple[list[str], np.ndarray]:
         tokens = self.pipeline.process_text(query)
@@ -310,11 +313,13 @@ class SemanticSearcher:
         *,
         score_threshold: float | None = None,
         initial_top_k: int | None = None,
+        debug: bool = False,
     ) -> List[dict[str, Any]]:
         if not query or not query.strip():
             return []
 
         tokens, query_lsi = self._prepare_query(query)
+        query_context = self.reranker.prepare_query(query=query, query_tokens=tokens)
         similarities = cosine_similarity(query_lsi, self.lsi_model.doc_vectors)
         if similarities.size == 0:
             return []
@@ -334,11 +339,22 @@ class SemanticSearcher:
         for idx in top_indices:
             doc_id = self.doc_ids[idx]
             lsi_score = float(similarities[idx])
-            final_score, lexical_overlap, title_match, length_signal = self._score_candidate(
+            ranking_payload = self._score_candidate(
                 doc_id=doc_id,
                 lsi_score=lsi_score,
-                query_tokens=tokens,
+                query_context=query_context,
+                debug=debug,
             )
+            final_score = float(ranking_payload.get("final_score", lsi_score))
+            components = ranking_payload.get("score_components", {})
+            lexical_overlap = float(components.get("lexical_overlap", 0.0))
+            title_match = float(components.get("title_match", 0.0))
+            length_signal = float(components.get("length_signal", 0.0))
+            extra_components = {
+                str(key): float(value)
+                for key, value in components.items()
+                if key not in {"lsi_score", "lexical_overlap", "title_match", "length_signal"}
+            }
             reranked_results.append(
                 self._build_result(
                     doc_id=doc_id,
@@ -348,6 +364,8 @@ class SemanticSearcher:
                     lexical_overlap=lexical_overlap,
                     title_match=title_match,
                     length_signal=length_signal,
+                    extra_score_components=extra_components,
+                    score_debug=ranking_payload.get("score_debug"),
                     query=query,
                     query_tokens=tokens,
                     retrieval_model=RERANK_RETRIEVAL_MODEL,
