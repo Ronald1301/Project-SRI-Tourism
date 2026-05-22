@@ -17,7 +17,7 @@ def search(query, mode, top_k=5, page=1):
             f"{BASE_URL}/search",
             json={
                 "query": query,
-                "search_mode": "lsi",
+                "search_mode": mode,
                 "top_k": top_k,
             },
             timeout=10

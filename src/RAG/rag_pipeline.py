@@ -4,13 +4,14 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 import numpy as np # type: ignore
 
 from src.RAG.rag_answer_generator import RAGAnswerGenerator
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
+from src.retrieval.search import SemanticSearcher
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path
 from src.vector_db.vector_store import VectorDatabase
 
@@ -71,15 +72,19 @@ class DocumentRepository:
 
 
 class RAGPipeline:
+    SUPPORTED_SEARCH_MODES = {"vectorial", "lsi", "hybrid_search"}
+
     def __init__(
         self,
         vector_db: VectorDatabase,
         repository: DocumentRepository,
         *,
         language: str = "spanish",
+        semantic_searcher: SemanticSearcher | None = None,
     ) -> None:
         self.vector_db = vector_db
         self.repository = repository
+        self.semantic_searcher = semantic_searcher
         self.answer_generator = RAGAnswerGenerator()
         self.preprocessing = PreprocessingPipeline(language=language)
         self._document_token_cache: dict[str, set[str]] = {}
@@ -93,14 +98,32 @@ class RAGPipeline:
         *,
         output_dir: Path = OUTPUT_DIR,
         language: str = "spanish",
+        semantic_searcher: SemanticSearcher | None = None,
     ) -> "RAGPipeline":
         documents_path = resolve_documents_path()
         vector_db = VectorDatabase.load(Path(output_dir))
         repository = DocumentRepository.from_jsonl(documents_path)
-        return cls(vector_db, repository, language=language)
+        return cls(
+            vector_db,
+            repository,
+            language=language,
+            semantic_searcher=semantic_searcher,
+        )
 
-    def answer_query(self, query: str, top_k: int = 4) -> RAGResult:
-        documents = self.retrieve(query, top_k=top_k)
+    def answer_query(
+        self,
+        query: str,
+        top_k: int = 4,
+        *,
+        search_mode: str = "vectorial",
+        include_explanations: bool = False,
+    ) -> RAGResult:
+        documents = self.retrieve(
+            query,
+            top_k=top_k,
+            search_mode=search_mode,
+            include_explanations=include_explanations,
+        )
         prompt = self.answer_generator.build_prompt(query, documents)
         answer = self.answer_generator.generate(query, documents, prompt=prompt)
         return RAGResult(
@@ -126,15 +149,38 @@ class RAGPipeline:
             documents=documents,
         )
 
-    def retrieve(self, query: str, top_k: int = 4) -> list[RetrievedDocument]:
-        if self._vector_search_available:
-            try:
-                raw_results = self.vector_db.search(query, top_k=top_k)
-            except Exception:
-                self._vector_search_available = False
-                raw_results = self._tfidf_search(query, top_k=top_k)
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 4,
+        *,
+        search_mode: str = "vectorial",
+        include_explanations: bool = False,
+    ) -> list[RetrievedDocument]:
+        mode = self._normalize_search_mode(search_mode)
+
+        if mode == "vectorial":
+            raw_results = self._search_vectorial_raw(query, top_k=top_k)
+        elif mode == "lsi":
+            raw_results = self._search_lsi_raw(
+                query,
+                top_k=top_k,
+                include_explanations=include_explanations,
+            )
         else:
-            raw_results = self._tfidf_search(query, top_k=top_k)
+            pool_k = max(int(top_k) * 4, int(top_k))
+            vector_results = self._search_vectorial_raw(query, top_k=pool_k)
+            lsi_results = self._search_lsi_raw(
+                query,
+                top_k=pool_k,
+                include_explanations=include_explanations,
+            )
+            raw_results = self._rrf_fuse(
+                [vector_results, lsi_results],
+                top_k=top_k,
+                rrf_k=60,
+            )
+
         documents: list[RetrievedDocument] = []
 
         for citation_id, item in enumerate(raw_results, start=1):
@@ -170,6 +216,107 @@ class RAGPipeline:
             )
 
         return documents
+
+    def _normalize_search_mode(self, search_mode: str | None) -> str:
+        mode = str(search_mode or "").strip().lower()
+        aliases = {
+            "hybrid": "hybrid_search",
+            "hibrido": "hybrid_search",
+            "híbrido": "hybrid_search",
+        }
+        mode = aliases.get(mode, mode)
+        if mode not in self.SUPPORTED_SEARCH_MODES:
+            raise ValueError(
+                f"search_mode invalido: '{search_mode}'. "
+                "Usa: 'lsi', 'vectorial' o 'hybrid_search'."
+            )
+        return mode
+
+    def _search_vectorial_raw(self, query: str, top_k: int) -> list[dict]:
+        if self._vector_search_available:
+            try:
+                return self.vector_db.search(query, top_k=top_k)
+            except Exception:
+                print("Advertencia: La búsqueda vectorial falló durante la ejecución. Usando fallback TF-IDF.")
+                self._vector_search_available = False
+        print("Advertencia: La búsqueda vectorial no está disponible. Usando fallback TF-IDF.")
+        return self._tfidf_search(query, top_k=top_k)
+
+    def _search_lsi_raw(
+        self,
+        query: str,
+        top_k: int,
+        *,
+        include_explanations: bool,
+    ) -> list[dict]:
+        if self.semantic_searcher is None:
+            return []
+
+        try:
+            raw = self.semantic_searcher.search(
+                query,
+                top_k=top_k,
+                include_explanations=include_explanations,
+            )
+        except Exception:
+            return []
+
+        results: list[dict] = []
+        for item in raw:
+            payload: dict[str, Any] = {
+                "doc_id": str(item.get("doc_id") or "").strip(),
+                "title": item.get("title") or "",
+                "score": float(item.get("score", 0.0)),
+                "summary": item.get("snippet") or item.get("summary") or "",
+                "url": item.get("url") or "",
+            }
+            if include_explanations and isinstance(item.get("explanation"), dict):
+                payload["explanation"] = item["explanation"]
+            if payload["doc_id"]:
+                results.append(payload)
+        return results
+
+    def _rrf_fuse(
+        self,
+        result_lists: list[list[dict]],
+        *,
+        top_k: int,
+        rrf_k: int = 60,
+    ) -> list[dict]:
+        if top_k <= 0:
+            return []
+        accumulator: dict[str, dict[str, Any]] = {}
+
+        for result_list in result_lists:
+            for rank, item in enumerate(result_list, start=1):
+                doc_id = str(item.get("doc_id") or "").strip()
+                if not doc_id:
+                    continue
+
+                contribution = 1.0 / (float(rrf_k) + float(rank))
+                if doc_id not in accumulator:
+                    base_payload = dict(item)
+                    base_payload["score"] = 0.0
+                    accumulator[doc_id] = base_payload
+
+                accumulator[doc_id]["score"] = float(accumulator[doc_id]["score"]) + contribution
+
+                if not accumulator[doc_id].get("title") and item.get("title"):
+                    accumulator[doc_id]["title"] = item.get("title")
+                if not accumulator[doc_id].get("url") and item.get("url"):
+                    accumulator[doc_id]["url"] = item.get("url")
+                if not accumulator[doc_id].get("summary") and item.get("summary"):
+                    accumulator[doc_id]["summary"] = item.get("summary")
+
+                if isinstance(item.get("explanation"), dict):
+                    accumulator[doc_id]["explanation"] = item["explanation"]
+
+        merged = sorted(
+            accumulator.values(),
+            key=lambda payload: float(payload.get("score", 0.0)),
+            reverse=True,
+        )
+        return merged[:top_k]
 
     def _convert_lsi_results(self, lsi_results: list[dict]) -> list[RetrievedDocument]:
         documents: list[RetrievedDocument] = []
@@ -567,14 +714,29 @@ class RAGPipeline:
     def _has_local_vector_model(self) -> bool:
         model_name = str(self.vector_db.model_name or "").strip()
         if not model_name:
+            print("Advertencia: No se encontró un modelo vectorial local disponible.")
             return False
 
         model_path = Path(model_name)
         if model_path.exists():
             return True
 
+        model_slug = model_name.replace("/", "--")
         cache_candidates = [
             Path.home() / ".cache" / "torch" / "sentence_transformers" / model_name,
-            Path.home() / ".cache" / "huggingface" / "hub" / f"models--{model_name.replace('/', '--')}",
+            Path.home() / ".cache" / "huggingface" / "hub" / f"models--{model_slug}",
+            Path.home() / ".cache" / "huggingface" / "hub" / f"models--sentence-transformers--{model_slug}",
         ]
-        return any(candidate.exists() for candidate in cache_candidates)
+        if any(candidate.exists() for candidate in cache_candidates):
+            return True
+
+        # Fallback robusto para variaciones de mayúsculas/minúsculas en el nombre del modelo.
+        hub_dir = Path.home() / ".cache" / "huggingface" / "hub"
+        if hub_dir.exists():
+            target_suffix = model_slug.casefold()
+            for candidate in hub_dir.glob("models--*"):
+                name = candidate.name.casefold()
+                if name.endswith(target_suffix):
+                    return True
+
+        return False
