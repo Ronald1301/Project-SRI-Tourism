@@ -34,6 +34,7 @@ def search(request: SearchRequest):
         query=request.query,
         search_mode=request.search_mode,
         top_k=request.top_k,
+        include_explanations=request.explanations,
     )
 
     results = [
@@ -46,6 +47,7 @@ def search(request: SearchRequest):
             content_text=doc.content_text,
             rating=doc.metadata.get("rating") if doc.metadata else None,
             location=doc.metadata.get("location") if doc.metadata else None,
+            explanation=doc.metadata.get("explanation") if doc.metadata else None,
         )
         for doc in documents
     ]

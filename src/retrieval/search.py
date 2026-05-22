@@ -10,7 +10,8 @@ import numpy as np
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.retrieval.lsi_model import LSIModel
-from src.retrieval.reranker import SignalReranker
+from src.retrieval.ranking_signals import QuerySignalContext
+from src.retrieval.reranker import RankingExplanation, RankingPayload, SignalReranker
 from src.vector_db.preset import resolve_documents_path
 
 DEFAULT_TFIDF_MATRIX = "data/index/tfidf_matrix.npy"
@@ -211,6 +212,7 @@ class SemanticSearcher:
         length_signal: float,
         extra_score_components: dict[str, float] | None = None,
         score_debug: dict[str, float] | None = None,
+        explanation: RankingExplanation | None = None,
         query: str,
         query_tokens: list[str],
         retrieval_model: str,
@@ -248,6 +250,8 @@ class SemanticSearcher:
         }
         if score_debug:
             payload["score_debug"] = score_debug
+        if explanation:
+            payload["explanation"] = explanation
         return payload
 
     def _score_candidate(
@@ -255,15 +259,17 @@ class SemanticSearcher:
         *,
         doc_id: str,
         lsi_score: float,
-        query_context: Any,
+        query_context: QuerySignalContext,
         debug: bool = False,
-    ) -> dict[str, Any]:
+        include_explanations: bool = False,
+    ) -> RankingPayload:
         document = self.documents_by_id.get(doc_id, {})
         return self.reranker.score(
             base_score=float(lsi_score),
             query_context=query_context,
             document=document,
             debug=debug,
+            include_explanation=include_explanations,
         )
 
     def _prepare_query(self, query: str) -> tuple[list[str], np.ndarray]:
@@ -272,7 +278,13 @@ class SemanticSearcher:
         query_lsi = self.lsi_model.transform_query(query_vector)
         return tokens, query_lsi
 
-    def search_baseline(self, query: str, top_k: int = 10) -> List[dict[str, Any]]:
+    def search_baseline(
+        self,
+        query: str,
+        top_k: int = 10,
+        *,
+        include_explanations: bool = False,
+    ) -> List[dict[str, Any]]:
         if not query or not query.strip():
             return []
 
@@ -290,6 +302,11 @@ class SemanticSearcher:
         for rank, idx in enumerate(top_indices, start=1):
             doc_id = self.doc_ids[idx]
             lsi_score = float(similarities[idx])
+            explanation = (
+                self.reranker.build_baseline_explanation(base_score=lsi_score)
+                if include_explanations
+                else None
+            )
             results.append(
                 self._build_result(
                     doc_id=doc_id,
@@ -299,6 +316,7 @@ class SemanticSearcher:
                     lexical_overlap=0.0,
                     title_match=0.0,
                     length_signal=0.0,
+                    explanation=explanation,
                     query=query,
                     query_tokens=tokens,
                     retrieval_model=BASELINE_RETRIEVAL_MODEL,
@@ -314,6 +332,7 @@ class SemanticSearcher:
         score_threshold: float | None = None,
         initial_top_k: int | None = None,
         debug: bool = False,
+        include_explanations: bool = False,
     ) -> List[dict[str, Any]]:
         if not query or not query.strip():
             return []
@@ -344,12 +363,14 @@ class SemanticSearcher:
                 lsi_score=lsi_score,
                 query_context=query_context,
                 debug=debug,
+                include_explanations=include_explanations,
             )
             final_score = float(ranking_payload.get("final_score", lsi_score))
             components = ranking_payload.get("score_components", {})
             lexical_overlap = float(components.get("lexical_overlap", 0.0))
             title_match = float(components.get("title_match", 0.0))
             length_signal = float(components.get("length_signal", 0.0))
+            explanation = ranking_payload.get("explanation")
             extra_components = {
                 str(key): float(value)
                 for key, value in components.items()
@@ -366,6 +387,7 @@ class SemanticSearcher:
                     length_signal=length_signal,
                     extra_score_components=extra_components,
                     score_debug=ranking_payload.get("score_debug"),
+                    explanation=explanation if isinstance(explanation, dict) else None,
                     query=query,
                     query_tokens=tokens,
                     retrieval_model=RERANK_RETRIEVAL_MODEL,

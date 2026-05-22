@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
 from src.retrieval.search import SemanticSearcher
 from src.api.config import (
@@ -10,7 +8,6 @@ from src.api.config import (
     DEFAULT_LSI_VECTORS,
     DEFAULT_LSI_META,
     DEFAULT_DOCUMENTS,
-    VECTOR_DB_DIR,
 )
 
 
@@ -27,22 +24,39 @@ class RAGSearchService:
         )
         self.rag_pipeline = RAGPipeline.from_preset()
 
-    def search(self, query: str, search_mode: str = "lsi", top_k: int = 5) -> tuple[list[RetrievedDocument], str]:
+    def search(
+        self,
+        query: str,
+        search_mode: str = "lsi",
+        top_k: int = 5,
+        include_explanations: bool = False,
+    ) -> tuple[list[RetrievedDocument], str]:
         if search_mode == "lsi":
-            raw_results = self.searcher.search(query, top_k=top_k)
+            raw_results = self.searcher.search(
+                query,
+                top_k=top_k,
+                include_explanations=include_explanations,
+            )
         else:
-            raw_results = self.searcher.search_baseline(query, top_k=top_k)
+            raw_results = self.searcher.search_baseline(
+                query,
+                top_k=top_k,
+                include_explanations=include_explanations,
+            )
 
-        lsi_results = [
-            {
-                "doc_id": r["doc_id"],
-                "title": r["title"],
-                "score": r["score"],
-                "summary": r.get("snippet") or r.get("summary") or "",
-                "url": r.get("url") or "",
+        lsi_results: list[dict[str, object]] = []
+        for result in raw_results:
+            payload: dict[str, object] = {
+                "doc_id": result["doc_id"],
+                "title": result["title"],
+                "score": result["score"],
+                "summary": result.get("snippet") or result.get("summary") or "",
+                "url": result.get("url") or "",
             }
-            for r in raw_results
-        ]
+            explanation = result.get("explanation")
+            if include_explanations and isinstance(explanation, dict):
+                payload["explanation"] = explanation
+            lsi_results.append(payload)
 
         rag_result = self.rag_pipeline.answer_with_lsi(query, lsi_results, top_k=top_k)
         return rag_result.documents, rag_result.answer
