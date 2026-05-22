@@ -88,6 +88,11 @@ def _build_parser() -> argparse.ArgumentParser:
     query_parser = subparsers.add_parser("query", help="Consulta la base vectorial.")
     query_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     query_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados.")
+    query_parser.add_argument(
+        "--debug-ranking",
+        action="store_true",
+        help="Muestra breakdown de score para resultados vectoriales.",
+    )
     rag_parser = subparsers.add_parser("rag_query", help="Consulta el RAG sobre la base vectorial.")
     rag_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     rag_parser.add_argument("--top-k", type=int, default=4, help="Cantidad de documentos recuperados.")
@@ -108,6 +113,11 @@ def _build_parser() -> argparse.ArgumentParser:
     lsi_parser = subparsers.add_parser("lsi_query", help="Consulta el modelo LSI.")
     lsi_parser.add_argument("query", nargs="+", help="Texto de la consulta.")
     lsi_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados.")
+    lsi_parser.add_argument(
+        "--debug-ranking",
+        action="store_true",
+        help="Muestra breakdown del reranking por documento.",
+    )
     web_search_parser = subparsers.add_parser("web_search", help="Prueba solo el modulo de busqueda web.")
     web_search_parser.add_argument("query", nargs="+", help="Texto de la consulta web.")
     web_search_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados web.")
@@ -163,7 +173,7 @@ def _run_pipeline() -> int:
     return _run_vector_db()
 
 
-def _run_vector_db_query(query_text: str, top_k: int) -> int:
+def _run_vector_db_query(query_text: str, top_k: int, debug_ranking: bool = False) -> int:
     from src.vector_db.preset import OUTPUT_DIR
     from src.vector_db.vector_store import VectorDatabase
 
@@ -183,10 +193,13 @@ def _run_vector_db_query(query_text: str, top_k: int) -> int:
     for idx, item in enumerate(results, start=1):
         title = item.get("title") or item.get("entity_name") or ""
         url = item.get("url") or ""
-        score = item.get("score", 0.0)
+        score = float(item.get("score", 0.0))
+        chunk_hits = int(item.get("chunk_hits", 0))
         print(f"{idx}. score={score:.4f}  {title}")
         if url:
             print(f"   {url}")
+        if debug_ranking:
+            print(f"   dbg: base={score:.4f} chunk_hits={chunk_hits} final={score:.4f}")
     return 0
 
 
@@ -262,14 +275,14 @@ def _run_lsi_rag_query(query_text: str, top_k: int, show_prompt: bool) -> int:
     return 0
 
 
-def _run_lsi_query(query_text: str, top_k: int) -> int:
+def _run_lsi_query(query_text: str, top_k: int, debug_ranking: bool = False) -> int:
     missing = _missing_lsi_artifacts()
     if missing:
         _print_missing_lsi_artifacts()
         return 1
 
     searcher = SemanticSearcher()
-    results = searcher.search(query_text, top_k=top_k)
+    results = searcher.search(query_text, top_k=top_k, debug=debug_ranking)
     print(f"Resultados LSI para: {query_text}")
     if not results:
         print("- Sin resultados por encima del umbral de relevancia")
@@ -290,6 +303,18 @@ def _run_lsi_query(query_text: str, top_k: int) -> int:
             print(f"   {url}")
         if snippet:
             print(f"   snippet: {snippet}")
+        if debug_ranking:
+            debug_data = item.get("score_debug") or {}
+            if isinstance(debug_data, dict):
+                print(
+                    "   dbg:"
+                    f" base={float(debug_data.get('base_score', 0.0)):.4f}"
+                    f" phrase={float(debug_data.get('phrase', 0.0)):.4f}"
+                    f" recency={float(debug_data.get('recency', 0.0)):.4f}"
+                    f" type={float(debug_data.get('type', 0.0)):.4f}"
+                    f" authority={float(debug_data.get('authority', 0.0)):.4f}"
+                    f" final={float(debug_data.get('final_score', score)):.4f}"
+                )
     return 0
 
 
@@ -400,7 +425,7 @@ def main() -> int:
     if args.command == "pipeline":
         return _run_pipeline()
     if args.command == "query":
-        return _run_vector_db_query(" ".join(args.query), args.top_k)
+        return _run_vector_db_query(" ".join(args.query), args.top_k, args.debug_ranking)
     if args.command == "rag_query":
         return _run_rag_query(" ".join(args.query), args.top_k, args.show_prompt)
     if args.command == "lsi_rag":
@@ -408,7 +433,7 @@ def main() -> int:
     if args.command == "lsi_train":
         return _run_lsi_train()
     if args.command == "lsi_query":
-        return _run_lsi_query(" ".join(args.query), args.top_k)
+        return _run_lsi_query(" ".join(args.query), args.top_k, args.debug_ranking)
     if args.command == "web_search":
         return _run_web_search(" ".join(args.query), args.top_k, args.output)
     if args.command == "evaluate_rec01":
