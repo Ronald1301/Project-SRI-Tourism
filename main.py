@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import platform
 from pathlib import Path
 import subprocess
 import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+logger = logging.getLogger("cli")
 
 
 def _binary_supports_arm64(binary_path: Path) -> bool:

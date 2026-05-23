@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 import time
@@ -11,7 +12,7 @@ from src.utils.file_manager import load_visited_urls
 from src.web_crawler.config import DEFAULT_VISITED_URLS_PATH
 from src.web_crawler.scraper import extract_document
 
-
+logger = logging.getLogger("src.web_search.search_client")
 
 
 class DuckDuckGoWebSearchClient:
@@ -34,6 +35,7 @@ class DuckDuckGoWebSearchClient:
 
     def search(self, query: str, max_results: int = 5) -> list[dict[str, object]]:
         if not query or not query.strip():
+            logger.warning("search() llamada con query vacia")
             return []
 
         documents: list[dict[str, object]] = []
@@ -42,6 +44,7 @@ class DuckDuckGoWebSearchClient:
         visited_urls = load_visited_urls(self.visited_urls_path)
         documents_count = 0
 
+        logger.info("Consultando DuckDuckGo para: \"%s\" (max=%d)", query, max_results)
         try:
             with DDGS(timeout=self.timeout) as ddgs:
                 hits = ddgs.text(query.strip(), max_results=max(int(max_results), 0))
@@ -58,11 +61,15 @@ class DuckDuckGoWebSearchClient:
                     seen_urls.add(url)
                     if len(urls) >= max(int(max_results), 0):
                         break
-        except Exception:
+        except Exception as exc:
+            logger.warning("Error en busqueda DuckDuckGo: %s", exc)
             return []
 
-        for url in urls:
+        logger.info("DuckDuckGo retorno %d URLs unicas", len(urls))
+        total = len(urls)
+        for i, url in enumerate(urls, start=1):
             html = None
+            logger.info("Extrayendo [%d/%d] %s", i, total, url)
             time.sleep(2)
             try:
                 resp = self.session.get(
@@ -73,8 +80,10 @@ class DuckDuckGoWebSearchClient:
                 if resp.status_code == 200:
                     html = resp.text
                 else:
+                    logger.info("  HTTP %d, saltando", resp.status_code)
                     continue
-            except Exception:
+            except Exception as exc:
+                logger.info("  Error HTTP: %s, saltando", exc)
                 continue
 
             if html is None:
@@ -82,10 +91,11 @@ class DuckDuckGoWebSearchClient:
 
             document = extract_document(html, url)
             documents_count += 1
-            print(f"Documentos extraidos : {documents_count}")
+            logger.info("  Documento extraido (%d/%d)", documents_count, total)
             documents.append(document)
             self._append_visited_url(url)
 
+        logger.info("Busqueda web completa: %d documentos extraidos de %d URLs", documents_count, total)
         return documents
 
     def _append_visited_url(self, url: str) -> None:

@@ -1,3 +1,5 @@
+import logging
+
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
 from src.retrieval.search import SemanticSearcher
 from src.api.config import (
@@ -10,9 +12,12 @@ from src.api.config import (
     DEFAULT_DOCUMENTS,
 )
 
+logger = logging.getLogger("src.api.service.rag_service")
+
 
 class RAGSearchService:
     def __init__(self):
+        logger.info("Inicializando RAGSearchService...")
         self.searcher = SemanticSearcher(
             tfidf_matrix_path=DEFAULT_TFIDF_MATRIX,
             tfidf_vocab_path=DEFAULT_TFIDF_VOCAB,
@@ -23,6 +28,7 @@ class RAGSearchService:
             documents_path=DEFAULT_DOCUMENTS,
         )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
+        logger.info("RAGSearchService listo")
 
     def search(
         self,
@@ -31,12 +37,14 @@ class RAGSearchService:
         top_k: int = 5,
         include_explanations: bool = False,
     ) -> tuple[list[RetrievedDocument], str]:
+        logger.info("service.search | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
         rag_result = self.rag_pipeline.answer_query(
             query=query,
             top_k=top_k,
             search_mode=search_mode,
             include_explanations=include_explanations,
         )
+        logger.info("service.search completo | %d documentos", len(rag_result.documents))
         return rag_result.documents, rag_result.answer
 
 
