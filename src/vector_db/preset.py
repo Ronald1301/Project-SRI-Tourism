@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.vector_db.vector_store import VectorDatabase
 
-DOCUMENTS_JSONL_PATH: Path | None = None
-CRAWL_STRUCTURED_DIR = Path("data/raw/crawl/structured")
-AUTO_DISCOVER_LATEST = True
+CRAWL_DOCUMENTS_PATH = Path("data/raw/documents.jsonl")
 
 OUTPUT_DIR = Path("data/processed/vector_db")
 TEXT_FIELDS = ["title", "content_text"]
@@ -26,32 +24,12 @@ HNSW_M = 32
 HNSW_EF_CONSTRUCTION = 200
 HNSW_EF_SEARCH = 64
 
-def find_lastest_jsonl(base_dir : Path) -> Path | None:
-    if not base_dir.exists():
-        return None
-    candidates = []
-    for child in base_dir.iterdir():
-        if not child.is_dir():
-            continue
-        jsonl_path = child / "documents.jsonl"
-        if jsonl_path.exists():
-            candidates.append(jsonl_path)
-    if not candidates:
-        return None
-    return sorted(candidates,key=lambda p : p.parent.name)[-1]
-
 def resolve_documents_path() -> Path:
-    if DOCUMENTS_JSONL_PATH:
-        path = Path(DOCUMENTS_JSONL_PATH)
-        if path.exists():
-            return path
-    if AUTO_DISCOVER_LATEST:
-        latest = find_lastest_jsonl(CRAWL_STRUCTURED_DIR)
-        if latest:
-            return latest
+    if CRAWL_DOCUMENTS_PATH.exists():
+        return CRAWL_DOCUMENTS_PATH
     raise FileNotFoundError(
-            "No documents.jsonl found. Set DOCUMENTS_JSONL_PATH in vector_db/preset.py"
-        )
+        f"No se encontro {CRAWL_DOCUMENTS_PATH}. Ejecuta el crawler primero."
+    )
 
 def build_vector_db_from_preset() -> "VectorDatabase":
     from src.vector_db.vector_store import VectorDatabase

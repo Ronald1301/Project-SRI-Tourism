@@ -145,16 +145,14 @@ def _build_parser() -> argparse.ArgumentParser:
 def _run_crawl() -> int:
     config = build_default_config()
     crawler = WebCrawler(config)
-    report = crawler.crawl()
-
-    stats = report["stats"]
-    print("Crawling finalizado")
-    print(f"- Run ID: {report['run_id']}")
-    print(f"- Documentos guardados: {stats['documents_saved']}")
-    print(f"- Paginas HTML procesadas: {stats['pages_fetched']}")
-    print(f"- URLs visitadas: {stats['urls_visited']}")
-    print(f"- Errores: {stats['errors']}")
-    print(f"- Reporte: {report['paths']['report_json']}")
+    stats = crawler.crawl()
+    logger.info(
+        "Crawling finalizado: %d docs, %d paginas, %d urls, %d errores",
+        stats["documents_saved"],
+        stats["pages_fetched"],
+        stats["urls_visited"],
+        stats["errors"],
+    )
     return 0
 
 
