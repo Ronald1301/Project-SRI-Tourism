@@ -1,8 +1,15 @@
+import logging
 import sys
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.models import SearchRequest, SearchResponse, DocumentResult
 from src.api.service.rag_service import get_rag_service
 
+logger = logging.getLogger("src.api.main")
 
 app = FastAPI(title="SRI Tourism API", version="1.0.0")
 
@@ -29,6 +37,7 @@ def health_check():
 
 @app.post("/search", response_model=SearchResponse)
 def search(request: SearchRequest):
+    logger.info("POST /search | query=\"%s\" | mode=%s | top_k=%d", request.query, request.search_mode, request.top_k)
     service = get_rag_service()
     documents, answer = service.search(
         query=request.query,
@@ -52,4 +61,5 @@ def search(request: SearchRequest):
         for doc in documents
     ]
 
+    logger.info("Respuesta enviada | %d resultados | answer_len=%d", len(results), len(answer or ""))
     return SearchResponse(results=results, answer=answer, total=len(results))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,12 +9,17 @@ from typing import Any, Iterable
 
 import numpy as np # type: ignore
 
+logger = logging.getLogger("src.RAG.rag_pipeline")
+
 from src.RAG.rag_answer_generator import RAGAnswerGenerator
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import PreprocessingPipeline
 from src.retrieval.search import SemanticSearcher
+from src.utils.file_manager import save_documents_to_jsonl
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path
 from src.vector_db.vector_store import VectorDatabase
+from src.web_search.inssufficiency_policy import InsufficiencyPolicy
+from src.web_search.search_client import DuckDuckGoWebSearchClient
 
 
 def iter_jsonl(path: Path) -> Iterable[dict]:
@@ -81,10 +87,20 @@ class RAGPipeline:
         *,
         language: str = "spanish",
         semantic_searcher: SemanticSearcher | None = None,
+        insufficiency_policy: InsufficiencyPolicy | None = None,
+        web_search_client: DuckDuckGoWebSearchClient | None = None,
+        web_search_output_path: Path | None = None,
     ) -> None:
         self.vector_db = vector_db
         self.repository = repository
         self.semantic_searcher = semantic_searcher
+        self.insufficiency_policy = insufficiency_policy or InsufficiencyPolicy()
+        self.web_search_client = web_search_client or DuckDuckGoWebSearchClient()
+        self.web_search_output_path = (
+            Path(web_search_output_path)
+            if web_search_output_path is not None
+            else Path("data/raw/web_documents.jsonl")
+        )
         self.answer_generator = RAGAnswerGenerator()
         self.preprocessing = PreprocessingPipeline(language=language)
         self._document_token_cache: dict[str, set[str]] = {}
@@ -99,15 +115,23 @@ class RAGPipeline:
         output_dir: Path = OUTPUT_DIR,
         language: str = "spanish",
         semantic_searcher: SemanticSearcher | None = None,
+        insufficiency_policy: InsufficiencyPolicy | None = None,
+        web_search_client: DuckDuckGoWebSearchClient | None = None,
+        web_search_output_path: Path | None = None,
     ) -> "RAGPipeline":
+        logger.info("Inicializando RAGPipeline | output_dir=%s | language=%s", output_dir, language)
         documents_path = resolve_documents_path()
         vector_db = VectorDatabase.load(Path(output_dir))
         repository = DocumentRepository.from_jsonl(documents_path)
+        logger.info("VectorDB cargada: %d documentos | repositorio: %s", len(vector_db.doc_ids), documents_path)
         return cls(
             vector_db,
             repository,
             language=language,
             semantic_searcher=semantic_searcher,
+            insufficiency_policy=insufficiency_policy,
+            web_search_client=web_search_client,
+            web_search_output_path=web_search_output_path,
         )
 
     def answer_query(
@@ -118,14 +142,43 @@ class RAGPipeline:
         search_mode: str = "vectorial",
         include_explanations: bool = False,
     ) -> RAGResult:
-        documents = self.retrieve(
+        logger.info("answer_query | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
+        local_documents = self.retrieve(
             query,
             top_k=top_k,
             search_mode=search_mode,
             include_explanations=include_explanations,
         )
+        logger.info("Recuperacion local: %d documentos", len(local_documents))
+
+        if self._is_retrieval_insufficient(local_documents):
+            logger.info("Recuperacion local INSUFICIENTE — activando busqueda web")
+            web_documents = self._retrieve_and_index_web_context(query, top_k=top_k)
+            if web_documents:
+                logger.info("Web search obtuvo %d documentos, re-consultando vectorial...", len(web_documents))
+                augmented_documents = self.retrieve(
+                    query,
+                    top_k=top_k,
+                    search_mode="vectorial",
+                    include_explanations=False,
+                )
+                if augmented_documents:
+                    documents = augmented_documents
+                    logger.info("Re-consulta exitosa: %d documentos", len(documents))
+                else:
+                    documents = (local_documents + web_documents)[: max(int(top_k), 0)]
+                    logger.info("Usando merge local+web: %d documentos", len(documents))
+            else:
+                documents = local_documents
+                logger.info("Web search no retorno documentos, usando solo locales")
+        else:
+            documents = local_documents
+            logger.info("Recuperacion local suficiente")
+
+        logger.info("Generando respuesta con LLM...")
         prompt = self.answer_generator.build_prompt(query, documents)
         answer = self.answer_generator.generate(query, documents, prompt=prompt)
+        logger.info("Respuesta generada | answer_len=%d", len(answer))
         return RAGResult(
             query=query,
             prompt=prompt,
@@ -158,10 +211,12 @@ class RAGPipeline:
         include_explanations: bool = False,
     ) -> list[RetrievedDocument]:
         mode = self._normalize_search_mode(search_mode)
+        logger.info("retrieve | mode=%s | top_k=%d", mode, top_k)
 
         if mode == "vectorial":
             raw_results = self._search_vectorial_raw(query, top_k=top_k)
         elif mode == "lsi":
+            logger.info("Ejecutando busqueda LSI...")
             raw_results = self._search_lsi_raw(
                 query,
                 top_k=top_k,
@@ -169,6 +224,7 @@ class RAGPipeline:
             )
         else:
             pool_k = max(int(top_k) * 4, int(top_k))
+            logger.info("Ejecutando busqueda hibrida (pool_k=%d)...", pool_k)
             vector_results = self._search_vectorial_raw(query, top_k=pool_k)
             lsi_results = self._search_lsi_raw(
                 query,
@@ -180,6 +236,7 @@ class RAGPipeline:
                 top_k=top_k,
                 rrf_k=60,
             )
+            logger.info("RRF fusion completa: %d resultados", len(raw_results))
 
         documents: list[RetrievedDocument] = []
 
@@ -235,11 +292,14 @@ class RAGPipeline:
     def _search_vectorial_raw(self, query: str, top_k: int) -> list[dict]:
         if self._vector_search_available:
             try:
-                return self.vector_db.search(query, top_k=top_k)
+                logger.info("Busqueda vectorial en VectorDatabase...")
+                results = self.vector_db.search(query, top_k=top_k)
+                logger.info("Vectorial retorno %d resultados", len(results))
+                return results
             except Exception:
-                print("Advertencia: La búsqueda vectorial falló durante la ejecución. Usando fallback TF-IDF.")
+                logger.warning("Busqueda vectorial fallo, usando fallback TF-IDF")
                 self._vector_search_available = False
-        print("Advertencia: La búsqueda vectorial no está disponible. Usando fallback TF-IDF.")
+        logger.info("Vectorial no disponible, usando fallback TF-IDF")
         return self._tfidf_search(query, top_k=top_k)
 
     def _search_lsi_raw(
@@ -250,6 +310,7 @@ class RAGPipeline:
         include_explanations: bool,
     ) -> list[dict]:
         if self.semantic_searcher is None:
+            logger.info("LSI no disponible: semantic_searcher es None")
             return []
 
         try:
@@ -258,9 +319,11 @@ class RAGPipeline:
                 top_k=top_k,
                 include_explanations=include_explanations,
             )
-        except Exception:
+        except Exception as exc:
+            logger.warning("Busqueda LSI fallo: %s", exc)
             return []
 
+        logger.info("LSI retorno %d resultados raw", len(raw))
         results: list[dict] = []
         for item in raw:
             payload: dict[str, Any] = {
@@ -317,6 +380,140 @@ class RAGPipeline:
             reverse=True,
         )
         return merged[:top_k]
+
+    def _is_retrieval_insufficient(self, documents: list[RetrievedDocument]) -> bool:
+        scores = [doc.score for doc in documents]
+        result = self.insufficiency_policy.is_insufficient(
+            [{"doc_id": doc.doc_id, "score": float(doc.score)} for doc in documents]
+        )
+        if result and documents:
+            logger.info("Recuperacion insuficiente: scores=%s", [f"{s:.4f}" for s in scores])
+        return result
+
+    def _retrieve_and_index_web_context(self, query: str, *, top_k: int) -> list[RetrievedDocument]:
+        max_results = max(int(top_k) * 2, int(top_k), 1)
+        logger.info("Buscando en DuckDuckGo (max_results=%d)...", max_results)
+        web_documents_raw = self.web_search_client.search(query, max_results=max_results)
+        if not web_documents_raw:
+            logger.info("Web search: sin resultados")
+            return []
+
+        logger.info("Web search obtuvo %d documentos raw", len(web_documents_raw))
+        normalized_docs = self._normalize_web_documents(web_documents_raw)
+        if not normalized_docs:
+            logger.info("Web search: ningun documento paso la normalizacion")
+            return []
+
+        logger.info("Normalizados: %d documentos. Persistiendo...", len(normalized_docs))
+        self._persist_web_documents(normalized_docs)
+        logger.info("Indexando en VectorDatabase...")
+        self._index_web_documents(normalized_docs)
+        self._merge_web_documents_into_repository(normalized_docs)
+        logger.info("Web context listo: %d documentos convertidos", min(len(normalized_docs), max(int(top_k), 0)))
+        return self._convert_web_docs_to_retrieved(normalized_docs[: max(int(top_k), 0)])
+
+    def _normalize_web_documents(self, documents: list[dict[str, object]]) -> list[dict[str, object]]:
+        normalized: list[dict[str, object]] = []
+        for item in documents:
+            doc_id = str(item.get("doc_id") or "").strip()
+            title = str(item.get("title") or item.get("entity_name") or "").strip()
+            content_text = str(item.get("content_text") or "").strip()
+            summary = str(item.get("summary") or "").strip()
+            url = str(item.get("url") or "").strip()
+            if not doc_id:
+                continue
+            if not (title or content_text or summary):
+                continue
+            payload = dict(item)
+            payload["doc_id"] = doc_id
+            payload["title"] = title or f"Documento {doc_id[:8]}"
+            payload["content_text"] = content_text
+            payload["summary"] = summary
+            payload["url"] = url
+            payload["source"] = "web"
+            normalized.append(payload)
+        return normalized
+
+    def _persist_web_documents(self, documents: list[dict[str, object]]) -> None:
+        try:
+            output_path = self.web_search_output_path
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            save_documents_to_jsonl(documents, output_path)
+            logger.info("Documentos web persistidos en %s", output_path)
+        except Exception as exc:
+            logger.warning("Error persistiendo documentos web: %s", exc)
+
+    def _index_web_documents(self, documents: list[dict[str, object]]) -> None:
+        index_ready_docs: list[dict[str, object]] = []
+        for item in documents:
+            combined_text = "\n".join(
+                [
+                    str(item.get("title") or ""),
+                    str(item.get("summary") or ""),
+                    str(item.get("content_text") or ""),
+                ]
+            ).strip()
+            tokens = self.preprocessing.process_text(combined_text)
+            if not tokens:
+                continue
+            processed = dict(item)
+            processed["content_text"] = " ".join(tokens)
+            index_ready_docs.append(processed)
+
+        if not index_ready_docs:
+            logger.info("Index web: 0 documentos listos para indexar")
+            return
+
+        logger.info("Indexando %d documentos web en VectorDatabase...", len(index_ready_docs))
+        try:
+            self.vector_db.add_documents(
+                index_ready_docs,
+                store_fields=[
+                    "url",
+                    "title",
+                    "summary",
+                    "content_text",
+                    "content_type",
+                    "rating",
+                    "review_date",
+                    "location",
+                    "source",
+                ],
+                persist=True,
+                output_dir=Path(OUTPUT_DIR),
+            )
+            logger.info("Indexacion web completada")
+        except Exception as exc:
+            logger.warning("Error indexando documentos web: %s", exc)
+
+    def _merge_web_documents_into_repository(self, documents: list[dict[str, object]]) -> None:
+        for item in documents:
+            doc_id = str(item.get("doc_id") or "").strip()
+            if not doc_id:
+                continue
+            self.repository.documents[doc_id] = dict(item)
+            self._document_token_cache.pop(doc_id, None)
+            self._title_token_cache.pop(doc_id, None)
+
+    def _convert_web_docs_to_retrieved(self, web_docs: list[dict[str, object]]) -> list[RetrievedDocument]:
+        converted: list[RetrievedDocument] = []
+        for citation_id, item in enumerate(web_docs, start=1):
+            doc_id = str(item.get("doc_id") or "").strip()
+            if not doc_id:
+                continue
+            converted.append(
+                RetrievedDocument(
+                    citation_id=citation_id,
+                    doc_id=doc_id,
+                    title=str(item.get("title") or item.get("entity_name") or f"Documento {citation_id}"),
+                    url=str(item.get("url") or ""),
+                    score=float(item.get("score", 0.0)),
+                    summary=str(item.get("summary") or ""),
+                    content_text=str(item.get("content_text") or ""),
+                    metadata=dict(item),
+                )
+            )
+        return converted
 
     def _convert_lsi_results(self, lsi_results: list[dict]) -> list[RetrievedDocument]:
         documents: list[RetrievedDocument] = []
@@ -714,7 +911,7 @@ class RAGPipeline:
     def _has_local_vector_model(self) -> bool:
         model_name = str(self.vector_db.model_name or "").strip()
         if not model_name:
-            print("Advertencia: No se encontró un modelo vectorial local disponible.")
+            logger.warning("No se encontro modelo vectorial local disponible")
             return False
 
         model_path = Path(model_name)
@@ -727,8 +924,10 @@ class RAGPipeline:
             Path.home() / ".cache" / "huggingface" / "hub" / f"models--{model_slug}",
             Path.home() / ".cache" / "huggingface" / "hub" / f"models--sentence-transformers--{model_slug}",
         ]
-        if any(candidate.exists() for candidate in cache_candidates):
-            return True
+        for candidate in cache_candidates:
+            if candidate.exists():
+                logger.info("Modelo vectorial encontrado en cache: %s", candidate)
+                return True
 
         # Fallback robusto para variaciones de mayúsculas/minúsculas en el nombre del modelo.
         hub_dir = Path.home() / ".cache" / "huggingface" / "hub"
@@ -737,6 +936,8 @@ class RAGPipeline:
             for candidate in hub_dir.glob("models--*"):
                 name = candidate.name.casefold()
                 if name.endswith(target_suffix):
+                    logger.info("Modelo vectorial encontrado (fallback): %s", candidate)
                     return True
 
+        logger.warning("Modelo vectorial %s no encontrado en cache", model_name)
         return False
