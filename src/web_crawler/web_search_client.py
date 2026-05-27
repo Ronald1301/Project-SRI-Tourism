@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 import time
 
@@ -12,7 +11,7 @@ from src.utils.file_manager import load_visited_urls
 from src.web_crawler.config import DEFAULT_VISITED_URLS_PATH
 from src.web_crawler.scraper import extract_document
 
-logger = logging.getLogger("src.web_search.search_client")
+logger = logging.getLogger("src.web_crawler.web_search_client")
 
 
 class DuckDuckGoWebSearchClient:

@@ -19,6 +19,8 @@ logger = logging.getLogger("src.web_crawler.crawler")
 class WebCrawler:
     _VISITED_PATH_LOCKS: dict[str, Lock] = {}
     _VISITED_PATH_LOCKS_GUARD = Lock()
+    _ALLOWED_LANGUAGE_PREFIXES = ("es", "en")
+    _MIN_WORD_COUNT = 50
 
     def __init__(self, config: CrawlerConfig, site_name: str = "default"):
         self.config = config
@@ -49,6 +51,8 @@ class WebCrawler:
             "skipped_non_html": 0,
             "skipped_duplicate": 0,
             "skipped_persisted": 0,
+            "skipped_language": 0,
+            "skipped_short_text": 0,
         }
 
     @classmethod
@@ -178,9 +182,18 @@ class WebCrawler:
             document["depth"] = depth
             document["parent_url"] = parent_url
 
-            self.storage.append_document(document)
-            self.stats["documents_saved"] += 1
-            self.print_progress()
+            save_document = True
+            if not self._has_supported_language(document):
+                self.stats["skipped_language"] += 1
+                save_document = False
+            if not self._has_minimum_words(document):
+                self.stats["skipped_short_text"] += 1
+                save_document = False
+
+            if save_document:
+                self.storage.append_document(document)
+                self.stats["documents_saved"] += 1
+                self.print_progress()
             if self.config.persist_visited:
                 self.append_visited_url(final_url)
 
@@ -207,6 +220,21 @@ class WebCrawler:
             elapsed,
         )
         return self.stats
+
+    def _has_supported_language(self, document: dict[str, object]) -> bool:
+        language = str(document.get("language") or "").strip().lower()
+        if not language:
+            return False
+        normalized = language.split("-")[0]
+        return normalized in self._ALLOWED_LANGUAGE_PREFIXES
+
+    def _has_minimum_words(self, document: dict[str, object]) -> bool:
+        raw_count = document.get("word_count")
+        try:
+            count = int(raw_count) if raw_count is not None else 0
+        except (TypeError, ValueError):
+            count = 0
+        return count >= self._MIN_WORD_COUNT
 
     def print_progress(self) -> None:
         pages = self.stats["pages_fetched"]
