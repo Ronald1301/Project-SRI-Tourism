@@ -18,8 +18,8 @@ from src.retrieval.search import SemanticSearcher
 from src.utils.file_manager import save_documents_to_jsonl
 from src.vector_db.preset import OUTPUT_DIR, resolve_documents_path
 from src.vector_db.vector_store import VectorDatabase
-from src.web_search.inssufficiency_policy import InsufficiencyPolicy
-from src.web_search.search_client import DuckDuckGoWebSearchClient
+from src.web_crawler.insufficiency_policy import InsufficiencyPolicy
+from src.web_crawler.web_search_client import DuckDuckGoWebSearchClient
 
 
 def iter_jsonl(path: Path) -> Iterable[dict]:

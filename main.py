@@ -143,8 +143,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_crawl() -> int:
+    from src.web_crawler.sites import DEFAULT_SITE_NAME
     config = build_default_config()
-    crawler = WebCrawler(config)
+    crawler = WebCrawler(config, site_name=DEFAULT_SITE_NAME)
     stats = crawler.crawl()
     logger.info(
         "Crawling finalizado: %d docs, %d paginas, %d urls, %d errores",
@@ -327,8 +328,7 @@ def _run_lsi_query(query_text: str, top_k: int, debug_ranking: bool = False) -> 
 
 def _run_web_search(query_text: str, top_k: int, output_path: str) -> int:
     from src.utils.file_manager import save_documents_to_jsonl
-    from src.web_crawler import build_default_config
-    from src.web_search import DuckDuckGoWebSearchClient
+    from src.web_crawler import DuckDuckGoWebSearchClient, build_default_config
 
     crawler_config = build_default_config()
     client = DuckDuckGoWebSearchClient(visited_urls_path=crawler_config.visited_urls_path)

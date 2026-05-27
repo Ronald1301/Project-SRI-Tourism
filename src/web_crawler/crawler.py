@@ -3,6 +3,7 @@ import logging
 import time
 from collections import deque
 from datetime import UTC, datetime
+from threading import Lock
 from typing import Any
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,12 +17,20 @@ logger = logging.getLogger("src.web_crawler.crawler")
 
 
 class WebCrawler:
-    def __init__(self, config: CrawlerConfig):
+    _VISITED_PATH_LOCKS: dict[str, Lock] = {}
+    _VISITED_PATH_LOCKS_GUARD = Lock()
+    _ALLOWED_LANGUAGE_PREFIXES = ("es", "en")
+    _MIN_WORD_COUNT = 50
+
+    def __init__(self, config: CrawlerConfig, site_name: str = "default"):
         self.config = config
+        self.site_name = site_name
+        self.logger = logging.getLogger(f"src.web_crawler.crawler.{site_name}")
         self.policies = CrawlPolicies(config)
         self.storage = CrawlStorage(Path("data/raw"))
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": config.user_agent})
+        self.session.max_redirects = config.max_redirects
 
         self.last_request_at: dict[str, float] = {}
         self.queued: set[str] = set()
@@ -42,7 +51,19 @@ class WebCrawler:
             "skipped_non_html": 0,
             "skipped_duplicate": 0,
             "skipped_persisted": 0,
+            "skipped_language": 0,
+            "skipped_short_text": 0,
         }
+
+    @classmethod
+    def _visited_lock_for_path(cls, path: Path) -> Lock:
+        key = str(path.resolve())
+        with cls._VISITED_PATH_LOCKS_GUARD:
+            lock = cls._VISITED_PATH_LOCKS.get(key)
+            if lock is None:
+                lock = Lock()
+                cls._VISITED_PATH_LOCKS[key] = lock
+            return lock
 
     def respect_delay(self, url: str) -> None:
         host = urlparse(url).netloc.lower()
@@ -56,7 +77,7 @@ class WebCrawler:
 
     def record_error(self, url: str, depth: int, reason: str, detail: str | None = None) -> None:
         self.stats["errors"] += 1
-        logger.warning("Error [%s] %s (depth=%d): %s", reason, url, depth, detail or "")
+        self.logger.warning("Error [%s] %s (depth=%d): %s", reason, url, depth, detail or "")
 
     def fetch(self, url: str, depth: int) -> tuple[str, str, str] | None:
         self.respect_delay(url)
@@ -161,9 +182,18 @@ class WebCrawler:
             document["depth"] = depth
             document["parent_url"] = parent_url
 
-            self.storage.append_document(document)
-            self.stats["documents_saved"] += 1
-            self.print_progress()
+            save_document = True
+            if not self._has_supported_language(document):
+                self.stats["skipped_language"] += 1
+                save_document = False
+            if not self._has_minimum_words(document):
+                self.stats["skipped_short_text"] += 1
+                save_document = False
+
+            if save_document:
+                self.storage.append_document(document)
+                self.stats["documents_saved"] += 1
+                self.print_progress()
             if self.config.persist_visited:
                 self.append_visited_url(final_url)
 
@@ -180,7 +210,7 @@ class WebCrawler:
                 self.stats["links_enqueued"] += 1
 
         elapsed = (datetime.now(UTC) - start_time).total_seconds()
-        logger.info(
+        self.logger.info(
             "Crawl completo | documentos=%d paginas=%d errores=%d urls=%d enqueued=%d segundos=%.1f",
             self.stats["documents_saved"],
             self.stats["pages_fetched"],
@@ -190,6 +220,21 @@ class WebCrawler:
             elapsed,
         )
         return self.stats
+
+    def _has_supported_language(self, document: dict[str, object]) -> bool:
+        language = str(document.get("language") or "").strip().lower()
+        if not language:
+            return False
+        normalized = language.split("-")[0]
+        return normalized in self._ALLOWED_LANGUAGE_PREFIXES
+
+    def _has_minimum_words(self, document: dict[str, object]) -> bool:
+        raw_count = document.get("word_count")
+        try:
+            count = int(raw_count) if raw_count is not None else 0
+        except (TypeError, ValueError):
+            count = 0
+        return count >= self._MIN_WORD_COUNT
 
     def print_progress(self) -> None:
         pages = self.stats["pages_fetched"]
@@ -202,7 +247,7 @@ class WebCrawler:
         )
         if not by_pages:
             return
-        logger.info(
+        self.logger.info(
             "Progreso: pages=%d saved=%d queued=%d visited=%d",
             pages,
             self.stats["documents_saved"],
@@ -212,14 +257,16 @@ class WebCrawler:
 
     def load_visited_urls(self, path: Path) -> set[str]:
         urls: set[str] = set()
+        file_lock = self._visited_lock_for_path(path)
         try:
             if not path.exists():
                 return urls
-            with path.open("r", encoding="utf-8") as file:
-                for line in file:
-                    url = line.strip()
-                    if url:
-                        urls.add(url)
+            with file_lock:
+                with path.open("r", encoding="utf-8") as file:
+                    for line in file:
+                        url = line.strip()
+                        if url:
+                            urls.add(url)
         except OSError:
             return urls
         return urls
@@ -229,10 +276,12 @@ class WebCrawler:
             return
         self.visited_urls.add(url)
         path = self.config.visited_urls_path
+        file_lock = self._visited_lock_for_path(path)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a", encoding="utf-8") as file:
-                file.write(url)
-                file.write("\n")
+            with file_lock:
+                with path.open("a", encoding="utf-8") as file:
+                    file.write(url)
+                    file.write("\n")
         except OSError:
             return
