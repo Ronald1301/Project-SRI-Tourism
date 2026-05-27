@@ -42,23 +42,6 @@ class BaseSite:
             exclude_url_patterns=exclude_patterns,
         )
 
-
-class WikivoyageSite(BaseSite):
-    name = "wikivoyage"
-    seed_urls = [
-        "https://es.wikivoyage.org/wiki/La_Habana",
-    ]
-    allowed_domains = {"es.wikivoyage.org",
-    "en.wikivoyage.org",}
-    include_url_patterns = [r"/wiki/"]
-    exclude_url_patterns = [
-        r"/wiki/Special:",
-        r"/wiki/Template:",
-        r"/wiki/File:",
-        r"/wiki/Category:",
-        r"/wiki/Categor[ií]a:",
-    ]
-
 class VisitarCubaSite(BaseSite):
     name = "visitarcuba"
     seed_urls = [
@@ -76,7 +59,7 @@ class VisitarCubaSite(BaseSite):
     r"/wp-includes/",
     r"/wp-content/",
     
-    # ========== PÁGINAS SIN CONTENO TURÍSTICO ==========
+    # ========== PÁGINAS SIN CONTENIDO TURÍSTICO ==========
     r"/search\.php",
     r"/contacto\.php",
     r"/precios-especiales-para-agencias-y-tour-operadores",
@@ -108,7 +91,6 @@ class VisitarCubaSite(BaseSite):
     r"chatra\.io",
     
     # ========== VERSIONES EN OTROS IDIOMAS ==========
-    # (si solo quieres español)
     r"tripcuba\.org",      # inglés
     r"cubavoyage\.org",    # francés
     r"viaggiarecuba\.com", # italiano
@@ -133,12 +115,165 @@ class VisitarCubaSite(BaseSite):
     r"#",
     r"void\(",
 ]
+
+
+class CubatravelSite(BaseSite):
+    name = "cubatravel"
+    seed_urls = [
+        "https://www.cuba.travel/",
+    ]
+    allowed_domains = {
+        "www.cuba.travel",
+        "cuba.travel",
+        "www.cubatravel.cu",
+        "cubatravel.cu",
+    }
+    include_url_patterns = []
+    exclude_url_patterns = [
+        # Archivos estáticos
+        r"\.css$",
+        r"\.js$",
+        r"\.json$",
+        r"\.xml$",
+        r"\.png$",
+        r"\.jpg$",
+        r"\.jpeg$",
+        r"\.gif$",
+        r"\.svg$",
+        r"\.ico$",
+        
+        # Directorios internos
+        r"/DesktopModules/",
+        r"/Portals/",
+        r"/LinkClick/",
+        r"/DependencyHandler/",
+        r"/WebResource",
+        r"/ScriptResource",
+        
+        # Parámetros de query
+        r"\?",
+        
+        # Módulos especiales
+        r"/BookingEngine/",
+        r"/Activity/Search",
+        r"/Hotel/Search",
+        r"/House/Search",
+        
+        # Formularios y APIs
+        r"/survey",
+        r"/api/",
+        
+        # Otros idiomas
+        r"/en/",
+        r"/fr/",
+        r"/de/",
+        r"/ru/",
+        
+        # Funciones de usuario
+        r"/login",
+        r"/register",
+        r"/profile",
+        
+        r"facebook\.com",
+        r"twitter\.com",
+        r"instagram\.com",
+        r"youtube\.com",
+        r"linkedin\.com",
+        r"/tag/",
+        r"/author/",
+        r"/feed",
+        r"/rss",
+        r"\?utm_",
+        r"\&utm_",
+        r"\?fbclid=",
+        r"\?gclid=",
+        r"javascript:",
+        r"void\(",
+        r"#",
+    ]
+
+
+class InfoturSite(BaseSite):
+    name = "infotur"
+    seed_urls = [
+        "https://infotur.cu/",
+    ]
+    allowed_domains = {
+        "www.infotur.cu",
+        "infotur.cu",
+    }
+    include_url_patterns = []
+    exclude_url_patterns = [
+        # ========== ARCHIVOS ESTÁTICOS ==========
+        r"\.css",
+        r"\.js", 
+        r"\.json",
+        r"\.xml",
+        r"\.png",
+        r"\.jpg",
+        r"\.jpeg",
+        r"\.gif",
+        r"\.svg",
+        r"\.ico",
+        r"\.webp",
+        r"\.pdf", 
+        r"\.mp4",
+        r"\.mp3",
+        
+        # ========== RECURSOS INTERNOS DE NUXT ==========
+        r"/_nuxt/",
+        r"/api/",
+        r"/favicon",
+        r"/logo.png",
+        
+        # ========== OTROS IDIOMAS (si solo quieres español) ==========
+        r"/ru/",
+        r"/en/",
+        r"/de/",
+        r"/fr/",
+        
+        # ========== PARÁMETROS DE QUERY ==========
+        r"\?",
+        
+        # ========== SECCIONES NO RELEVANTES ==========
+        r"/tag/",
+        r"/category/",
+        r"/author/",
+        r"/feed",
+        r"/rss",
+        
+        # ========== REDES SOCIALES ==========
+        r"facebook.com",
+        r"twitter.com",
+        r"instagram.com",
+        r"youtube.com",
+        r"linkedin.com",
+        
+        # ========== PARÁMETROS DE SEGUIMIENTO ==========
+        r"\?utm_",
+        r"\&utm_",
+        r"\?fbclid=",
+        r"\?gclid=",
+        
+        # ========== JAVASCRIPT Y CALLBACKS ==========
+        r"javascript:",
+        r"void\(",
+        r"#",
+        
+        # ========== ADMIN Y BACKEND ==========
+        r"/wp-admin/",
+        r"/wp-includes/",
+        r"/wp-content/",
+    ]
+
+
 SITE_REGISTRY = {
-    WikivoyageSite.name: WikivoyageSite,
-    VisitarCubaSite.name : VisitarCubaSite
+    VisitarCubaSite.name: VisitarCubaSite,
+    CubatravelSite.name: CubatravelSite,
+    InfoturSite.name: InfoturSite,
 }
 
-DEFAULT_SITE_NAME = VisitarCubaSite.name
+DEFAULT_SITE_NAME = InfoturSite.name
 
 
 def get_site_class(name: str) -> type[BaseSite] | None:

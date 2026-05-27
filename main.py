@@ -143,8 +143,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_crawl() -> int:
+    from src.web_crawler.sites import DEFAULT_SITE_NAME
     config = build_default_config()
-    crawler = WebCrawler(config)
+    crawler = WebCrawler(config, site_name=DEFAULT_SITE_NAME)
     stats = crawler.crawl()
     logger.info(
         "Crawling finalizado: %d docs, %d paginas, %d urls, %d errores",

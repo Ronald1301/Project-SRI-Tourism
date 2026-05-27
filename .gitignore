@@ -185,3 +185,4 @@ cython_debug/
 ._MACOSX/
 .tmp/
 docs/
+data/raw/documents.jsonl

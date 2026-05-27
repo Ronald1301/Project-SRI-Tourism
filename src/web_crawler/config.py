@@ -35,7 +35,7 @@ class CrawlerConfig:
     request_delay : float = 1.0
     timeout : float = 10.0
     user_agent : str = "SRI-Tourism-Crawler/1.0 (+academic-project)"
-    output_dir : Path = Path("data/raw/crawl")
+    output_dir : Path = Path("data/rawl")
     obey_robots : bool = True
     save_html : bool = True
     include_url_patterns : list[str] = field(default_factory=list)
@@ -44,6 +44,7 @@ class CrawlerConfig:
     progress_every_pages : int = 10
     persist_visited : bool = True
     visited_urls_path : Path = DEFAULT_VISITED_URLS_PATH
+    max_redirects : int = 10
 
     @classmethod
     def from_iterables(
