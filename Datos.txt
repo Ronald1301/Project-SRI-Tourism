@@ -1,0 +1,40 @@
+
+# Url proyecto
+https://github.com/Ronald1301/Project-SRI-Tourism.git
+
+# Integrantes (Nombre completo, Grupo, Carrera)
+Ronald Provance Valladares - 312 - Computación
+Agustin Alberto Carbajal Romero - 312 - Computación
+Dylan Ramsés Cabrera Morales - 312 - Computación
+
+# Definición del sistema
+D: {d₁, d₂, ..., dₙ} donde cada dᵢ es un documento sobre turismo en Cuba 
+   representado como un conjunto de tokens procesados mediante:
+   - Limpieza de texto (remoción de caracteres especiales)
+   - Tokenización (división en palabras)
+   - Remoción de stopwords
+   - Stemming (reducción a raíces)
+   
+Q: {q₁, q₂, ..., qₘ} donde cada qⱼ es una consulta en lenguaje natural 
+   del usuario sobre información turística (ej: "¿Qué playas hay en Cayo Guillermo?")
+   también procesada con el mismo pipeline de preprocesamiento.
+
+F: Framework híbrido que integra múltiples modelos de representación:
+   - Modelo Lexical: TF-IDF (term frequency - inverse document frequency)
+   - Modelo Semántico: LSI (Latent Semantic Indexing)
+   - Modelo Vectorial: Embeddings de SentenceTransformers con índice FAISS
+   - Estos modelos capturan tanto similitud léxica como semántica
+
+R: R(qⱼ, dᵢ) es una función de ranking combinada que calcula la relevancia
+   como una composición ponderada de múltiples señales:
+   R(qⱼ, dᵢ) = α·similitud_coseno(qⱼ, dᵢ) 
+               + β·phrase_match(qⱼ, dᵢ)
+               + γ·recency(dᵢ)
+               + δ·content_type_boost(dᵢ)
+               + ε·authority(dᵢ)
+               + ζ·specificity(qⱼ, dᵢ)
+               + η·lexical_overlap(qⱼ, dᵢ)
+               + θ·title_match(qⱼ, dᵢ)
+               + ι·length_signal(dᵢ)
+   
+   Donde los pesos se optimizan para ordenar documentos por relevancia

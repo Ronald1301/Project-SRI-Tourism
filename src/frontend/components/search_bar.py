@@ -8,11 +8,11 @@ def SearchBar(on_search):
     )
 
     mode_selector = ft.Dropdown(
-        width=150,
+        width=170,
         options=[
             ft.dropdown.Option(key="vectorial", text="Vectorial"),
             ft.dropdown.Option(key="lsi", text="LSI"),
-            ft.dropdown.Option(key="rag", text="RAG"),
+            ft.dropdown.Option(key="hybrid_search", text="Hibrido"),
         ],
         value="vectorial"
     )
@@ -23,14 +23,24 @@ def SearchBar(on_search):
         value="5"
     )
 
-    def handle_search(e):
+    def trigger_search():
         on_search(
             query_input.value,
             mode_selector.value,
             int(topk_selector.value)
         )
 
+    def handle_search(e):
+        trigger_search()
+
+    def handle_submit(e):
+        trigger_search()
+
+    query_input.on_submit = handle_submit
+
     return ft.Row(
+        spacing=12,
+        vertical_alignment=ft.CrossAxisAlignment.END,
         controls=[
             query_input,
             mode_selector,
