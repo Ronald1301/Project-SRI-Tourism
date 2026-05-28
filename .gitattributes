@@ -2,3 +2,4 @@
 * text=auto
 data/raw/documents.jsonl filter=lfs diff=lfs merge=lfs -text
 data/raw/web_documents.jsonl filter=lfs diff=lfs merge=lfs -text
+data/processed/lsi_training/documents.jsonl filter=lfs diff=lfs merge=lfs -text
