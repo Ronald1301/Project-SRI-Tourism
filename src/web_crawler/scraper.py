@@ -1,3 +1,5 @@
+"""Extraccion estructurada de HTML y metadatos para el crawler."""
+
 from __future__ import annotations
 
 import json
@@ -10,12 +12,28 @@ from bs4 import BeautifulSoup
 from .policies import CrawlPolicies
 
 def safe_text(value : object) -> str | None:
+    """Convierte un valor arbitrario a texto limpio o `None`.
+
+    Args:
+        value: Valor de entrada a normalizar.
+
+    Returns:
+        str | None: Texto sin espacios extremos o `None` si queda vacio.
+    """
     if value is None:
         return None
     text = str(value).strip()
     return text or None
 
 def flatten_jsonld(node : object) -> list[dict]:
+    """Aplana una estructura JSON-LD anidada.
+
+    Args:
+        node: Nodo JSON-LD arbitrario.
+
+    Returns:
+        list[dict]: Lista plana de diccionarios JSON-LD.
+    """
     if node is None:
         return []
     if isinstance(node,list):
@@ -30,6 +48,14 @@ def flatten_jsonld(node : object) -> list[dict]:
     return []
 
 def load_jsonld(soup : BeautifulSoup) -> list[dict]:
+    """Extrae todos los bloques JSON-LD de un documento HTML.
+
+    Args:
+        soup: Objeto BeautifulSoup del HTML.
+
+    Returns:
+        list[dict]: Registros JSON-LD parseados y aplanados.
+    """
     output : list[dict] = []
     for script in soup.select('script[type="application/ld+json"]'):
         raw = (script.string or script.get_text() or "").strip()
@@ -43,6 +69,14 @@ def load_jsonld(soup : BeautifulSoup) -> list[dict]:
     return output 
 
 def first_non_null(*values : object) -> str | None:
+    """Devuelve el primer valor textual util de una secuencia.
+
+    Args:
+        *values: Valores candidatos.
+
+    Returns:
+        str | None: Primer texto no vacio o `None`.
+    """
     for value in values:
         candidate = safe_text(value)
         if candidate:
@@ -50,6 +84,14 @@ def first_non_null(*values : object) -> str | None:
     return None
 
 def extract_jsonld_fields(records : list[dict]) -> dict[str , object]:
+    """Resume campos relevantes desde un conjunto de registros JSON-LD.
+
+    Args:
+        records: Lista de objetos JSON-LD.
+
+    Returns:
+        dict[str, object]: Metadatos consolidados del documento.
+    """
     entity_name = None
     review_author = None
     review_date = None
@@ -103,6 +145,16 @@ def extract_jsonld_fields(records : list[dict]) -> dict[str , object]:
     }
 
 def extract_links(html : str , base_url : str, policies : CrawlPolicies) -> set[str]:
+    """Extrae enlaces permitidos desde un HTML.
+
+    Args:
+        html: Contenido HTML.
+        base_url: URL base para resolver enlaces relativos.
+        policies: Politicas de filtrado y normalizacion.
+
+    Returns:
+        set[str]: Conjunto de URLs normalizadas y permitidas.
+    """
     soup = BeautifulSoup(html,"lxml")
     links : set[str] = set()
     for anchor in soup.find_all("a",href=True):
@@ -114,6 +166,15 @@ def extract_links(html : str , base_url : str, policies : CrawlPolicies) -> set[
     return links
 
 def extract_document(html : str, url : str) -> dict[str,object]:
+    """Construye un documento estructurado a partir de HTML.
+
+    Args:
+        html: Contenido HTML descargado.
+        url: URL original del recurso.
+
+    Returns:
+        dict[str, object]: Documento con titulo, resumen, texto, idioma y metadatos.
+    """
     soup = BeautifulSoup(html,"lxml")
     jsonld = load_jsonld(soup)
     jsonld_fields = extract_jsonld_fields(jsonld)
