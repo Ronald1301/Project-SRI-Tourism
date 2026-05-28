@@ -4,7 +4,7 @@ from pathlib import Path
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
-DEFAULT_APP_ICON = project_root / "src" / "frontend" / "icons" / "turismo.ico"
+DEFAULT_APP_ICON = project_root / "src" / "frontend" / "icons" / "cuba3.ico"
 
 import flet as ft
 from src.frontend.theme import get_dark_theme

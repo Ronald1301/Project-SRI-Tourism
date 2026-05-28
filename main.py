@@ -63,15 +63,18 @@ from src.web_crawler import WebCrawler, build_default_config
 
 
 def _missing_lsi_artifacts() -> list[str]:
+    tfidf_matrix_exists = Path(DEFAULT_TFIDF_MATRIX).exists() or Path(DEFAULT_TFIDF_MATRIX).with_suffix(".npy").exists()
     required_files = [
-        DEFAULT_TFIDF_MATRIX,
         DEFAULT_TFIDF_VOCAB,
         DEFAULT_TFIDF_META,
         DEFAULT_LSI_MODEL,
         DEFAULT_LSI_VECTORS,
         DEFAULT_LSI_META,
     ]
-    return [path for path in required_files if not Path(path).exists()]
+    missing = [path for path in required_files if not Path(path).exists()]
+    if not tfidf_matrix_exists:
+        missing.insert(0, DEFAULT_TFIDF_MATRIX)
+    return missing
 
 
 def _print_missing_lsi_artifacts() -> None:
@@ -354,7 +357,7 @@ def _run_lsi_train() -> int:
     raw_dir = resolve_documents_path().parent
     processed_dir = Path("data/processed/lsi_training")
     language = "spanish"
-    n_components = 100
+    requested_components = 100
 
     documents = process_all_sources(
         raw_dir=raw_dir,
@@ -369,6 +372,8 @@ def _run_lsi_train() -> int:
     tfidf.build(documents)
     tfidf.save(DEFAULT_TFIDF_MATRIX, DEFAULT_TFIDF_VOCAB, DEFAULT_TFIDF_META)
 
+    max_components = max(1, min(tfidf.matrix.shape[0], tfidf.matrix.shape[1]) - 1)
+    n_components = min(requested_components, max_components)
     lsi = LSIModel(n_components=n_components)
     lsi.train(tfidf.matrix)
     lsi.save(DEFAULT_LSI_MODEL, DEFAULT_LSI_VECTORS, DEFAULT_LSI_META)
@@ -376,6 +381,9 @@ def _run_lsi_train() -> int:
     print("LSI entrenado y guardado")
     print(f"- Documentos: {len(tfidf.doc_ids)}")
     print(f"- Vocabulario: {len(tfidf.vocabulary)}")
+    print(f"- Matriz TF-IDF: sparse CSR {tfidf.matrix.shape}, dtype={tfidf.matrix.dtype}")
+    print(f"- min_df efectivo: {tfidf.effective_min_df}")
+    print(f"- max_df efectivo: {tfidf.effective_max_df}")
     print(f"- Componentes LSI: {n_components}")
     print(f"- TF-IDF matrix: {DEFAULT_TFIDF_MATRIX}")
     print(f"- LSI model: {DEFAULT_LSI_MODEL}")

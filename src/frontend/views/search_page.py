@@ -1,5 +1,7 @@
+import asyncio
+
 import flet as ft
-from src.frontend.api.client import search
+from src.frontend.api.client import search, send_explicit_feedback, send_implicit_feedback
 from src.frontend.components.rag_answer_card import RagAnswerCard
 from src.frontend.components.result_card import ResultCard
 from src.frontend.components.search_bar import SearchBar
@@ -58,14 +60,44 @@ def SearchPage(page: ft.Page):
         spacing=14,
     )
     load_more_button = ft.TextButton("Cargar más")
+    loading_token = {"value": None}
 
     def show_feedback(message: str):
         feedback_bar.content = ft.Text(message, color="#f8fafc")
         feedback_bar.open = True
         page.update()
 
-    def update_ui():
+    async def animate_loading(token):
+        frames = ["Cargando.", "Cargando..", "Cargando..."]
+        index = 0
+        while loading_token["value"] is token and state.ui_state == UIState.LOADING:
+            state.loading_label = frames[index % len(frames)]
+            update_ui()
+            index += 1
+            await asyncio.sleep(0.35)
+
+    async def reveal_cards(cards):
+        for card in cards:
+            await asyncio.sleep(0.055)
+            card.opacity = 1
+            card.scale = 1
+            card.offset = ft.Offset(0, 0)
+            try:
+                card.update()
+            except AssertionError:
+                return
+
+    def start_loading_animation():
+        token = object()
+        loading_token["value"] = token
+        page.run_task(animate_loading, token)
+
+    def stop_loading_animation():
+        loading_token["value"] = None
+
+    def update_ui(*, reveal_results: bool = False):
         results_column.controls.clear()
+        cards_to_reveal = []
 
         banner = StatusBanner(state)
         if banner:
@@ -79,6 +111,7 @@ def SearchPage(page: ft.Page):
                     mode=_mode_label(state.mode),
                     result_count=len(state.results),
                     prompt=state.prompt,
+                    expansion=state.expansion_info,
                 )
             )
 
@@ -88,16 +121,27 @@ def SearchPage(page: ft.Page):
             )
 
         for i, doc in enumerate(state.results):
-            results_column.controls.append(
-                ResultCard(doc, i, state.query, page, show_feedback)
+            card = ResultCard(
+                doc,
+                i,
+                state.query,
+                page,
+                show_feedback,
+                handle_explicit_feedback,
+                handle_implicit_feedback,
+                initially_hidden=reveal_results,
             )
+            results_column.controls.append(card)
+            if reveal_results:
+                cards_to_reveal.append(card)
 
         if state.ui_state in (UIState.SUCCESS, UIState.LOADING) and state.results and state.has_more:
             results_column.controls.append(load_more_button)
 
         page.update()
+        return cards_to_reveal
 
-    def handle_search(query, mode, top_k):
+    async def handle_search(query, mode, top_k):
 
         if not query.strip():
             state.set_error("Consulta vacía")
@@ -107,8 +151,12 @@ def SearchPage(page: ft.Page):
         state.reset_search(query, mode, top_k)
         state.set_loading()
         update_ui()
+        start_loading_animation()
 
-        data = search(query, mode, top_k, state.page)
+        try:
+            data = await asyncio.to_thread(search, query, mode, top_k, state.page)
+        finally:
+            stop_loading_animation()
 
         if data.get("error"):
             state.set_error(data["error"])
@@ -118,16 +166,22 @@ def SearchPage(page: ft.Page):
                 answer_rag=data.get("answer"),
                 prompt=data.get("prompt"),
                 has_more=data.get("has_more", False),
+                expansion_info=data.get("expansion"),
             )
 
-        update_ui()
+        cards = update_ui(reveal_results=not data.get("error"))
+        await reveal_cards(cards)
 
-    def load_more(e):
+    async def load_more(e):
         state.page += 1
         state.set_loading()
         update_ui()
+        start_loading_animation()
 
-        data = search(state.query, state.mode, state.top_k, state.page)
+        try:
+            data = await asyncio.to_thread(search, state.query, state.mode, state.top_k, state.page)
+        finally:
+            stop_loading_animation()
 
         if data.get("error"):
             state.set_error(data["error"])
@@ -137,10 +191,40 @@ def SearchPage(page: ft.Page):
                 state.answer_rag = data.get("answer")
             if data.get("prompt"):
                 state.prompt = data.get("prompt")
+            if data.get("expansion"):
+                state.expansion_info = data.get("expansion")
             state.has_more = data.get("has_more", False)
             state.ui_state = UIState.SUCCESS if state.results else UIState.EMPTY
 
-        update_ui()
+        cards = update_ui(reveal_results=not data.get("error"))
+        await reveal_cards(cards)
+
+    def handle_explicit_feedback(doc_id, relevance):
+        if not doc_id:
+            show_feedback("No se pudo valorar este resultado porque falta su identificador.")
+            return
+        response = send_explicit_feedback(
+            state.query,
+            doc_id,
+            relevance,
+            expanded_query=(state.expansion_info or {}).get("expanded_query"),
+            search_mode=state.mode,
+        )
+        if response.get("error"):
+            show_feedback(response["error"])
+            return
+        message = "Marcado como relevante." if relevance else "Marcado como no relevante."
+        show_feedback(f"{message} Puedes pulsar Refinar busqueda para aplicar el feedback.")
+
+    def handle_implicit_feedback(doc_id, event):
+        if not doc_id:
+            return
+        send_implicit_feedback(
+            state.query,
+            doc_id,
+            event,
+            search_mode=state.mode,
+        )
 
     load_more_button.on_click = load_more
     search_bar = SearchBar(handle_search)

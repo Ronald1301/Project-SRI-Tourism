@@ -14,6 +14,11 @@ def _friendly_request_error(response_text: str) -> str:
             "La busqueda no pudo comenzar porque faltan los documentos base del proyecto. "
             "Primero genera los datos con el crawler o con el pipeline."
         )
+    if "tfidf_matrix" in lowered or "lsi_model.pkl" in lowered or "data/index" in lowered:
+        return (
+            "La busqueda no pudo comenzar porque faltan los indices del recuperador. "
+            "Primero construye el TF-IDF y entrena el modelo LSI desde el pipeline del proyecto."
+        )
     return (
         "El servidor recibio la consulta, pero no pudo generar una respuesta valida. "
         "Revisa que la API y los datos del proyecto esten preparados."
@@ -58,6 +63,7 @@ def search(query, mode, top_k=5, page=1):
         return {
             "results": normalized_results,
             "answer": payload.get("answer"),
+            "expansion": payload.get("expansion"),
             "total": payload.get("total", len(normalized_results)),
             "has_more": False,
         }
@@ -68,3 +74,50 @@ def search(query, mode, top_k=5, page=1):
         return {"error": "No se pudo conectar con la API local del proyecto."}
     except requests.exceptions.RequestException:
         return {"error": "No se pudo completar la comunicacion con el servidor de busqueda."}
+
+
+def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None, search_mode=None):
+    if USE_MOCK:
+        return {"status": "ok", "counted": True}
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/feedback",
+            json={
+                "query": query,
+                "doc_id": doc_id,
+                "relevance": int(relevance),
+                "expanded_query": expanded_query,
+                "search_mode": search_mode,
+            },
+            timeout=5,
+        )
+        if response.status_code >= 400:
+            return {"error": _friendly_request_error(response.text)}
+        return response.json()
+    except requests.exceptions.ConnectionError:
+        return {"error": "No se pudo guardar la valoracion porque la API local no esta disponible."}
+    except requests.exceptions.RequestException:
+        return {"error": "No se pudo guardar la valoracion del resultado."}
+
+
+def send_implicit_feedback(query, doc_id, event, *, search_mode=None):
+    if USE_MOCK:
+        return {"status": "ok", "counted": True}
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/feedback/implicit",
+            json={
+                "query": query,
+                "doc_id": doc_id,
+                "event": event,
+                "search_mode": search_mode,
+            },
+            timeout=5,
+        )
+        if response.status_code >= 400:
+            return {"error": _friendly_request_error(response.text)}
+        return response.json()
+    except requests.exceptions.RequestException:
+        return {"error": "No se pudo registrar la interaccion con el resultado."}

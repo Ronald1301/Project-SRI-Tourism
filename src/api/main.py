@@ -14,7 +14,14 @@ logging.basicConfig(
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.models import SearchRequest, SearchResponse, DocumentResult
+from src.api.models import (
+    DocumentResult,
+    FeedbackRequest,
+    FeedbackResponse,
+    ImplicitFeedbackRequest,
+    SearchRequest,
+    SearchResponse,
+)
 from src.api.service.rag_service import get_rag_service
 
 logger = logging.getLogger("src.api.main")
@@ -39,7 +46,7 @@ def health_check():
 def search(request: SearchRequest):
     logger.info("POST /search | query=\"%s\" | mode=%s | top_k=%d", request.query, request.search_mode, request.top_k)
     service = get_rag_service()
-    documents, answer = service.search(
+    documents, answer, expansion = service.search(
         query=request.query,
         search_mode=request.search_mode,
         top_k=request.top_k,
@@ -62,4 +69,42 @@ def search(request: SearchRequest):
     ]
 
     logger.info("Respuesta enviada | %d resultados | answer_len=%d", len(results), len(answer or ""))
-    return SearchResponse(results=results, answer=answer, total=len(results))
+    return SearchResponse(results=results, answer=answer, total=len(results), expansion=expansion)
+
+
+@app.post("/feedback", response_model=FeedbackResponse)
+def feedback(request: FeedbackRequest):
+    service = get_rag_service()
+    service.add_explicit_feedback(
+        query=request.query,
+        doc_id=request.doc_id,
+        relevance=1 if int(request.relevance) > 0 else 0,
+        expanded_query=request.expanded_query,
+        search_mode=request.search_mode,
+    )
+    logger.info(
+        "Feedback explicito | query=\"%s\" | doc_id=%s | relevance=%s",
+        request.query,
+        request.doc_id,
+        request.relevance,
+    )
+    return FeedbackResponse(status="ok", counted=True)
+
+
+@app.post("/feedback/implicit", response_model=FeedbackResponse)
+def implicit_feedback(request: ImplicitFeedbackRequest):
+    service = get_rag_service()
+    _, counted = service.add_implicit_feedback(
+        query=request.query,
+        doc_id=request.doc_id,
+        event=request.event,
+        search_mode=request.search_mode,
+    )
+    logger.info(
+        "Feedback implicito | query=\"%s\" | doc_id=%s | event=%s | counted=%s",
+        request.query,
+        request.doc_id,
+        request.event,
+        counted,
+    )
+    return FeedbackResponse(status="ok", counted=counted)
