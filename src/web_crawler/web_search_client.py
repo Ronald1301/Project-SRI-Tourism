@@ -66,10 +66,7 @@ class DuckDuckGoWebSearchClient:
         self,
         *,
         timeout: float = 12.0,
-        user_agent: str = " Mozilla/5.0 (X11; Linux x86_64) "
-        "AppleWebKit/537.36 "
-        "(KHTML, like Gecko) "
-        "Chrome/125.0 Safari/537.36",
+        user_agent: str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
         visited_urls_path: Path | None = None,
         url_importance_policy: URLImportancePolicy | None = None,
         tfidf_min_score: float = 0.15,
