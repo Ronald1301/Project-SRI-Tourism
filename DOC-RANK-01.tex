@@ -1,0 +1,923 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+\definecolor{codegray}{RGB}{245,245,245}
+\definecolor{codeborder}{RGB}{210,210,210}
+\definecolor{codeblue}{RGB}{20,70,140}
+\definecolor{darkgray}{RGB}{80,80,80}
+
+\lstdefinestyle{technical}{
+    backgroundcolor=\color{codegray},
+    frame=single,
+    rulecolor=\color{codeborder},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{darkgray},
+    stringstyle=\color{codeblue},
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b
+}
+
+\lstset{style=technical}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue,
+    pdftitle={DOC-RANK-01 -- Justificación técnica del posicionamiento},
+    pdfauthor={Equipo de Arquitectura de Software},
+    pdfsubject={Ranking, recuperación de información y posicionamiento visual},
+    pdfkeywords={ranking, search, information retrieval, UX, scoring, arquitectura}
+}
+
+\title{
+    \textbf{DOC-RANK-01}\\
+    Justificación técnica del posicionamiento\\
+    \large Documento de arquitectura para ranking, recuperación y presentación visual de resultados
+}
+
+\author{Equipo de Arquitectura de Software}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este documento justifica formalmente las decisiones técnicas adoptadas para el módulo de ranking y posicionamiento visual de resultados dentro de un sistema de información que presenta múltiples tipos de contenido en una misma interfaz. El documento describe la arquitectura general, las señales utilizadas para calcular relevancia, la estrategia de ordenamiento, la relación entre backend y frontend, los criterios de calidad, las limitaciones conocidas y las métricas de evaluación aplicables. Su propósito es servir como referencia oficial para revisión técnica, defensa académica y alineación entre equipos de ingeniería, producto y experiencia de usuario.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introducción}
+
+\subsection{Propósito del documento}
+
+El propósito de este documento es justificar las decisiones técnicas relacionadas con el ranking lógico y el posicionamiento visual de resultados en un sistema de información con contenido heterogéneo. La solución propuesta busca equilibrar relevancia, rendimiento, consistencia visual, objetivos funcionales y experiencia de usuario.
+
+El documento adopta una estructura cercana a un RFC/ADR, por lo que no se limita a describir una implementación, sino que expone las razones técnicas detrás de las decisiones arquitectónicas.
+
+\subsection{Alcance}
+
+El alcance incluye:
+
+\begin{itemize}[noitemsep]
+    \item El pipeline de recuperación y ranking.
+    \item Las señales utilizadas para calcular relevancia.
+    \item La composición de scores y su normalización.
+    \item Las reglas de ordenamiento, boosting, desempate y diversificación.
+    \item La estrategia de posicionamiento visual en frontend.
+    \item Los criterios de calidad técnica.
+    \item Las limitaciones y trade-offs conocidos.
+    \item Las métricas de evaluación del ranking y de la experiencia de usuario.
+\end{itemize}
+
+No forman parte del alcance los detalles específicos de infraestructura física, selección definitiva de motor de búsqueda o implementación concreta de modelos de aprendizaje automático.
+
+\subsection{Contexto del problema}
+
+El sistema debe mostrar diferentes tipos de contenido dentro de una misma interfaz. Por ejemplo: documentos, recomendaciones, categorías, entidades, resultados editoriales, contenido reciente, contenido popular o contenido promovido. Estos elementos no comparten necesariamente la misma estructura, granularidad o intención de consumo.
+
+El problema principal consiste en determinar:
+
+\begin{itemize}[noitemsep]
+    \item Qué resultados deben aparecer primero.
+    \item Cómo combinar señales de relevancia textual, comportamiento y negocio.
+    \item Cómo presentar contenidos heterogéneos sin generar ruido visual.
+    \item Cómo mantener consistencia entre la decisión del backend y el renderizado del frontend.
+    \item Cómo hacer que el sistema sea interpretable, ajustable y evaluable.
+\end{itemize}
+
+\section{Arquitectura general del módulo de posicionamiento}
+
+\subsection{Visión general}
+
+El módulo de posicionamiento se divide en dos responsabilidades principales:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Ranking lógico}: cálculo de relevancia, ordenamiento, normalización y aplicación de reglas.
+    \item \textbf{Posicionamiento visual}: transformación del ranking en una interfaz escaneable, consistente y útil.
+\end{itemize}
+
+La separación de responsabilidades permite que el backend conserve control sobre la relevancia y que el frontend conserve control sobre jerarquía visual, densidad, agrupación y consistencia de presentación.
+
+\subsection{Pipeline de recuperación}
+
+El flujo de recuperación propuesto es el siguiente:
+
+\begin{enumerate}[noitemsep]
+    \item Recepción de la consulta o intención del usuario.
+    \item Normalización lingüística y semántica de la entrada.
+    \item Recuperación inicial de candidatos.
+    \item Extracción de señales por candidato.
+    \item Normalización de señales.
+    \item Cálculo de score compuesto.
+    \item Aplicación de reglas de negocio.
+    \item Deduplicación y diversificación.
+    \item Ordenamiento final.
+    \item Envío de resultados enriquecidos al frontend.
+    \item Renderizado según política visual.
+\end{enumerate}
+
+\subsection{Componentes involucrados}
+
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Componente} & \textbf{Responsabilidad} & \textbf{Justificación técnica} \\
+\midrule
+\endhead
+
+Search API & Recibir consultas, validar parámetros y coordinar el flujo de búsqueda. & Centraliza la entrada al sistema y evita duplicación de lógica entre clientes. \\
+
+Motor de recuperación & Obtener candidatos mediante índices textuales, filtros o consultas estructuradas. & Reduce el espacio de búsqueda antes de calcular scores costosos. \\
+
+Ranker & Calcular relevancia compuesta y aplicar pesos configurables. & Permite priorización interpretable y ajustable. \\
+
+Policy Engine & Aplicar reglas de negocio, boosting, penalizaciones y restricciones. & Separa relevancia algorítmica de reglas funcionales explícitas. \\
+
+Deduplicador & Detectar entidades o contenidos equivalentes. & Evita redundancia y mejora diversidad percibida. \\
+
+Diversificador & Controlar saturación por tipo, fuente o categoría. & Aumenta cobertura y descubrimiento. \\
+
+Frontend Renderer & Presentar resultados según jerarquía visual y tipo de contenido. & Traduce prioridad lógica en experiencia comprensible. \\
+
+Analytics & Medir interacción, conversión y calidad del ranking. & Permite evaluación continua y ajuste basado en evidencia. \\
+
+\bottomrule
+\end{longtable}
+
+\subsection{Interacción backend/frontend}
+
+El backend no debe enviar únicamente una lista plana de resultados. Debe enviar metadatos suficientes para que el frontend represente cada elemento de forma coherente.
+
+Ejemplo de contrato lógico:
+
+\begin{lstlisting}[caption={Ejemplo de respuesta enriquecida para ranking y renderizado}]
+{
+  "query": "hotel cerca del centro",
+  "rankingVersion": "ranker-v1.3",
+  "results": [
+    {
+      "id": "hotel_1029",
+      "type": "accommodation",
+      "title": "Hotel Central Plaza",
+      "score": 0.873,
+      "scoreBreakdown": {
+        "textual": 0.91,
+        "exactMatch": 0.80,
+        "popularity": 0.67,
+        "recency": 0.42,
+        "userPreference": 0.75,
+        "businessRule": 0.20
+      },
+      "visualPriority": "featured",
+      "renderTemplate": "accommodation_card",
+      "badges": ["popular", "centrico"],
+      "explanation": "Alta coincidencia textual y buena afinidad con preferencias del usuario."
+    }
+  ]
+}
+\end{lstlisting}
+
+Esta estructura preserva la trazabilidad del ranking y evita que el frontend infiera relevancia mediante reglas implícitas.
+
+\section{Señales utilizadas en el ranking}
+
+\subsection{Principio general}
+
+El ranking se basa en un modelo de scoring compuesto. Cada resultado candidato recibe un conjunto de señales normalizadas en el rango $[0,1]$. El score final combina dichas señales mediante pesos configurables.
+
+\subsection{Relevancia textual}
+
+La relevancia textual mide la correspondencia entre la consulta del usuario y el contenido indexado. Puede calcularse mediante BM25, TF-IDF, embeddings semánticos o una combinación híbrida.
+
+\[
+S_{textual}(d,q) = \alpha \cdot BM25(d,q) + (1-\alpha) \cdot Sim_{semantic}(d,q)
+\]
+
+Donde:
+
+\begin{itemize}[noitemsep]
+    \item $d$ representa el documento o entidad candidata.
+    \item $q$ representa la consulta.
+    \item $BM25(d,q)$ captura coincidencia léxica.
+    \item $Sim_{semantic}(d,q)$ captura proximidad semántica.
+    \item $\alpha$ controla el balance entre precisión textual y similitud semántica.
+\end{itemize}
+
+\subsection{Coincidencia exacta}
+
+La coincidencia exacta otorga prioridad a resultados cuyo título, identificador, categoría o campo principal coincide directamente con la consulta.
+
+\[
+S_{exact}(d,q) =
+\begin{cases}
+1.0 & \text{si existe coincidencia exacta en campo principal}\\
+0.7 & \text{si existe coincidencia exacta parcial}\\
+0.0 & \text{si no existe coincidencia relevante}
+\end{cases}
+\]
+
+Esta señal es importante porque los usuarios suelen esperar que una búsqueda específica recupere primero el elemento nombrado explícitamente.
+
+\subsection{Popularidad}
+
+La popularidad representa aceptación colectiva o frecuencia de consumo global. Puede calcularse a partir de visitas, clics, reservas, compras, guardados o valoraciones.
+
+Para evitar que la popularidad domine el ranking, se recomienda una transformación logarítmica:
+
+\[
+S_{popularity}(d) = \frac{\log(1 + views_d)}{\log(1 + views_{max})}
+\]
+
+\subsection{Frecuencia de interacción}
+
+La frecuencia de interacción mide patrones recientes de comportamiento: clics, aperturas, conversiones, favoritos o tiempo de permanencia. A diferencia de la popularidad global, esta señal puede segmentarse por contexto, perfil o sesión.
+
+\[
+S_{interaction}(d) = w_c \cdot CTR_d + w_t \cdot DwellTime_d + w_v \cdot ConversionRate_d
+\]
+
+\subsection{Recencia o frescura}
+
+La recencia favorece contenido nuevo cuando la frescura es relevante para la intención de búsqueda. Se recomienda utilizar una función de decaimiento temporal:
+
+\[
+S_{recency}(d) = e^{-\lambda \cdot age(d)}
+\]
+
+Donde $age(d)$ es la antigüedad del contenido y $\lambda$ controla la velocidad de decaimiento.
+
+\subsection{Preferencias del usuario}
+
+Las preferencias del usuario permiten personalizar resultados según historial, ubicación, idioma, categorías de interés o interacciones previas.
+
+\[
+S_{user}(d,u) = Sim(Profile_u, Metadata_d)
+\]
+
+Esta señal debe aplicarse con límites para evitar burbujas de filtro y pérdida de diversidad.
+
+\subsection{Reglas de negocio}
+
+Las reglas de negocio representan restricciones o prioridades funcionales: disponibilidad, vigencia, cumplimiento editorial, campañas, acuerdos comerciales o seguridad.
+
+Ejemplos:
+
+\begin{itemize}[noitemsep]
+    \item Penalizar contenido vencido.
+    \item Excluir resultados no disponibles.
+    \item Promover contenido verificado.
+    \item Insertar contenido patrocinado con etiquetado explícito.
+\end{itemize}
+
+\subsection{Scoring compuesto}
+
+El score final se calcula como una combinación ponderada:
+
+\[
+\begin{aligned}
+Score(d,q,u) ={}&
+w_t S_{textual} +
+w_e S_{exact} +
+w_p S_{popularity} +
+w_i S_{interaction} \\
+&+
+w_r S_{recency} +
+w_u S_{user} +
+w_b S_{business}
+\end{aligned}
+\]
+
+Sujeto a:
+
+\[
+\sum_{k=1}^{n} w_k = 1
+\]
+
+\subsection{Pesos y normalización}
+
+\begin{longtable}{p{4cm}p{3cm}p{3cm}p{4cm}}
+\toprule
+\textbf{Señal} & \textbf{Rango} & \textbf{Peso inicial} & \textbf{Justificación} \\
+\midrule
+\endhead
+
+Relevancia textual & $[0,1]$ & 0.35 & Principal indicador de correspondencia con la intención explícita. \\
+
+Coincidencia exacta & $[0,1]$ & 0.15 & Protege búsquedas navegacionales o altamente específicas. \\
+
+Popularidad & $[0,1]$ & 0.10 & Refleja aceptación colectiva sin dominar la relevancia. \\
+
+Interacción & $[0,1]$ & 0.10 & Incorpora señales de utilidad observada. \\
+
+Recencia & $[0,1]$ & 0.10 & Favorece contenido actualizado cuando aplica. \\
+
+Preferencias de usuario & $[0,1]$ & 0.10 & Mejora personalización manteniendo control de diversidad. \\
+
+Reglas de negocio & $[0,1]$ & 0.10 & Alinea el ranking con objetivos funcionales explícitos. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Estrategia de posicionamiento visual}
+
+\subsection{Jerarquía visual}
+
+La jerarquía visual determina cómo se distribuye la atención del usuario. Los resultados de mayor prioridad deben recibir mayor visibilidad, pero sin romper la consistencia de la interfaz.
+
+La estrategia adoptada utiliza tres niveles:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Destacado}: resultado de alta relevancia y alta confianza.
+    \item \textbf{Principal}: lista ordenada por score con presentación homogénea.
+    \item \textbf{Complementario}: sugerencias, contenidos relacionados o exploratorios.
+\end{itemize}
+
+\subsection{Agrupación de contenidos}
+
+Cuando los resultados pertenecen a tipos distintos, la agrupación evita que la interfaz se perciba como una lista arbitraria. La agrupación puede realizarse por tipo, intención o utilidad.
+
+Ejemplo:
+
+\begin{itemize}[noitemsep]
+    \item Alojamientos recomendados.
+    \item Experiencias o actividades.
+    \item Guías y artículos.
+    \item Lugares relacionados.
+\end{itemize}
+
+\subsection{Orden de aparición}
+
+El orden de aparición se define por la prioridad lógica del backend y por restricciones visuales del frontend. La decisión recomendada es usar el score como criterio primario y aplicar reglas de composición visual como criterio secundario.
+
+\subsection{Bloques destacados}
+
+Un bloque destacado debe reservarse para contenido con alta confianza. La condición mínima recomendada es:
+
+\[
+Score(d) \geq \theta_{featured}
+\]
+
+Donde $\theta_{featured}$ puede configurarse, por ejemplo, en $0.80$.
+
+\subsection{Mezcla de contenidos heterogéneos}
+
+La mezcla de contenidos se justifica cuando aumenta el descubrimiento sin perjudicar la intención principal. Para evitar saturación, se recomienda aplicar límites por tipo:
+
+\[
+count(type_i, topK) \leq maxTypeQuota_i
+\]
+
+Esto impide que una sola categoría ocupe toda la primera pantalla.
+
+\subsection{Separación visual entre tipos}
+
+La separación visual puede lograrse mediante títulos de sección, plantillas diferenciadas, iconografía moderada, badges o espaciado. La decisión debe preservar escaneabilidad y evitar que cada tipo de contenido parezca pertenecer a una experiencia distinta.
+
+\subsection{Prioridad visual vs prioridad lógica}
+
+La prioridad lógica es el score calculado por el backend. La prioridad visual es la prominencia final en la interfaz. Ambas no siempre coinciden exactamente.
+
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Concepto} & \textbf{Responsable principal} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+
+Prioridad lógica & Backend Ranker & Resultado con score 0.92 aparece antes que resultado con score 0.81. \\
+
+Prioridad visual & Frontend Renderer & Resultado con score alto se muestra como bloque destacado. \\
+
+Política mixta & Backend + Frontend & Contenido patrocinado se inserta en posición fija, pero con etiqueta visible. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Relación entre decisiones técnicas y UX}
+
+\subsection{Reducción de carga cognitiva}
+
+La carga cognitiva se reduce cuando el usuario puede interpretar rápidamente qué resultados son más importantes y por qué. El ranking ordenado por relevancia y la agrupación visual evitan que el usuario compare elementos inconexos sin estructura.
+
+\subsection{Mejora del descubrimiento}
+
+La diversificación controlada permite introducir contenido relacionado sin desplazar excesivamente los resultados principales. Esto mejora el descubrimiento, especialmente cuando la consulta es amplia o exploratoria.
+
+\subsection{Aumento de relevancia percibida}
+
+La relevancia percibida no depende únicamente del score. También depende de títulos claros, snippets útiles, badges significativos y presentación consistente. Por ello, el backend debe enviar campos explicativos y el frontend debe renderizarlos de manera predecible.
+
+\subsection{Consistencia visual}
+
+Una política estable de templates reduce sorpresas en la interfaz. Resultados del mismo tipo deben compartir estructura, densidad y jerarquía interna.
+
+\subsection{Reducción de ruido visual}
+
+El ruido visual se controla evitando exceso de badges, bloques destacados simultáneos o cambios de layout injustificados. La recomendación es limitar la cantidad de elementos visualmente dominantes en la primera pantalla.
+
+\subsection{Escaneabilidad}
+
+La escaneabilidad se mejora mediante:
+
+\begin{itemize}[noitemsep]
+    \item Títulos distinguibles.
+    \item Snippets breves.
+    \item Metadatos relevantes.
+    \item Orden estable.
+    \item Separación clara entre secciones.
+    \item Densidad visual consistente.
+\end{itemize}
+
+\section{Estrategia de ordenamiento}
+
+\subsection{Ranking principal}
+
+El ranking principal usa el score compuesto como criterio base:
+
+\[
+Rank(d_i) < Rank(d_j) \iff Score(d_i) > Score(d_j)
+\]
+
+Esta regla es simple, reproducible e interpretable.
+
+\subsection{Desempates}
+
+Cuando dos resultados tienen scores similares, se aplican criterios de desempate en orden:
+
+\begin{enumerate}[noitemsep]
+    \item Mayor coincidencia exacta.
+    \item Mayor relevancia textual.
+    \item Mayor disponibilidad o vigencia.
+    \item Mayor recencia.
+    \item Mayor identificador estable para garantizar reproducibilidad.
+\end{enumerate}
+
+\subsection{Boosting}
+
+El boosting permite aumentar la visibilidad de resultados que cumplen condiciones específicas. Debe aplicarse de forma acotada:
+
+\[
+Score'(d) = min(1, Score(d) + Boost(d))
+\]
+
+Ejemplos de boosting:
+
+\begin{itemize}[noitemsep]
+    \item Contenido verificado.
+    \item Resultado localmente relevante.
+    \item Coincidencia exacta con entidad principal.
+    \item Contenido con alta conversión histórica.
+\end{itemize}
+
+\subsection{Degradación controlada}
+
+La degradación controlada penaliza contenido menos confiable o menos útil sin excluirlo completamente.
+
+\[
+Score'(d) = Score(d) \cdot (1 - Penalty(d))
+\]
+
+Se utiliza para contenido incompleto, poco actualizado o con baja calidad de metadata.
+
+\subsection{Diversificación}
+
+La diversificación evita que los primeros resultados sean excesivamente similares. Una estrategia práctica consiste en aplicar Maximum Marginal Relevance:
+
+\[
+MMR(d) = \lambda Rel(d,q) - (1-\lambda) \max_{d' \in S} Sim(d,d')
+\]
+
+Donde $S$ es el conjunto de resultados ya seleccionados.
+
+\subsection{Deduplicación}
+
+La deduplicación se aplica antes del renderizado final. Dos resultados se consideran duplicados si comparten identificador canónico, URL normalizada, entidad primaria o alta similitud textual.
+
+\subsection{Balance entre precisión y exploración}
+
+El sistema debe priorizar precisión en consultas específicas y exploración en consultas ambiguas. Para ello se puede ajustar dinámicamente el peso de diversificación según la entropía o amplitud de la consulta.
+
+\section{Ventajas de la estrategia adoptada}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Ventaja} & \textbf{Justificación} \\
+\midrule
+\endhead
+
+Escalabilidad & El pipeline separa recuperación inicial y ranking, reduciendo el volumen de candidatos que requieren scoring avanzado. \\
+
+Mantenibilidad & Las señales, pesos y reglas están desacopladas, lo que permite modificar una dimensión sin reescribir todo el sistema. \\
+
+Flexibilidad & El modelo permite incorporar nuevas señales, tipos de contenido o reglas de negocio. \\
+
+Interpretabilidad & El score puede descomponerse en señales individuales, facilitando debugging y explicación. \\
+
+Facilidad de ajuste & Los pesos pueden configurarse por dominio, intención, segmento o experimento A/B. \\
+
+Experiencia de usuario & La política visual transforma relevancia técnica en una interfaz comprensible y escaneable. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Limitaciones y trade-offs}
+
+\subsection{Sesgo de popularidad}
+
+La popularidad puede favorecer contenido ya conocido y reducir la exposición de contenido nuevo. Para mitigarlo se usa normalización logarítmica, límites de peso y boosting controlado de contenido reciente.
+
+\subsection{Cold start}
+
+El contenido nuevo o usuarios sin historial pueden carecer de señales suficientes. La mitigación consiste en usar metadata editorial, similitud textual, señales contextuales y exploración controlada.
+
+\subsection{Dependencia de metadata}
+
+El sistema depende de campos estructurados como tipo, fecha, categoría, ubicación, disponibilidad y entidad canónica. Metadata incompleta reduce calidad de ranking y renderizado.
+
+\subsection{Complejidad de tuning}
+
+Ajustar pesos exige experimentación y monitoreo. Por ello, los pesos deben versionarse y evaluarse con métricas offline y online antes de promoverse a producción.
+
+\subsection{Conflictos entre negocio y relevancia}
+
+Las reglas de negocio pueden entrar en conflicto con la relevancia algorítmica. Para evitar degradación de confianza, las reglas deben ser explícitas, auditables y limitadas por umbrales.
+
+\subsection{Costo computacional}
+
+El scoring compuesto puede ser costoso si se aplica sobre demasiados candidatos. La arquitectura mitiga este riesgo con recuperación inicial eficiente, caching, features precalculadas y ranking por etapas.
+
+\section{Relación con implementación real}
+
+\subsection{Estructuras de scoring}
+
+Una estructura mínima de scoring debe incluir score total, señales individuales, versión del ranker y explicación básica.
+
+\begin{lstlisting}[caption={Estructura de scoring recomendada}]
+{
+  "id": "result_001",
+  "type": "article",
+  "score": 0.842,
+  "rank": 1,
+  "rankingVersion": "ranker-v1.3",
+  "features": {
+    "textual": 0.88,
+    "exact": 0.70,
+    "popularity": 0.51,
+    "interaction": 0.64,
+    "recency": 0.92,
+    "userPreference": 0.73,
+    "business": 0.20
+  }
+}
+\end{lstlisting}
+
+\subsection{Metadata requerida}
+
+\begin{longtable}{p{4cm}p{4cm}p{6cm}}
+\toprule
+\textbf{Campo} & \textbf{Uso} & \textbf{Motivo} \\
+\midrule
+\endhead
+
+id & Identificación estable & Necesario para reproducibilidad, tracking y deduplicación. \\
+
+type & Renderizado y cuotas & Permite seleccionar template y controlar diversidad. \\
+
+title & Relevancia textual & Campo principal para coincidencia exacta y snippets. \\
+
+description & Relevancia textual & Mejora recuperación y explicación. \\
+
+createdAt & Recencia & Permite calcular frescura. \\
+
+popularityMetrics & Popularidad & Permite estimar aceptación global. \\
+
+interactionMetrics & Aprendizaje conductual & Permite medir utilidad observada. \\
+
+businessFlags & Reglas funcionales & Permite aplicar boosts, penalizaciones o exclusiones. \\
+
+canonicalId & Deduplicación & Agrupa variantes del mismo contenido. \\
+
+renderTemplate & Frontend & Evita que el cliente infiera presentación. \\
+
+\bottomrule
+\end{longtable}
+
+\subsection{Configuración de pesos}
+
+\begin{lstlisting}[caption={Ejemplo de configuración parametrizable de pesos}]
+{
+  "rankingProfile": "default_search",
+  "weights": {
+    "textual": 0.35,
+    "exact": 0.15,
+    "popularity": 0.10,
+    "interaction": 0.10,
+    "recency": 0.10,
+    "userPreference": 0.10,
+    "business": 0.10
+  },
+  "thresholds": {
+    "featured": 0.80,
+    "minimumRelevant": 0.35
+  },
+  "diversification": {
+    "enabled": true,
+    "lambda": 0.75,
+    "maxPerTypeTop10": 4
+  }
+}
+\end{lstlisting}
+
+\subsection{Integración frontend/backend}
+
+El backend debe entregar resultados ya ordenados y enriquecidos. El frontend debe respetar el orden principal, salvo reglas visuales explícitas y documentadas.
+
+\begin{lstlisting}[language=Python,caption={Pseudocódigo del pipeline de ranking}]
+def search(query, user_context):
+    normalized_query = normalize(query)
+    candidates = retrieve_candidates(normalized_query)
+
+    scored = []
+    for candidate in candidates:
+        features = extract_features(candidate, normalized_query, user_context)
+        normalized = normalize_features(features)
+        score = weighted_sum(normalized)
+        score = apply_business_rules(candidate, score)
+        scored.append((candidate, score, normalized))
+
+    ranked = sort_by_score(scored)
+    ranked = deduplicate(ranked)
+    ranked = diversify(ranked)
+    response = build_frontend_contract(ranked)
+
+    return response
+\end{lstlisting}
+
+\section{Casos especiales}
+
+\subsection{Ausencia de resultados relevantes}
+
+Si ningún resultado supera el umbral mínimo de relevancia, el sistema debe evitar presentar resultados irrelevantes como si fueran válidos. Se recomienda:
+
+\begin{itemize}[noitemsep]
+    \item Mostrar sugerencias de reformulación.
+    \item Presentar categorías relacionadas.
+    \item Indicar claramente que no hubo coincidencias fuertes.
+    \item Relajar filtros de forma controlada.
+\end{itemize}
+
+\subsection{Contenido patrocinado}
+
+El contenido patrocinado puede aparecer en posiciones definidas, pero debe etiquetarse explícitamente. No debe alterar el score orgánico sin trazabilidad.
+
+\subsection{Contenido duplicado}
+
+El contenido duplicado debe consolidarse mediante identificadores canónicos. Cuando existan variantes útiles, se puede mostrar una única tarjeta con enlaces secundarios.
+
+\subsection{Empates de score}
+
+Los empates deben resolverse con criterios deterministas para evitar inestabilidad visual entre recargas.
+
+\subsection{Contenido reciente sin interacción}
+
+El contenido reciente puede recibir un boost temporal moderado para resolver cold start. Dicho boost debe decaer con el tiempo.
+
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Caso} & \textbf{Riesgo} & \textbf{Tratamiento técnico} \\
+\midrule
+\endhead
+
+Sin resultados relevantes & Frustración y pérdida de confianza & Umbral mínimo, sugerencias y relajación controlada. \\
+
+Patrocinado & Confusión entre relevancia y promoción & Etiquetado visible y separación de score orgánico. \\
+
+Duplicados & Ruido visual & Canonicalización y deduplicación. \\
+
+Empates & Saltos visuales entre sesiones & Desempate determinista. \\
+
+Contenido nuevo & Invisibilidad por falta de historial & Boost temporal y señales editoriales. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Criterios técnicos de calidad}
+
+\subsection{Consistencia}
+
+El sistema debe producir resultados coherentes para consultas equivalentes. Las transformaciones de normalización deben ser estables y versionadas.
+
+\subsection{Reproducibilidad}
+
+Cada respuesta debe poder reconstruirse a partir de versión de índice, versión de ranker, configuración de pesos y contexto de usuario relevante.
+
+\subsection{Explicabilidad}
+
+El sistema debe permitir inspeccionar por qué un resultado obtuvo una posición determinada. Esto requiere preservar el desglose de señales y reglas aplicadas.
+
+\subsection{Estabilidad visual}
+
+Pequeñas variaciones de score no deben causar cambios drásticos de layout. Para ello se recomienda usar bandas de prioridad visual y desempates deterministas.
+
+\subsection{Performance}
+
+El ranking debe cumplir objetivos de latencia. Una estrategia razonable es:
+
+\begin{itemize}[noitemsep]
+    \item Recuperar un conjunto acotado de candidatos.
+    \item Precalcular señales costosas.
+    \item Usar caching para consultas frecuentes.
+    \item Separar ranking inicial y re-ranking avanzado.
+    \item Limitar diversificación a los primeros $K$ resultados.
+\end{itemize}
+
+\section{Métricas de evaluación del ranking}
+
+\subsection{Métricas offline}
+
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Métrica} & \textbf{Qué mide} & \textbf{Uso recomendado} \\
+\midrule
+\endhead
+
+Precision@K & Proporción de resultados relevantes entre los primeros $K$. & Evaluar calidad de los primeros resultados. \\
+
+Recall@K & Proporción de resultados relevantes recuperados. & Medir cobertura del sistema. \\
+
+NDCG@K & Calidad del orden considerando relevancia graduada. & Evaluar ranking con distintos niveles de relevancia. \\
+
+MRR & Posición del primer resultado relevante. & Consultas navegacionales o de respuesta directa. \\
+
+Coverage & Porcentaje de entidades recuperables. & Detectar problemas de indexación. \\
+
+\bottomrule
+\end{longtable}
+
+\subsection{Métricas online}
+
+\begin{longtable}{p{4cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Métrica} & \textbf{Qué mide} & \textbf{Interpretación} \\
+\midrule
+\endhead
+
+CTR & Tasa de clics por posición. & Indica atractivo y relevancia percibida. \\
+
+Dwell Time & Tiempo posterior al clic. & Aproxima utilidad del resultado. \\
+
+Conversion Rate & Acciones objetivo completadas. & Mide impacto funcional. \\
+
+Search Reformulation Rate & Frecuencia de reformulación. & Alta tasa puede indicar resultados pobres. \\
+
+Zero Results Rate & Consultas sin resultados. & Detecta fallos de cobertura o matching. \\
+
+\bottomrule
+\end{longtable}
+
+\subsection{Métricas UX}
+
+Las métricas UX deben complementar las métricas de ranking. Un ranking con buen NDCG puede producir mala experiencia si la interfaz es difícil de escanear.
+
+Se recomiendan:
+
+\begin{itemize}[noitemsep]
+    \item Tiempo hasta primer clic.
+    \item Profundidad de scroll.
+    \item Interacción con filtros.
+    \item Porcentaje de abandono.
+    \item Encuestas de satisfacción.
+    \item Click entropy por tipo de contenido.
+\end{itemize}
+
+\section{Ejemplo de scoring}
+
+Considérese la consulta ``hotel centro''. La tabla muestra tres candidatos con señales normalizadas.
+
+{\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{longtable}{@{}p{2.4cm}rrrrrrrr@{}}
+\toprule
+\textbf{Resultado} & \textbf{Txt.} & \textbf{Exact.} & \textbf{Pop.} & \textbf{Inter.} & \textbf{Rec.} & \textbf{Usr.} & \textbf{Neg.} & \textbf{Score} \\
+\midrule
+\endhead
+
+Hotel Central & 0.92 & 0.85 & 0.70 & 0.66 & 0.40 & 0.74 & 0.20 & 0.720 \\
+
+Guía del Centro & 0.78 & 0.40 & 0.82 & 0.55 & 0.88 & 0.50 & 0.10 & 0.607 \\
+
+Casa Colonial & 0.61 & 0.20 & 0.45 & 0.38 & 0.95 & 0.82 & 0.15 & 0.514 \\
+
+\bottomrule
+\end{longtable}
+}
+
+Usando los pesos definidos previamente:
+
+\[
+\begin{aligned}
+Score(HotelCentral) ={}&
+0.35(0.92) +
+0.15(0.85) +
+0.10(0.70) +
+0.10(0.66) \\
+&+
+0.10(0.40) +
+0.10(0.74) +
+0.10(0.20)
+\end{aligned}
+\]
+
+\[
+Score(HotelCentral) = 0.720
+\]
+
+La posición superior de ``Hotel Central'' se justifica por alta relevancia textual, coincidencia exacta y afinidad con preferencias del usuario.
+
+\section{Ejemplo de posicionamiento visual}
+
+Una posible composición visual para la primera pantalla sería:
+
+\begin{lstlisting}[caption={Ejemplo conceptual de layout}]
+[Featured Result]
+Hotel Central Plaza
+Alta coincidencia con "hotel centro", buena ubicacion y alta popularidad.
+
+[Main Results]
+1. Hotel Central Plaza
+2. Hotel Alameda
+3. Casa Colonial Centro
+
+[Related Experiences]
+- Recorrido historico por el centro
+- Restaurantes cercanos
+
+[Guides]
+- Guia para alojarse en el centro
+\end{lstlisting}
+
+Esta composición mantiene el ranking principal visible, pero introduce exploración controlada mediante bloques secundarios.
+
+\section{Decisiones arquitectónicas}
+
+\subsection{Decisión 1: ranking compuesto e interpretable}
+
+Se adopta un ranking compuesto basado en señales normalizadas y pesos configurables.
+
+\textbf{Justificación}: permite explicar resultados, ajustar comportamiento sin reescribir el sistema y evaluar contribuciones individuales de cada señal.
+
+\subsection{Decisión 2: separación entre ranking lógico y posicionamiento visual}
+
+El backend calcula score y prioridad lógica. El frontend aplica una política visual documentada.
+
+\textbf{Justificación}: evita acoplamiento excesivo y permite evolucionar presentación sin alterar el modelo de relevancia.
+
+\subsection{Decisión 3: diversificación posterior al ranking}
+
+La diversificación se aplica después del ranking principal y antes del renderizado.
+
+\textbf{Justificación}: preserva precisión inicial y reduce redundancia en posiciones visibles.
+
+\subsection{Decisión 4: reglas de negocio explícitas}
+
+Las reglas de negocio se aplican mediante un componente separado y auditable.
+
+\textbf{Justificación}: reduce ambigüedad entre relevancia orgánica y objetivos funcionales.
+
+\section{Conclusiones}
+
+La estrategia propuesta establece una arquitectura robusta para ranking y posicionamiento visual de resultados heterogéneos. El modelo compuesto permite combinar relevancia textual, señales conductuales, frescura, preferencias y reglas de negocio de manera interpretable y ajustable.
+
+La separación entre backend ranking y frontend rendering mejora mantenibilidad y consistencia. El backend conserva responsabilidad sobre relevancia y trazabilidad; el frontend transforma esa prioridad lógica en una experiencia visual clara, escaneable y estable.
+
+El enfoque también reconoce limitaciones reales, como sesgo de popularidad, cold start, dependencia de metadata y conflictos entre negocio y relevancia. Estas limitaciones se mitigan mediante normalización, boosting acotado, deduplicación, diversificación, parametrización y evaluación continua.
+
+En consecuencia, el módulo de posicionamiento queda diseñado como una pieza central del sistema de información: técnicamente justificable, evaluable con métricas de Information Retrieval, alineada con principios de UX Engineering y preparada para evolución progresiva en producción.
+
+\end{document}
