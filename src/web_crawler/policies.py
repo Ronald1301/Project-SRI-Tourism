@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import urljoin,urlparse,urlunparse
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
+from urllib.request import Request, urlopen
 from .config import CrawlerConfig
 
 logger = logging.getLogger("src.web_crawler.policies")
@@ -109,11 +111,12 @@ class CrawlPolicies:
         """
         return self.is_allowed_scheme(url) and self.is_allowed_domain(url) and self.is_allowed_by_patterns(url)
     
-    def get_robots_parser(self , url : str) -> RobotFileParser:
+    def get_robots_parser(self , url : str, user_agent: str | None = None) -> RobotFileParser:
         """Obtiene y cachea el parser de robots.txt para un host.
 
         Args:
             url: URL que determina el host de robots.txt.
+            user_agent: User-Agent usado al pedir robots.txt.
 
         Returns:
             RobotFileParser: Parser cacheado o recien descargado.
@@ -125,14 +128,21 @@ class CrawlPolicies:
             return parser
 
         robots_url = f"{host_key}/robots.txt"
-        logger.info("Obteniendo robots.txt: %s", robots_url)
-        parser = RobotFileParser()
-        parser.set_url(robots_url)
+        parser = RobotFileParser(robots_url)
         try:
-            parser.read()
-            logger.info("robots.txt cargado exitosamente: %s", robots_url)
+            request = Request(
+                robots_url,
+                headers={"User-Agent": user_agent or self.config.user_agent},
+            )
+            with urlopen(request, timeout=10) as response:
+                raw_robots = response.read().decode("utf-8", "replace")
+                parser.parse(raw_robots.splitlines())
+        except HTTPError as exc:
+            logger.warning("HTTP error leyendo robots.txt %s: %s %s", robots_url, exc.code, exc.reason)
+        except URLError as exc:
+            logger.warning("Error de red/DNS leyendo robots.txt %s: %s", robots_url, exc.reason)
         except Exception as exc:
-            logger.warning("Error al obtener/parsear robots.txt %s: %s", robots_url, exc)
+            logger.warning("Error inesperado leyendo robots.txt %s: %s: %s", robots_url, type(exc).__name__, exc)
         self.robots_cache[host_key] = parser
         return parser
     
@@ -148,7 +158,7 @@ class CrawlPolicies:
         """
         if not self.config.obey_robots:
             return True
-        parser = self.get_robots_parser(url)
+        parser = self.get_robots_parser(url, user_agent=user_agent)
         if parser is None:
             return True
         try:
