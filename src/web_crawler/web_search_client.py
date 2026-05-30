@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import time
 from threading import Lock
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
-from ddgs import DDGS
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
@@ -150,7 +150,7 @@ class DuckDuckGoWebSearchClient:
 
         Args:
             query: Consulta del usuario.
-            max_results: Numero maximo de resultados iniciales a pedir a DDGS.
+            max_results: Numero maximo de resultados iniciales a pedir a DuckDuckGo HTML.
 
         Returns:
             list[dict[str, object]]: Documentos filtrados y rankeados.
@@ -167,44 +167,39 @@ class DuckDuckGoWebSearchClient:
         documents_count = 0
         pages_processed = 0
 
-        logger.info("Consultando DuckDuckGo para: \"%s\" (max=%d)", ddg_query, max_results)
-        try:
-            with DDGS(timeout=self.timeout) as ddgs:
-                hits = ddgs.text(ddg_query, max_results=max(int(max_results), 0))
-                for hit in hits:
-                    url = str(hit.get("href") or hit.get("url") or "").strip()
-                    title = str(hit.get("title") or "").strip()
-                    snippet = str(hit.get("body") or hit.get("snippet") or "").strip()
-                    if not url:
-                        continue
-                    if url in seen_urls:
-                        continue
-                    if url in visited_urls:
-                        continue
-                    decision = self.url_importance_policy.evaluate(
-                        url=url,
-                        query=query,
-                        title=title,
-                        snippet=snippet,
-                    )
-                    if not decision.is_important:
-                        logger.info(
-                            "URL descartada por baja importancia (score=%.4f, reason=%s): %s",
-                            decision.score,
-                            decision.reason,
-                            url,
-                        )
-                        continue
+        logger.info("Consultando DuckDuckGo HTML para: \"%s\" (max=%d)", ddg_query, max_results)
+        hits = self._search_duckduckgo_html(ddg_query, max_results=max(int(max_results), 0))
+        for hit in hits:
+            url = str(hit.get("url") or "").strip()
+            title = str(hit.get("title") or "").strip()
+            snippet = str(hit.get("snippet") or "").strip()
+            if not url:
+                continue
+            if url in seen_urls:
+                continue
+            if url in visited_urls:
+                continue
+            decision = self.url_importance_policy.evaluate(
+                url=url,
+                query=query,
+                title=title,
+                snippet=snippet,
+            )
+            if not decision.is_important:
+                logger.info(
+                    "URL descartada por baja importancia (score=%.4f, reason=%s): %s",
+                    decision.score,
+                    decision.reason,
+                    url,
+                )
+                continue
 
-                    seen_urls.add(url)
-                    queue.append(SearchCandidate(url=url, depth=0, title=title, snippet=snippet))
-                    if len(queue) >= min(max(int(max_results), 0), self.max_pages):
-                        break
-        except Exception as exc:
-            logger.warning("Error en busqueda DuckDuckGo: %s", exc)
-            return []
+            seen_urls.add(url)
+            queue.append(SearchCandidate(url=url, depth=0, title=title, snippet=snippet))
+            if len(queue) >= min(max(int(max_results), 0), self.max_pages):
+                break
 
-        logger.info("DuckDuckGo retorno %d URLs unicas", len(queue))
+        logger.info("DuckDuckGo HTML retorno %d URLs unicas", len(queue))
         while queue and pages_processed < self.max_pages:
             candidate = queue.popleft()
             if candidate.url in visited_urls:
@@ -279,6 +274,89 @@ class DuckDuckGoWebSearchClient:
             self.query_min_score,
         )
         return filtered_documents
+
+    def _search_duckduckgo_html(self, query: str, *, max_results: int) -> list[dict[str, str]]:
+        """Consulta la pagina HTML de DuckDuckGo y extrae resultados.
+
+        Args:
+            query: Consulta ya enriquecida para DuckDuckGo.
+            max_results: Maximo de resultados a devolver.
+
+        Returns:
+            list[dict[str, str]]: Resultados con `url`, `title` y `snippet`.
+        """
+        if max_results <= 0:
+            return []
+
+        search_url = "https://html.duckduckgo.com/html/"
+        try:
+            response = self.session.get(
+                search_url,
+                params={"q": query},
+                timeout=self.timeout,
+                allow_redirects=True,
+            )
+        except Exception as exc:
+            logger.warning("Error consultando DuckDuckGo HTML: %s", exc)
+            return []
+
+        if response.status_code != 200:
+            logger.warning("DuckDuckGo HTML respondio HTTP %d", response.status_code)
+            return []
+
+        response.encoding = response.apparent_encoding or response.encoding
+        soup = BeautifulSoup(response.text, "lxml")
+        results: list[dict[str, str]] = []
+
+        for result in soup.select("div.result"):
+            link = result.select_one("a.result__a")
+            if link is None:
+                continue
+
+            href = str(link.get("href") or "").strip()
+            url = self._normalize_duckduckgo_result_url(href)
+            if not url:
+                continue
+
+            title = link.get_text(" ", strip=True)
+            snippet_node = result.select_one(".result__snippet")
+            snippet = snippet_node.get_text(" ", strip=True) if snippet_node else ""
+
+            results.append({"url": url, "title": title, "snippet": snippet})
+            if len(results) >= max_results:
+                break
+
+        return results
+
+    def _normalize_duckduckgo_result_url(self, href: str) -> str:
+        """Convierte un enlace de resultado de DuckDuckGo a URL final.
+
+        Args:
+            href: Enlace obtenido del HTML de DuckDuckGo.
+
+        Returns:
+            str: URL final o cadena vacia si no puede resolverse.
+        """
+        if not href:
+            return ""
+
+        normalized_href = href.strip()
+        if normalized_href.startswith("//"):
+            normalized_href = urljoin("https:", normalized_href)
+
+        parsed = urlparse(normalized_href)
+        if parsed.scheme in {"http", "https"} and parsed.netloc and "duckduckgo.com" not in parsed.netloc:
+            return normalized_href
+
+        query = parse_qs(parsed.query)
+        uddg = query.get("uddg")
+        if uddg:
+            return unquote(uddg[0]).strip()
+
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return normalized_href
+
+        return ""
 
     def _fetch_html(self, url: str, *, timeout: float) -> str | None:
         """Descarga HTML si la URL responde correctamente.
