@@ -13,9 +13,10 @@ from ddgs import DDGS
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
+from sentence_transformers import SentenceTransformer
 
-from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.cleaner import TextCleaner
+from src.preprocessing.stemmer import Stemmer
 from src.preprocessing.tokenizer import Tokenizer, load_english_stopwords, load_spanish_stopwords
 from src.web_crawler.config import DEFAULT_VISITED_URLS_PATH
 from src.web_crawler.config import CrawlerConfig
@@ -62,6 +63,8 @@ def _lock_for_path(path: Path) -> Lock:
 class DuckDuckGoWebSearchClient:
     """Cliente de busqueda web basado en DuckDuckGo y politicas de filtrado."""
 
+    EMBEDDING_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+
     def __init__(
         self,
         *,
@@ -69,7 +72,8 @@ class DuckDuckGoWebSearchClient:
         user_agent: str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
         visited_urls_path: Path | None = None,
         url_importance_policy: URLImportancePolicy | None = None,
-        tfidf_min_score: float = 0.15,
+        cuba_min_score: float = 0.40,
+        query_min_score: float = 0.50,
         min_word_count: int = 200,
         max_boilerplate_ratio: float = 0.55,
         max_link_density: float = 0.25,
@@ -84,7 +88,8 @@ class DuckDuckGoWebSearchClient:
             user_agent: Cadena User-Agent usada en las solicitudes.
             visited_urls_path: Archivo compartido de URLs visitadas.
             url_importance_policy: Politica heuristica de importancia.
-            tfidf_min_score: Umbral minimo del filtro TF-IDF.
+            cuba_min_score: Umbral minimo para el primer filtro semantico contra "Cuba".
+            query_min_score: Umbral minimo para el segundo filtro semantico contra la query.
             min_word_count: Minimo de palabras para conservar un documento.
             max_boilerplate_ratio: Umbral maximo de boilerplate.
             max_link_density: Umbral maximo de densidad de enlaces.
@@ -99,20 +104,21 @@ class DuckDuckGoWebSearchClient:
         self.user_agent = user_agent
         self.visited_urls_path = Path(visited_urls_path or DEFAULT_VISITED_URLS_PATH)
         self.url_importance_policy = url_importance_policy or URLImportancePolicy()
-        self.tfidf_min_score = max(float(tfidf_min_score), 0.0)
+        self.cuba_min_score = max(float(cuba_min_score), 0.0)
+        self.query_min_score = max(float(query_min_score), 0.0)
         self.min_word_count = max(int(min_word_count), 1)
         self.max_boilerplate_ratio = min(max(float(max_boilerplate_ratio), 0.0), 1.0)
         self.max_link_density = min(max(float(max_link_density), 0.0), 1.0)
         self.request_delay_seconds = max(float(request_delay_seconds), 0.0)
         self.max_pages = max(int(max_pages), 1)
         self.follow_links_depth = max(int(follow_links_depth), 0)
-        self._tfidf_cleaner = TextCleaner()
+        self._cleaner = TextCleaner()
         self._english_stopwords = load_english_stopwords()
         self._spanish_stopwords = load_spanish_stopwords()
-        self._tfidf_tokenizer = Tokenizer(
-            language="english",
-            stopwords=self._english_stopwords | self._spanish_stopwords,
-        )
+        self._english_tokenizer = Tokenizer(language="english", stopwords=self._english_stopwords)
+        self._spanish_tokenizer = Tokenizer(language="spanish", stopwords=self._spanish_stopwords)
+        self._english_stemmer = Stemmer(language="english")
+        self._spanish_stemmer = Stemmer(language="spanish")
         self.policies = CrawlPolicies(
             CrawlerConfig(
                 seed_urls=["https://example.com"],
@@ -136,6 +142,8 @@ class DuckDuckGoWebSearchClient:
         )
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": user_agent})
+        self._embedding_model: SentenceTransformer | None = None
+        self._embedding_model_error: str | None = None
 
     def search(self, query: str, max_results: int = 5) -> list[dict[str, object]]:
         """Busca documentos web y aplica dos filtros consecutivos.
@@ -151,6 +159,7 @@ class DuckDuckGoWebSearchClient:
             logger.warning("search() llamada con query vacia")
             return []
 
+        ddg_query = self._build_ddg_query(query)
         documents: list[dict[str, object]] = []
         queue: deque[SearchCandidate] = deque()
         seen_urls: set[str] = set()
@@ -158,10 +167,10 @@ class DuckDuckGoWebSearchClient:
         documents_count = 0
         pages_processed = 0
 
-        logger.info("Consultando DuckDuckGo para: \"%s\" (max=%d)", query, max_results)
+        logger.info("Consultando DuckDuckGo para: \"%s\" (max=%d)", ddg_query, max_results)
         try:
             with DDGS(timeout=self.timeout) as ddgs:
-                hits = ddgs.text(query.strip(), max_results=max(int(max_results), 0))
+                hits = ddgs.text(ddg_query, max_results=max(int(max_results), 0))
                 for hit in hits:
                     url = str(hit.get("href") or hit.get("url") or "").strip()
                     title = str(hit.get("title") or "").strip()
@@ -257,16 +266,17 @@ class DuckDuckGoWebSearchClient:
             pages_processed,
             self.follow_links_depth,
         )
-        filtered_documents = self._apply_tfidf_filter(
+        filtered_documents = self._apply_embedding_filter(
             query=query,
             documents=documents,
             max_results=max_results,
         )
         logger.info(
-            "TF-IDF filter aplicado: %d -> %d documentos (min_score=%.4f)",
+            "Embedding filter aplicado: %d -> %d documentos (cuba>=%.2f, query>=%.2f)",
             len(documents),
             len(filtered_documents),
-            self.tfidf_min_score,
+            self.cuba_min_score,
+            self.query_min_score,
         )
         return filtered_documents
 
@@ -365,7 +375,7 @@ class DuckDuckGoWebSearchClient:
                 content_text,
             ]
         ).strip()
-        word_count = int(document.get("word_count") or len(content_text.split()))
+        word_count = int(document.get("word_count") or self._count_words(content_text))
         if word_count < self.min_word_count:
             logger.info(
                 "Documento descartado por texto corto (%d < %d): %s",
@@ -428,12 +438,17 @@ class DuckDuckGoWebSearchClient:
             if prefix in {"es", "en"}:
                 return prefix
 
-        tokens = self._tokenize_for_tfidf(text)
-        if not tokens:
+        cleaned = self._cleaner.clean(text)
+        if not cleaned:
             return "unknown"
 
-        english_hits = sum(1 for token in tokens if token in self._english_stopwords)
-        spanish_hits = sum(1 for token in tokens if token in self._spanish_stopwords)
+        english_tokens = self._english_tokenizer.tokenize(cleaned)
+        spanish_tokens = self._spanish_tokenizer.tokenize(cleaned)
+        if not english_tokens and not spanish_tokens:
+            return "unknown"
+
+        english_hits = sum(1 for token in english_tokens if token in self._english_stopwords)
+        spanish_hits = sum(1 for token in spanish_tokens if token in self._spanish_stopwords)
 
         if english_hits == 0 and spanish_hits == 0:
             return "unknown"
@@ -486,14 +501,14 @@ class DuckDuckGoWebSearchClient:
 
         return min(1.0, float(anchor_words) / float(total_words))
 
-    def _apply_tfidf_filter(
+    def _apply_embedding_filter(
         self,
         *,
         query: str,
         documents: list[dict[str, object]],
         max_results: int,
     ) -> list[dict[str, object]]:
-        """Filtra documentos usando similitud TF-IDF con la query.
+        """Filtra documentos usando embeddings multilingues y dos umbrales.
 
         Args:
             query: Consulta del usuario.
@@ -506,19 +521,19 @@ class DuckDuckGoWebSearchClient:
         if not documents:
             return []
 
-        query_tokens = self._tokenize_for_tfidf(query)
-        if not query_tokens:
-            logger.info("TF-IDF filter omitido: la query no genero tokens utiles")
-            return documents[: max(int(max_results), 1)]
+        model = self._get_embedding_model()
+        if model is None:
+            logger.warning("No se pudo cargar el modelo de embeddings; se omite el filtro semantico")
+            return []
 
-        doc_tokens_by_id: dict[str, list[str]] = {}
         doc_payload_by_id: dict[str, dict[str, object]] = {}
+        doc_texts: list[str] = []
+        doc_ids: list[str] = []
 
         for item in documents:
             doc_id = str(item.get("doc_id") or "").strip()
             if not doc_id:
                 continue
-
             combined_text = "\n".join(
                 [
                     str(item.get("title") or ""),
@@ -526,76 +541,143 @@ class DuckDuckGoWebSearchClient:
                     str(item.get("content_text") or ""),
                 ]
             ).strip()
-            tokens = self._tokenize_for_tfidf(combined_text)
-            if not tokens:
+            if not combined_text:
                 continue
-
-            doc_tokens_by_id[doc_id] = tokens
+            doc_ids.append(doc_id)
+            doc_texts.append(combined_text)
             doc_payload_by_id[doc_id] = dict(item)
 
-        if not doc_tokens_by_id:
-            logger.info("TF-IDF filter omitido: ningun documento genero tokens utiles")
-            return documents[: max(int(max_results), 1)]
+        if not doc_texts:
+            return []
 
-        tfidf_index = TFIDFIndex()
-        tfidf_index.build(doc_tokens_by_id)
+        doc_embeddings = self._encode_texts(model, doc_texts)
+        if doc_embeddings.size == 0:
+            return []
 
-        query_vector = tfidf_index.vectorize_query(query_tokens)
-        query_norm = float(np.linalg.norm(query_vector))
-        if query_norm <= 0.0:
-            logger.info("TF-IDF filter omitido: la query produjo vector nulo")
-            return documents[: max(int(max_results), 1)]
+        cuba_embedding = self._encode_texts(model, ["Cuba"])
+        if cuba_embedding.size == 0:
+            logger.warning("No se pudo generar embedding de referencia para Cuba")
+            return []
 
-        matrix = tfidf_index.matrix
-        if matrix is None or matrix.size == 0:
-            return documents[: max(int(max_results), 1)]
+        query_embedding = self._encode_texts(model, [query])
+        if query_embedding.size == 0:
+            logger.warning("No se pudo generar embedding para la query")
+            return []
 
-        doc_norms = np.linalg.norm(matrix, axis=1)
-        scores = np.zeros(matrix.shape[0], dtype=float)
-        valid_mask = doc_norms > 0
-        if np.any(valid_mask):
-            scores[valid_mask] = (matrix[valid_mask] @ query_vector) / (doc_norms[valid_mask] * query_norm)
+        cuba_scores = doc_embeddings @ cuba_embedding[0]
+        query_scores = doc_embeddings @ query_embedding[0]
 
         scored_documents: list[dict[str, object]] = []
-        for doc_id in tfidf_index.doc_ids:
-            idx = tfidf_index.doc_id_to_index.get(doc_id)
-            if idx is None:
-                continue
+        for idx, doc_id in enumerate(doc_ids):
             payload = dict(doc_payload_by_id.get(doc_id, {}))
             if not payload:
                 continue
-            topic_score = float(scores[idx])
-            payload["tfidf_score"] = topic_score
-            payload["topic_relevance_percent"] = round(topic_score * 100.0, 2)
+            cuba_score = float(cuba_scores[idx])
+            query_score = float(query_scores[idx])
+            payload["cuba_score"] = round(cuba_score, 4)
+            payload["query_score"] = round(query_score, 4)
+            payload["topic_relevance_percent"] = round(query_score * 100.0, 2)
             scored_documents.append(payload)
 
         if not scored_documents:
-            return documents[: max(int(max_results), 1)]
+            return []
 
-        scored_documents.sort(key=lambda item: float(item.get("tfidf_score", 0.0)), reverse=True)
-        filtered_documents = [
-            item for item in scored_documents if float(item.get("tfidf_score", 0.0)) >= self.tfidf_min_score
-        ]
+        after_cuba = [item for item in scored_documents if float(item.get("cuba_score", 0.0)) >= self.cuba_min_score]
+        after_query = [item for item in after_cuba if float(item.get("query_score", 0.0)) >= self.query_min_score]
+        after_query.sort(key=lambda item: float(item.get("query_score", 0.0)), reverse=True)
+        return after_query[: max(int(max_results), 1)]
 
-        if not filtered_documents:
-            logger.info(
-                "TF-IDF filter no encontro documentos por encima del umbral; usando top-%d por score",
-                max(int(max_results), 1),
-            )
-            filtered_documents = scored_documents[: max(int(max_results), 1)]
+    def _build_ddg_query(self, query: str) -> str:
+        """Construye la consulta para DuckDuckGo con contexto turistico sobre Cuba.
 
-        return filtered_documents[: max(int(max_results), 1)]
+        Args:
+            query: Consulta original del usuario.
 
-    def _tokenize_for_tfidf(self, text: object) -> list[str]:
-        """Preprocesa texto para el filtro TF-IDF temporal.
+        Returns:
+            str: Consulta enriquecida.
+        """
+        normalized = " ".join(str(query or "").split())
+        if not normalized:
+            return "Cuba turismo"
+        return f"Cuba turismo {normalized}"
+
+    def _encode_texts(self, model: SentenceTransformer, texts: list[str]) -> np.ndarray:
+        """Convierte una lista de textos en embeddings normalizados.
+
+        Args:
+            model: Modelo de Sentence Transformers.
+            texts: Lista de textos a codificar.
+
+        Returns:
+            np.ndarray: Matriz `(n, d)` de embeddings normalizados.
+        """
+        if not texts:
+            return np.zeros((0, 0), dtype=np.float32)
+        embeddings = model.encode(
+            texts,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        array = np.asarray(embeddings, dtype=np.float32)
+        if array.ndim == 1:
+            array = array.reshape(1, -1)
+        return np.ascontiguousarray(array)
+
+    def _get_embedding_model(self) -> SentenceTransformer | None:
+        """Carga el modelo semantico de forma diferida.
+
+        Returns:
+            SentenceTransformer | None: Modelo listo o `None` si no se pudo cargar.
+        """
+        if self._embedding_model is not None:
+            return self._embedding_model
+        if self._embedding_model_error is not None:
+            return None
+        try:
+            self._embedding_model = SentenceTransformer(self.EMBEDDING_MODEL_NAME)
+            return self._embedding_model
+        except Exception as exc:
+            self._embedding_model_error = f"{type(exc).__name__}: {exc}"
+            logger.warning("No se pudo cargar el modelo '%s': %s", self.EMBEDDING_MODEL_NAME, exc)
+            return None
+
+    def _extract_tokens(self, text: object, language: str | None = None) -> list[str]:
+        """Extrae tokens normalizados usando el preprocesador del proyecto.
+
+        Args:
+            text: Texto de entrada.
+            language: Idioma preferido para aplicar stemming y stopwords.
+
+        Returns:
+            list[str]: Lista de tokens limpios, sin stopwords y con stemming.
+        """
+        cleaned = self._cleaner.clean(text)
+        if not cleaned:
+            return []
+
+        normalized_language = (language or "").strip().lower()
+        if normalized_language in {"es", "spa", "spanish", "espanol", "español"}:
+            tokenizer = self._spanish_tokenizer
+            stemmer = self._spanish_stemmer
+        else:
+            tokenizer = self._english_tokenizer
+            stemmer = self._english_stemmer
+
+        tokens = tokenizer.tokenize(cleaned)
+        tokens = tokenizer.remove_stopwords(tokens)
+        return stemmer.stem_tokens(tokens)
+
+    def _count_words(self, text: object) -> int:
+        """Cuenta palabras usando la segmentacion del preprocesador.
 
         Args:
             text: Texto de entrada.
 
         Returns:
-            list[str]: Tokens limpios y sin stopwords.
+            int: Numero de palabras validas.
         """
-        cleaned = self._tfidf_cleaner.clean(text)
-        tokens = self._tfidf_tokenizer.tokenize(cleaned)
-        tokens = self._tfidf_tokenizer.remove_stopwords(tokens)
-        return [token for token in tokens if token]
+        cleaned = self._cleaner.clean(text)
+        if not cleaned:
+            return 0
+        return len(self._english_tokenizer.tokenize(cleaned))
