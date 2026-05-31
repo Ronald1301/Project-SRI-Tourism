@@ -24,6 +24,14 @@ from src.web_crawler.web_search_client import DuckDuckGoWebSearchClient
 
 
 def iter_jsonl(path: Path) -> Iterable[dict]:
+    """Itera un archivo JSONL y devuelve cada linea como diccionario.
+
+    Args:
+        path: Ruta del archivo JSONL a leer.
+
+    Yields:
+        dict: Cada registro JSON decodificado.
+    """
     with path.open("r", encoding="utf-8") as file:
         for line in file:
             line = line.strip()
@@ -34,6 +42,7 @@ def iter_jsonl(path: Path) -> Iterable[dict]:
 
 @dataclass(frozen=True)
 class RetrievedDocument:
+    """Documento recuperado para construir el prompt y la respuesta final."""
     citation_id: int
     doc_id: str
     title: str
@@ -46,6 +55,7 @@ class RetrievedDocument:
 
 @dataclass(frozen=True)
 class CandidatePassage:
+    """Fragmento candidato usado para seleccionar evidencia relevante."""
     citation_id: int
     title: str
     text: str
@@ -54,6 +64,7 @@ class CandidatePassage:
 
 @dataclass(frozen=True)
 class RAGResult:
+    """Resultado completo de una consulta RAG."""
     query: str
     prompt: str
     answer: str
@@ -61,11 +72,29 @@ class RAGResult:
 
 
 class DocumentRepository:
+    """Repositorio en memoria para acceder a los documentos base del sistema."""
+
     def __init__(self, documents: dict[str, dict]) -> None:
+        """Inicializa el repositorio de documentos.
+
+        Args:
+            documents: Mapa `doc_id -> documento` cargado en memoria.
+
+        Returns:
+            None
+        """
         self.documents = documents
 
     @classmethod
     def from_jsonl(cls, path: Path) -> "DocumentRepository":
+        """Construye el repositorio a partir de un archivo JSONL.
+
+        Args:
+            path: Ruta del archivo JSONL con documentos persistidos.
+
+        Returns:
+            DocumentRepository: Repositorio en memoria indexado por `doc_id`.
+        """
         documents: dict[str, dict] = {}
         for doc in iter_jsonl(path):
             doc_id = str(doc.get("doc_id") or "").strip()
@@ -75,10 +104,20 @@ class DocumentRepository:
         return cls(documents)
 
     def get(self, doc_id: str) -> dict | None:
+        """Obtiene un documento por su identificador.
+
+        Args:
+            doc_id: Identificador del documento.
+
+        Returns:
+            dict | None: Documento asociado o `None` si no existe.
+        """
         return self.documents.get(doc_id)
 
 
 class RAGPipeline:
+    """Orquesta la recuperacion, la ampliacion web y la generacion RAG."""
+
     def __init__(
         self,
         vector_db: VectorDatabase,
@@ -90,6 +129,20 @@ class RAGPipeline:
         web_search_client: DuckDuckGoWebSearchClient | None = None,
         web_search_output_path: Path | None = None,
     ) -> None:
+        """Inicializa el pipeline RAG completo.
+
+        Args:
+            vector_db: Base vectorial ya cargada.
+            repository: Repositorio de documentos fuente.
+            language: Idioma de trabajo del preprocesamiento.
+            semantic_searcher: Recuperador semantico/LSI opcional.
+            insufficiency_policy: Politica para decidir si falta evidencia.
+            web_search_client: Cliente de busqueda web para ampliacion dinamica.
+            web_search_output_path: Ruta donde se persisten los documentos web.
+
+        Returns:
+            None
+        """
         self.vector_db = vector_db
         self.repository = repository
         self.semantic_searcher = semantic_searcher
@@ -118,6 +171,19 @@ class RAGPipeline:
         web_search_client: DuckDuckGoWebSearchClient | None = None,
         web_search_output_path: Path | None = None,
     ) -> "RAGPipeline":
+        """Construye el pipeline RAG a partir de la configuracion por defecto.
+
+        Args:
+            output_dir: Directorio donde esta persistida la base vectorial.
+            language: Idioma de preprocesamiento.
+            semantic_searcher: Recuperador semantico/LSI opcional.
+            insufficiency_policy: Politica de suficiencia de evidencia opcional.
+            web_search_client: Cliente de busqueda web opcional.
+            web_search_output_path: Ruta de persistencia para documentos web.
+
+        Returns:
+            RAGPipeline: Pipeline listo para responder consultas.
+        """
         logger.info("Inicializando RAGPipeline | output_dir=%s | language=%s", output_dir, language)
         documents_path = resolve_documents_path()
         vector_db = VectorDatabase.load(Path(output_dir))
@@ -139,6 +205,16 @@ class RAGPipeline:
         top_k: int = 4,
         include_explanations: bool = False,
     ) -> RAGResult:
+        """Responde una consulta ejecutando recuperacion hibrida y generacion.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero maximo de documentos finales a recuperar.
+            include_explanations: Si se deben incluir explicaciones en la parte LSI.
+
+        Returns:
+            RAGResult: Resultado final con prompt, respuesta y documentos usados.
+        """
         logger.info("answer_query | query=\"%s\" | hybrid | top_k=%d", query, top_k)
         user_query = query.strip()
         local_documents = self.retrieve(
@@ -188,6 +264,16 @@ class RAGPipeline:
         lsi_results: list[dict],
         top_k: int = 4,
     ) -> RAGResult:
+        """Construye una respuesta usando resultados LSI ya obtenidos.
+
+        Args:
+            query: Consulta original del usuario.
+            lsi_results: Resultados recuperados por el componente LSI.
+            top_k: Numero maximo de documentos a usar.
+
+        Returns:
+            RAGResult: Resultado listo para la capa de presentacion.
+        """
         documents = self._convert_lsi_results(lsi_results[:top_k])
         prompt = self.answer_generator.build_prompt(query, documents)
         answer = self.answer_generator.generate(query, documents, prompt=prompt)
@@ -204,6 +290,16 @@ class RAGPipeline:
         top_k: int = 4,
         include_explanations: bool = False,
     ) -> list[RetrievedDocument]:
+        """Recupera documentos combinando la señal vectorial y la LSI.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero de documentos finales a devolver.
+            include_explanations: Si la recuperacion LSI debe incluir explicaciones.
+
+        Returns:
+            list[RetrievedDocument]: Lista ordenada de documentos recuperados.
+        """
         logger.info("retrieve | hybrid | top_k=%d", top_k)
         pool_k = max(int(top_k) * 4, int(top_k))
         logger.info("Ejecutando busqueda hibrida (pool_k=%d)...", pool_k)
@@ -257,6 +353,15 @@ class RAGPipeline:
         return documents
 
     def _search_vectorial_raw(self, query: str, top_k: int) -> list[dict]:
+        """Ejecuta la recuperacion vectorial primaria o su respaldo TF-IDF.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero maximo de resultados a recuperar.
+
+        Returns:
+            list[dict]: Resultados crudos de recuperacion.
+        """
         if self._vector_search_available:
             try:
                 logger.info("Busqueda vectorial en VectorDatabase...")
@@ -276,6 +381,16 @@ class RAGPipeline:
         *,
         include_explanations: bool,
     ) -> list[dict]:
+        """Ejecuta la recuperacion LSI y normaliza su salida.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero maximo de resultados.
+            include_explanations: Indica si se incluyen explicaciones en el payload.
+
+        Returns:
+            list[dict]: Resultados LSI normalizados.
+        """
         if self.semantic_searcher is None:
             logger.info("LSI no disponible: semantic_searcher es None")
             return []
@@ -313,6 +428,16 @@ class RAGPipeline:
         top_k: int,
         rrf_k: int = 60,
     ) -> list[dict]:
+        """Fusiona varias listas de resultados con Reciprocal Rank Fusion.
+
+        Args:
+            result_lists: Listas ordenadas de resultados parciales.
+            top_k: Numero maximo de resultados fusionados a devolver.
+            rrf_k: Constante de suavizado de RRF.
+
+        Returns:
+            list[dict]: Lista fusionada y reordenada por score acumulado.
+        """
         if top_k <= 0:
             return []
         accumulator: dict[str, dict[str, Any]] = {}
@@ -349,6 +474,14 @@ class RAGPipeline:
         return merged[:top_k]
 
     def _is_retrieval_insufficient(self, documents: list[RetrievedDocument]) -> bool:
+        """Evalua si la evidencia recuperada es insuficiente para responder.
+
+        Args:
+            documents: Documentos ya recuperados por el pipeline.
+
+        Returns:
+            bool: `True` si la politica considera que falta evidencia.
+        """
         scores = [doc.score for doc in documents]
         result = self.insufficiency_policy.is_insufficient(
             [{"doc_id": doc.doc_id, "score": float(doc.score)} for doc in documents]
@@ -358,6 +491,15 @@ class RAGPipeline:
         return result
 
     def _retrieve_and_index_web_context(self, query: str, *, top_k: int) -> list[RetrievedDocument]:
+        """Busca en la web, persiste e indexa los nuevos documentos recuperados.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero de documentos finales que se desean alimentar al RAG.
+
+        Returns:
+            list[RetrievedDocument]: Documentos web normalizados y listos para generar.
+        """
         max_results = max(int(top_k) * 2, int(top_k), 1)
         logger.info("Buscando en DuckDuckGo (max_results=%d)...", max_results)
         web_documents_raw = self.web_search_client.search(query, max_results=max_results)
@@ -380,6 +522,14 @@ class RAGPipeline:
         return self._convert_web_docs_to_retrieved(normalized_docs[: max(int(top_k), 0)])
 
     def _normalize_web_documents(self, documents: list[dict[str, object]]) -> list[dict[str, object]]:
+        """Normaliza documentos web para su persistencia e indexacion.
+
+        Args:
+            documents: Documentos recuperados desde la busqueda web.
+
+        Returns:
+            list[dict[str, object]]: Documentos filtrados y normalizados.
+        """
         normalized: list[dict[str, object]] = []
         for item in documents:
             doc_id = str(item.get("doc_id") or "").strip()
@@ -402,6 +552,14 @@ class RAGPipeline:
         return normalized
 
     def _persist_web_documents(self, documents: list[dict[str, object]]) -> None:
+        """Persiste documentos web en formato JSONL.
+
+        Args:
+            documents: Documentos web normalizados.
+
+        Returns:
+            None
+        """
         try:
             output_path = self.web_search_output_path
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -411,6 +569,14 @@ class RAGPipeline:
             logger.warning("Error persistiendo documentos web: %s", exc)
 
     def _index_web_documents(self, documents: list[dict[str, object]]) -> None:
+        """Indexa documentos web nuevos en la base vectorial.
+
+        Args:
+            documents: Documentos web ya normalizados.
+
+        Returns:
+            None
+        """
         index_ready_docs: list[dict[str, object]] = []
         for item in documents:
             combined_text = "\n".join(
@@ -454,6 +620,14 @@ class RAGPipeline:
             logger.warning("Error indexando documentos web: %s", exc)
 
     def _merge_web_documents_into_repository(self, documents: list[dict[str, object]]) -> None:
+        """Incorpora documentos web al repositorio local en memoria.
+
+        Args:
+            documents: Documentos web normalizados.
+
+        Returns:
+            None
+        """
         for item in documents:
             doc_id = str(item.get("doc_id") or "").strip()
             if not doc_id:
@@ -463,6 +637,14 @@ class RAGPipeline:
             self._title_token_cache.pop(doc_id, None)
 
     def _convert_web_docs_to_retrieved(self, web_docs: list[dict[str, object]]) -> list[RetrievedDocument]:
+        """Convierte documentos web normalizados al formato de recuperacion.
+
+        Args:
+            web_docs: Documentos web normalizados.
+
+        Returns:
+            list[RetrievedDocument]: Documentos listos para el generador de respuesta.
+        """
         converted: list[RetrievedDocument] = []
         for citation_id, item in enumerate(web_docs, start=1):
             doc_id = str(item.get("doc_id") or "").strip()
@@ -483,6 +665,14 @@ class RAGPipeline:
         return converted
 
     def _convert_lsi_results(self, lsi_results: list[dict]) -> list[RetrievedDocument]:
+        """Convierte resultados LSI al formato uniforme de recuperacion.
+
+        Args:
+            lsi_results: Resultados devueltos por el recuperador LSI.
+
+        Returns:
+            list[RetrievedDocument]: Documentos uniformados para el generador.
+        """
         documents: list[RetrievedDocument] = []
         for citation_id, item in enumerate(lsi_results, start=1):
             doc_id = str(item.get("doc_id") or "").strip()
@@ -518,6 +708,15 @@ class RAGPipeline:
         return documents
 
     def _tfidf_search(self, query: str, top_k: int = 4) -> list[dict]:
+        """Ejecuta una busqueda de respaldo basada en TF-IDF.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero maximo de resultados a devolver.
+
+        Returns:
+            list[dict]: Resultados rerankeados por similitud TF-IDF.
+        """
         index = self._get_fallback_index()
         query_tokens = self.preprocessing.process_text(query)
         if not query_tokens or index.matrix is None or index.matrix.size == 0:
@@ -561,6 +760,15 @@ class RAGPipeline:
         return reranked_results[: max(int(top_k), 0)]
 
     def build_prompt(self, query: str, documents: list[RetrievedDocument]) -> str:
+        """Construye el prompt RAG usando los documentos recuperados.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Documentos recuperados y ordenados por relevancia.
+
+        Returns:
+            str: Prompt final para el generador de respuesta.
+        """
         if not documents:
             context_block = "No se recuperaron documentos relevantes."
         else:
@@ -605,6 +813,15 @@ class RAGPipeline:
         )
 
     def generate_answer(self, query: str, documents: list[RetrievedDocument]) -> str:
+        """Genera una respuesta a partir de la evidencia ya seleccionada.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Documentos recuperados que sirven como evidencia.
+
+        Returns:
+            str: Respuesta textual final.
+        """
         if not documents:
             return (
                 "No encontre documentos suficientemente relevantes para responder con evidencia "
@@ -649,6 +866,16 @@ class RAGPipeline:
         *,
         max_passages: int,
     ) -> list[CandidatePassage]:
+        """Selecciona los fragmentos mas utiles para responder la consulta.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Documentos recuperados.
+            max_passages: Maximo de pasajes a devolver.
+
+        Returns:
+            list[CandidatePassage]: Fragmentos candidatos ordenados por relevancia.
+        """
         ranked: list[CandidatePassage] = []
         for doc in documents:
             ranked.extend(self._best_passages_for_document(doc, query, limit=1))
@@ -679,6 +906,16 @@ class RAGPipeline:
         *,
         limit: int,
     ) -> list[CandidatePassage]:
+        """Obtiene los pasajes mas utiles de un documento concreto.
+
+        Args:
+            doc: Documento recuperado.
+            query: Consulta del usuario.
+            limit: Numero maximo de pasajes a devolver.
+
+        Returns:
+            list[CandidatePassage]: Pasajes del documento ordenados por score.
+        """
         query_tokens = set(self.preprocessing.process_text(query))
         focus_tokens = self._focus_query_tokens(query_tokens)
         active_query_tokens = focus_tokens or query_tokens
@@ -724,6 +961,14 @@ class RAGPipeline:
         return candidates[:limit]
 
     def _get_fallback_index(self) -> TFIDFIndex:
+        """Construye o reutiliza el indice TF-IDF de respaldo.
+
+        Args:
+            No recibe argumentos directos.
+
+        Returns:
+            TFIDFIndex: Indice TF-IDF ya construido.
+        """
         if self._fallback_index is None:
             documents: dict[str, list[str]] = {}
             for doc_id, source_doc in self.repository.documents.items():
@@ -745,6 +990,14 @@ class RAGPipeline:
         return self._fallback_index
 
     def _candidate_segments(self, doc: RetrievedDocument) -> Iterable[str]:
+        """Genera segmentos textuales candidatos dentro de un documento.
+
+        Args:
+            doc: Documento recuperado.
+
+        Yields:
+            str: Segmentos textuales potencialmente utiles.
+        """
         if doc.summary:
             yield doc.summary
 
@@ -771,12 +1024,32 @@ class RAGPipeline:
         summary: str,
         content_text: str,
     ) -> set[str]:
+        """Obtiene y cachea los tokens de un documento completo.
+
+        Args:
+            doc_id: Identificador del documento.
+            title: Titulo del documento.
+            summary: Resumen del documento.
+            content_text: Contenido principal del documento.
+
+        Returns:
+            set[str]: Conjunto de tokens procesados.
+        """
         if doc_id not in self._document_token_cache:
             combined = "\n".join(part for part in [title, summary, content_text] if part)
             self._document_token_cache[doc_id] = set(self.preprocessing.process_text(combined))
         return self._document_token_cache[doc_id]
 
     def _get_title_tokens(self, doc_id: str, title: str) -> set[str]:
+        """Obtiene y cachea los tokens del titulo de un documento.
+
+        Args:
+            doc_id: Identificador del documento.
+            title: Titulo del documento.
+
+        Returns:
+            set[str]: Conjunto de tokens del titulo.
+        """
         if doc_id not in self._title_token_cache:
             self._title_token_cache[doc_id] = set(self.preprocessing.process_text(title))
         return self._title_token_cache[doc_id]
@@ -789,6 +1062,18 @@ class RAGPipeline:
         segment_length: int,
         title_focus_overlap: int,
     ) -> float:
+        """Calcula una puntuacion heuristica para un segmento textual.
+
+        Args:
+            query_tokens: Tokens de la consulta.
+            segment_tokens: Tokens del segmento candidato.
+            doc_score: Puntaje base del documento.
+            segment_length: Longitud del segmento.
+            title_focus_overlap: Superposicion con tokens importantes del titulo.
+
+        Returns:
+            float: Puntuacion compuesta del segmento.
+        """
         overlap = len(query_tokens & segment_tokens)
         coverage = overlap / max(len(query_tokens), 1)
         density = overlap / max(len(segment_tokens), 1)
@@ -805,6 +1090,14 @@ class RAGPipeline:
         )
 
     def _fallback_excerpt(self, doc: RetrievedDocument) -> str:
+        """Genera un extracto de respaldo si no hay mejores pasajes.
+
+        Args:
+            doc: Documento recuperado.
+
+        Returns:
+            str: Texto corto representativo del documento.
+        """
         for raw_text in self._candidate_segments(doc):
             normalized = self._normalize_whitespace(raw_text)
             if self._is_useful_segment(normalized, doc.title):
@@ -819,14 +1112,41 @@ class RAGPipeline:
         return cleaned[:277].rstrip() + "..."
 
     def _with_citation(self, prefix: str, text: str, citation_id: int) -> str:
+        """Anade una cita numerica a un fragmento de texto.
+
+        Args:
+            prefix: Prefijo narrativo.
+            text: Texto base a citar.
+            citation_id: Identificador numerico de la cita.
+
+        Returns:
+            str: Texto con la cita al final.
+        """
         cleaned = self._normalize_whitespace(text).rstrip(".!?")
         return f"{prefix}{cleaned} [{citation_id}]."
 
     def _normalize_whitespace(self, text: str) -> str:
+        """Normaliza espacios en blanco y signos decorativos.
+
+        Args:
+            text: Texto original.
+
+        Returns:
+            str: Texto normalizado.
+        """
         text = re.sub(r"\s+", " ", str(text or "")).strip()
         return text.strip("-• ")
 
     def _is_useful_segment(self, text: str, title: str) -> bool:
+        """Determina si un segmento aporta evidencia util al RAG.
+
+        Args:
+            text: Segmento a evaluar.
+            title: Titulo del documento asociado.
+
+        Returns:
+            bool: `True` si el segmento es util, `False` en caso contrario.
+        """
         normalized = self._normalize_whitespace(text)
         lowered = normalized.casefold()
         title_lower = self._normalize_whitespace(title).casefold()
@@ -855,6 +1175,14 @@ class RAGPipeline:
         return True
 
     def _focus_query_tokens(self, query_tokens: set[str]) -> set[str]:
+        """Elimina tokens demasiado genericos para enfocar la consulta.
+
+        Args:
+            query_tokens: Tokens originales de la consulta.
+
+        Returns:
+            set[str]: Tokens filtrados o los originales si todos eran genericos.
+        """
         generic_tokens = {
             "cub",
             "turism",
@@ -869,6 +1197,14 @@ class RAGPipeline:
         return focused or query_tokens
 
     def _has_local_vector_model(self) -> bool:
+        """Verifica si el modelo vectorial local esta disponible en disco o cache.
+
+        Args:
+            No recibe argumentos directos.
+
+        Returns:
+            bool: `True` si el modelo esta disponible localmente.
+        """
         model_name = str(self.vector_db.model_name or "").strip()
         if not model_name:
             logger.warning("No se encontro modelo vectorial local disponible")
