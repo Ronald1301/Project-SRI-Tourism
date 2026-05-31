@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 class SearchRequest(BaseModel):
     query: str
-    search_mode: str = "lsi"
     top_k: int = 5
     explanations: bool = False
 
@@ -84,14 +83,12 @@ class FeedbackRequest(BaseModel):
     doc_id: str
     relevance: int
     expanded_query: str | None = None
-    search_mode: str | None = None
 
 
 class ImplicitFeedbackRequest(BaseModel):
     query: str
     doc_id: str
     event: str
-    search_mode: str | None = None
 
 
 class FeedbackResponse(BaseModel):

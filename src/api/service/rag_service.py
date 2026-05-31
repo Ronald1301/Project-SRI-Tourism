@@ -35,16 +35,14 @@ class RAGSearchService:
     def search(
         self,
         query: str,
-        search_mode: str = "lsi",
         top_k: int = 5,
         include_explanations: bool = False,
     ) -> tuple[list[RetrievedDocument], str, dict]:
-        logger.info("service.search | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
+        logger.info("service.search | query=\"%s\" | hybrid | top_k=%d", query, top_k)
         preview_k = max(int(top_k), 3)
         raw_preview = self.rag_pipeline.retrieve(
             query,
             top_k=preview_k,
-            search_mode=search_mode,
             include_explanations=include_explanations,
         )
         expansion = self.query_expander.expand_query(
@@ -58,7 +56,6 @@ class RAGSearchService:
             expanded_preview = self.rag_pipeline.retrieve(
                 expansion.expanded_query,
                 top_k=preview_k,
-                search_mode=search_mode,
                 include_explanations=include_explanations,
             )
             if self._should_use_expanded_results(raw_preview, expanded_preview):
@@ -71,9 +68,7 @@ class RAGSearchService:
         rag_result = self.rag_pipeline.answer_query(
             query=selected_query,
             top_k=top_k,
-            search_mode=search_mode,
             include_explanations=include_explanations,
-            answer_query_text=query,
         )
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
         return rag_result.documents, rag_result.answer, expansion.to_dict()
@@ -85,14 +80,12 @@ class RAGSearchService:
         doc_id: str,
         relevance: int,
         expanded_query: str | None = None,
-        search_mode: str | None = None,
     ) -> dict:
         return self.query_expander.record_explicit_feedback(
             query=query,
             doc_id=doc_id,
             relevance=relevance,
             expanded_query=expanded_query,
-            search_mode=search_mode,
         )
 
     def add_implicit_feedback(
@@ -101,13 +94,11 @@ class RAGSearchService:
         query: str,
         doc_id: str,
         event: str,
-        search_mode: str | None = None,
     ) -> tuple[dict, bool]:
         return self.query_expander.record_implicit_feedback(
             query=query,
             doc_id=doc_id,
             event=event,
-            search_mode=search_mode,
         )
 
     def _should_use_expanded_results(

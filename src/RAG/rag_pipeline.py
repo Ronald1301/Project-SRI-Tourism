@@ -79,8 +79,6 @@ class DocumentRepository:
 
 
 class RAGPipeline:
-    SUPPORTED_SEARCH_MODES = {"vectorial", "lsi", "hybrid_search"}
-
     def __init__(
         self,
         vector_db: VectorDatabase,
@@ -139,17 +137,13 @@ class RAGPipeline:
         self,
         query: str,
         top_k: int = 4,
-        *,
-        search_mode: str = "vectorial",
         include_explanations: bool = False,
-        answer_query_text: str | None = None,
     ) -> RAGResult:
-        logger.info("answer_query | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
-        user_query = (answer_query_text or query).strip()
+        logger.info("answer_query | query=\"%s\" | hybrid | top_k=%d", query, top_k)
+        user_query = query.strip()
         local_documents = self.retrieve(
             query,
             top_k=top_k,
-            search_mode=search_mode,
             include_explanations=include_explanations,
         )
         logger.info("Recuperacion local: %d documentos", len(local_documents))
@@ -162,7 +156,6 @@ class RAGPipeline:
                 augmented_documents = self.retrieve(
                     query,
                     top_k=top_k,
-                    search_mode="vectorial",
                     include_explanations=False,
                 )
                 if augmented_documents:
@@ -209,37 +202,23 @@ class RAGPipeline:
         self,
         query: str,
         top_k: int = 4,
-        *,
-        search_mode: str = "vectorial",
         include_explanations: bool = False,
     ) -> list[RetrievedDocument]:
-        mode = self._normalize_search_mode(search_mode)
-        logger.info("retrieve | mode=%s | top_k=%d", mode, top_k)
-
-        if mode == "vectorial":
-            raw_results = self._search_vectorial_raw(query, top_k=top_k)
-        elif mode == "lsi":
-            logger.info("Ejecutando busqueda LSI...")
-            raw_results = self._search_lsi_raw(
-                query,
-                top_k=top_k,
-                include_explanations=include_explanations,
-            )
-        else:
-            pool_k = max(int(top_k) * 4, int(top_k))
-            logger.info("Ejecutando busqueda hibrida (pool_k=%d)...", pool_k)
-            vector_results = self._search_vectorial_raw(query, top_k=pool_k)
-            lsi_results = self._search_lsi_raw(
-                query,
-                top_k=pool_k,
-                include_explanations=include_explanations,
-            )
-            raw_results = self._rrf_fuse(
-                [vector_results, lsi_results],
-                top_k=top_k,
-                rrf_k=60,
-            )
-            logger.info("RRF fusion completa: %d resultados", len(raw_results))
+        logger.info("retrieve | hybrid | top_k=%d", top_k)
+        pool_k = max(int(top_k) * 4, int(top_k))
+        logger.info("Ejecutando busqueda hibrida (pool_k=%d)...", pool_k)
+        vector_results = self._search_vectorial_raw(query, top_k=pool_k)
+        lsi_results = self._search_lsi_raw(
+            query,
+            top_k=pool_k,
+            include_explanations=include_explanations,
+        )
+        raw_results = self._rrf_fuse(
+            [vector_results, lsi_results],
+            top_k=top_k,
+            rrf_k=60,
+        )
+        logger.info("RRF fusion completa: %d resultados", len(raw_results))
 
         documents: list[RetrievedDocument] = []
 
@@ -276,21 +255,6 @@ class RAGPipeline:
             )
 
         return documents
-
-    def _normalize_search_mode(self, search_mode: str | None) -> str:
-        mode = str(search_mode or "").strip().lower()
-        aliases = {
-            "hybrid": "hybrid_search",
-            "hibrido": "hybrid_search",
-            "híbrido": "hybrid_search",
-        }
-        mode = aliases.get(mode, mode)
-        if mode not in self.SUPPORTED_SEARCH_MODES:
-            raise ValueError(
-                f"search_mode invalido: '{search_mode}'. "
-                "Usa: 'lsi', 'vectorial' o 'hybrid_search'."
-            )
-        return mode
 
     def _search_vectorial_raw(self, query: str, top_k: int) -> list[dict]:
         if self._vector_search_available:

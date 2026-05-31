@@ -1,7 +1,7 @@
 import random
 import time
 
-def mock_search(query, mode, top_k=5, page=1):
+def mock_search(query, top_k=5, page=1):
     time.sleep(0.8)  # simula latencia
 
     docs = []
