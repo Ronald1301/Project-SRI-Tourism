@@ -79,6 +79,66 @@
         "202d8043a95460ea581f4d8e032314ab2e1880f2",
         "28c3eee00809e0c262389cdfaf88e7664ef2452b"
       ]
+    },
+    {
+      "query_id": "q9",
+      "query": "lugares historicos en santiago de cuba",
+      "relevant_doc_ids": [
+        "aa85c402a688326290b8cac793364fbaec77c083",
+        "43bd8ff9d99dd36a5b888b53ee617505c2deb265",
+        "9396b7eed9839f00a79dcc524ef8d91fb37e8a92",
+        "42fecaf164d6e75147fccea2ae2278d502d47e55"
+      ],
+      "judgments": {
+        "aa85c402a688326290b8cac793364fbaec77c083": 3,
+        "43bd8ff9d99dd36a5b888b53ee617505c2deb265": 3,
+        "9396b7eed9839f00a79dcc524ef8d91fb37e8a92": 2,
+        "42fecaf164d6e75147fccea2ae2278d502d47e55": 1
+      }
+    },
+    {
+      "query_id": "q10",
+      "query": "transporte turistico en varadero",
+      "relevant_doc_ids": [
+        "d292d5384a1fad721ef156827122efe2a45672ba",
+        "7d83622fea99eee25e9da72efdd6c7fcda5e3f3e",
+        "77d44d6a433d771c4966868e1945a2f1a1bc254a"
+      ],
+      "judgments": {
+        "d292d5384a1fad721ef156827122efe2a45672ba": 3,
+        "7d83622fea99eee25e9da72efdd6c7fcda5e3f3e": 2,
+        "77d44d6a433d771c4966868e1945a2f1a1bc254a": 1
+      }
+    },
+    {
+      "query_id": "q11",
+      "query": "museos y cultura en la habana",
+      "relevant_doc_ids": [
+        "49e11581176d47213804ca80675dc9ef59a916cf",
+        "d5de2bc28e031b23e113b5e13aeba47168348d32",
+        "eb5994fd4fca1b5f746b7b3b238fba34eca87586",
+        "e27dc686d3b734e37972d29504ef9c6ad599485a"
+      ],
+      "judgments": {
+        "49e11581176d47213804ca80675dc9ef59a916cf": 3,
+        "d5de2bc28e031b23e113b5e13aeba47168348d32": 2,
+        "eb5994fd4fca1b5f746b7b3b238fba34eca87586": 2,
+        "e27dc686d3b734e37972d29504ef9c6ad599485a": 1
+      }
+    },
+    {
+      "query_id": "q12",
+      "query": "baracoa naturaleza y cultura",
+      "relevant_doc_ids": [
+        "7865a4d8b3fb1dca99a28aad5c77e012810b5870",
+        "9f859766fc974ec4624ed21f0c091a2e8db8d453",
+        "c3059b9045ab4ed22ce93f1c029ee26062e65e93"
+      ],
+      "judgments": {
+        "7865a4d8b3fb1dca99a28aad5c77e012810b5870": 3,
+        "9f859766fc974ec4624ed21f0c091a2e8db8d453": 2,
+        "c3059b9045ab4ed22ce93f1c029ee26062e65e93": 1
+      }
     }
   ]
 }
