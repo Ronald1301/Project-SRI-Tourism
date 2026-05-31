@@ -49,7 +49,13 @@ _maybe_reexec_in_venv()
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import process_all_sources
 from src.retrieval.lsi_model import LSIModel
-from src.retrieval.evaluate import DEFAULT_QRELS_PATH, DEFAULT_REPORT_PATH, evaluate_searcher
+from src.retrieval.evaluate import (
+    DEFAULT_MARKDOWN_REPORT_PATH,
+    DEFAULT_QRELS_PATH,
+    DEFAULT_REPORT_PATH,
+    evaluate_systems,
+    write_reports,
+)
 from src.retrieval.search import (
     DEFAULT_LSI_META,
     DEFAULT_LSI_MODEL,
@@ -142,6 +148,13 @@ def _build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--qrels", default=str(DEFAULT_QRELS_PATH), help="Archivo JSON con consultas y documentos relevantes.")
     eval_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados a evaluar por consulta.")
     eval_parser.add_argument("--report-out", default=str(DEFAULT_REPORT_PATH), help="Ruta donde guardar el reporte JSON.")
+    eval_parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN_REPORT_PATH), help="Ruta donde guardar el reporte Markdown.")
+    full_eval_parser = subparsers.add_parser("evaluate", help="Evalua sistemas IR con Precision, Recall, F1, MAP, MRR y NDCG.")
+    full_eval_parser.add_argument("--qrels", default=str(DEFAULT_QRELS_PATH), help="Archivo JSON con consultas y documentos relevantes.")
+    full_eval_parser.add_argument("--top-k", type=int, default=5, help="Cantidad de resultados a evaluar por consulta.")
+    full_eval_parser.add_argument("--systems", default="all", help="Sistemas separados por coma o 'all'.")
+    full_eval_parser.add_argument("--report-out", default=str(DEFAULT_REPORT_PATH), help="Ruta donde guardar el reporte JSON.")
+    full_eval_parser.add_argument("--markdown-out", default=str(DEFAULT_MARKDOWN_REPORT_PATH), help="Ruta donde guardar el reporte Markdown.")
     return parser
 
 
@@ -390,43 +403,62 @@ def _run_lsi_train() -> int:
     return 0
 
 
-def _run_rec01_evaluation(qrels_path: str, top_k: int, report_out: str) -> int:
+def _print_evaluation_report(report: dict) -> None:
+    print("Evaluacion IR")
+    print(f"- Consultas: {report['query_count']}")
+    print(f"- top_k: {report['top_k']}")
+
+    for name, payload in report["systems"].items():
+        print(f"{name} [{payload['status']}]")
+        if payload["status"] == "skipped":
+            print(f"  razon: {payload['reason']}")
+            continue
+        summary = payload["summary"]
+        print(f"  Precision@k: {summary['precision_at_k']:.4f}")
+        print(f"  Recall@k: {summary['recall_at_k']:.4f}")
+        print(f"  F1@k: {summary['f1_at_k']:.4f}")
+        print(f"  MAP: {summary['map']:.4f}")
+        print(f"  MRR@k: {summary['mrr_at_k']:.4f}")
+        print(f"  NDCG@k: {summary['ndcg_at_k']:.4f}")
+        print(f"  R-Precision: {summary['r_precision']:.4f}")
+
+    if report.get("analysis"):
+        print("Analisis cuantitativo")
+        for item in report["analysis"]:
+            print(f"- {item}")
+
+
+def _run_evaluation(
+    qrels_path: str,
+    top_k: int,
+    systems: str,
+    report_out: str,
+    markdown_out: str,
+) -> int:
     path = Path(qrels_path)
     if not path.exists():
         print(f"No se encontro archivo de evaluacion: {path}")
         return 1
 
-    missing = _missing_lsi_artifacts()
-    if missing:
-        _print_missing_lsi_artifacts()
-        return 1
-
     import json
 
     qrels = json.loads(path.read_text(encoding="utf-8"))
-    searcher = SemanticSearcher()
-    report = evaluate_searcher(searcher, qrels, top_k=top_k)
-    report_path = Path(report_out)
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    print("Evaluacion REC-01")
-    print(f"- Consultas: {report['query_count']}")
-    print(f"- top_k: {report['top_k']}")
-
-    for section in ("baseline", "refined"):
-        summary = report[section]["summary"]
-        print(f"{report[section]['system']}")
-        print(f"  P@3: {summary['p_at_3']:.4f}")
-        print(f"  P@5: {summary['p_at_5']:.4f}")
-        print(f"  MAP: {summary['map']:.4f}")
-        print(f"  NDCG@5: {summary['ndcg_at_5']:.4f}")
-
-    print("Delta refinado - baseline")
-    for key, value in report["delta"].items():
-        print(f"  {key}: {value:+.4f}")
-    print(f"Reporte JSON: {report_path}")
+    report = evaluate_systems(qrels=qrels, top_k=top_k, systems=systems)
+    write_reports(report, report_out, markdown_out)
+    _print_evaluation_report(report)
+    print(f"Reporte JSON: {Path(report_out)}")
+    print(f"Reporte Markdown: {Path(markdown_out)}")
     return 0
+
+
+def _run_rec01_evaluation(qrels_path: str, top_k: int, report_out: str, markdown_out: str) -> int:
+    return _run_evaluation(
+        qrels_path=qrels_path,
+        top_k=top_k,
+        systems="lsi_baseline,lsi_refined",
+        report_out=report_out,
+        markdown_out=markdown_out,
+    )
 
 
 def main() -> int:
@@ -452,7 +484,9 @@ def main() -> int:
     if args.command == "web_search":
         return _run_web_search(" ".join(args.query), args.top_k, args.output)
     if args.command == "evaluate_rec01":
-        return _run_rec01_evaluation(args.qrels, args.top_k, args.report_out)
+        return _run_rec01_evaluation(args.qrels, args.top_k, args.report_out, args.markdown_out)
+    if args.command == "evaluate":
+        return _run_evaluation(args.qrels, args.top_k, args.systems, args.report_out, args.markdown_out)
 
     parser.print_help()
     return 1
