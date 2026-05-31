@@ -49,7 +49,7 @@ _maybe_reexec_in_venv()
 from src.indexing.tfidf_index import TFIDFIndex
 from src.preprocessing.pipeline import process_all_sources
 from src.retrieval.lsi_model import LSIModel
-from src.retrieval.evaluate import (
+from src.evaluation import (
     DEFAULT_MARKDOWN_REPORT_PATH,
     DEFAULT_QRELS_PATH,
     DEFAULT_REPORT_PATH,

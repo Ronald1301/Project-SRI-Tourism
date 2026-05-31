@@ -51,7 +51,7 @@ class EvaluationMetricTests(unittest.TestCase):
             ]
         }
 
-        with patch("src.retrieval.evaluate.missing_lsi_artifacts", return_value=["missing"]):
+        with patch("src.evaluation.systems.missing_lsi_artifacts", return_value=["missing"]):
             report = evaluate_systems(qrels=qrels, top_k=3, systems="lsi_baseline", include_markdown=True)
         self.assertIn("lsi_baseline", report["systems"])
         self.assertEqual(report["systems"]["lsi_baseline"]["status"], "skipped")
