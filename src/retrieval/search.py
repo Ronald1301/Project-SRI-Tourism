@@ -14,7 +14,7 @@ from src.retrieval.ranking_signals import QuerySignalContext
 from src.retrieval.reranker import RankingExplanation, RankingPayload, SignalReranker
 from src.vector_db.preset import resolve_documents_path
 
-DEFAULT_TFIDF_MATRIX = "data/index/tfidf_matrix.npy"
+DEFAULT_TFIDF_MATRIX = "data/index/tfidf_matrix.npz"
 DEFAULT_TFIDF_VOCAB = "data/index/vocabulary.json"
 DEFAULT_TFIDF_META = "data/index/tfidf_meta.json"
 

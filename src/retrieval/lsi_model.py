@@ -24,6 +24,7 @@ import os
 import pickle
 
 import numpy as np
+from scipy import sparse
 from sklearn.decomposition import TruncatedSVD
 
 from src.utils.file_manager import load_json, load_numpy, load_pickle, save_json, save_numpy, save_pickle
@@ -66,7 +67,7 @@ class LSIModel:
         self.doc_vectors = None
         self.is_trained = False
         
-    def train(self, tfidf_matrix: np.ndarray) -> "LSIModel":
+    def train(self, tfidf_matrix) -> "LSIModel":
         """
         Train the LSI model on a TF-IDF matrix.
         
@@ -107,7 +108,7 @@ class LSIModel:
             
             # Fit SVD on TF-IDF matrix
             # Returns: U × Σ (document vectors in latent space)
-            self.doc_vectors = self.svd_model.fit_transform(tfidf_matrix)
+            self.doc_vectors = self.svd_model.fit_transform(tfidf_matrix).astype(np.float32, copy=False)
             
             self.is_trained = True
             return self
@@ -115,7 +116,7 @@ class LSIModel:
         except Exception as e:
             raise RuntimeError(f"SVD training failed: {str(e)}") from e
     
-    def transform_query(self, query_vector: np.ndarray) -> np.ndarray:
+    def transform_query(self, query_vector) -> np.ndarray:
         """
         Project a query vector to the LSI semantic space.
         
@@ -149,16 +150,23 @@ class LSIModel:
         if query_vector is None:
             raise ValueError("Query vector cannot be None or empty")
 
-        if not isinstance(query_vector, np.ndarray):
+        if sparse.issparse(query_vector):
+            query_matrix = query_vector.astype(np.float32).tocsr()
+        elif not isinstance(query_vector, np.ndarray):
             query_vector = np.array(query_vector, dtype=float)
 
-        if query_vector.size == 0:
+        if not sparse.issparse(query_vector) and query_vector.size == 0:
             raise ValueError("Query vector cannot be None or empty")
 
-        if query_vector.dtype not in [np.float32, np.float64]:
+        if sparse.issparse(query_vector):
+            pass
+        elif query_vector.dtype not in [np.float32, np.float64]:
             query_vector = query_vector.astype(float)
 
-        if query_vector.ndim == 1:
+        if sparse.issparse(query_vector):
+            if query_matrix.shape[0] != 1:
+                raise ValueError("Query vector must be a single-row sparse matrix")
+        elif query_vector.ndim == 1:
             query_matrix = query_vector.reshape(1, -1)
         elif query_vector.ndim == 2 and query_vector.shape[0] == 1:
             query_matrix = query_vector
@@ -326,7 +334,7 @@ class LSIModel:
         
         return self.svd_model.singular_values_
     
-    def _validate_tfidf_matrix(self, matrix: np.ndarray) -> None:
+    def _validate_tfidf_matrix(self, matrix) -> None:
         """
         Validate TF-IDF matrix format and properties.
         
@@ -339,10 +347,13 @@ class LSIModel:
         if matrix is None:
             raise ValueError("TF-IDF matrix cannot be None")
         
-        if not isinstance(matrix, np.ndarray):
-            raise ValueError("TF-IDF matrix must be a numpy array")
-        
-        if matrix.size == 0:
+        if not isinstance(matrix, np.ndarray) and not sparse.issparse(matrix):
+            raise ValueError("TF-IDF matrix must be a numpy array or scipy sparse matrix")
+
+        if sparse.issparse(matrix):
+            if matrix.shape[0] == 0 or matrix.shape[1] == 0:
+                raise ValueError("TF-IDF matrix cannot be empty")
+        elif matrix.size == 0:
             raise ValueError("TF-IDF matrix cannot be empty")
         
         if len(matrix.shape) != 2:
@@ -352,8 +363,12 @@ class LSIModel:
             raise ValueError(
                 f"TF-IDF matrix must have float dtype, got {matrix.dtype}"
             )
-        
-        if np.isnan(matrix).any() or np.isinf(matrix).any():
+
+        if sparse.issparse(matrix):
+            values = matrix.data
+            if np.isnan(values).any() or np.isinf(values).any():
+                raise ValueError("TF-IDF matrix contains NaN or Inf values")
+        elif np.isnan(matrix).any() or np.isinf(matrix).any():
             raise ValueError("TF-IDF matrix contains NaN or Inf values")
     
     def _validate_components_vs_matrix(self, matrix: np.ndarray) -> None:

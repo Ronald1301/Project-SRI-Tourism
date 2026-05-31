@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SearchRequest(BaseModel):
@@ -60,7 +60,40 @@ class DocumentResult(BaseModel):
     explanation: RankingExplanation | None = None
 
 
+class QueryExpansionInfo(BaseModel):
+    enabled: bool = True
+    original_query: str
+    expanded_query: str
+    selected_query: str | None = None
+    selected_strategy: str = "raw"
+    terms: list[str] = Field(default_factory=list)
+    term_scores: dict[str, float] = Field(default_factory=dict)
+    method: str = "hybrid"
+    applied: bool = False
+
+
 class SearchResponse(BaseModel):
     results: list[DocumentResult]
     answer: str | None = None
     total: int
+    expansion: QueryExpansionInfo | None = None
+
+
+class FeedbackRequest(BaseModel):
+    query: str
+    doc_id: str
+    relevance: int
+    expanded_query: str | None = None
+    search_mode: str | None = None
+
+
+class ImplicitFeedbackRequest(BaseModel):
+    query: str
+    doc_id: str
+    event: str
+    search_mode: str | None = None
+
+
+class FeedbackResponse(BaseModel):
+    status: str
+    counted: bool = True

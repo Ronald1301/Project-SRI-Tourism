@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import numpy as np # type: ignore
+from sklearn.metrics.pairwise import cosine_similarity as sparse_cosine_similarity
 
 logger = logging.getLogger("src.RAG.rag_pipeline")
 
@@ -141,8 +142,10 @@ class RAGPipeline:
         *,
         search_mode: str = "vectorial",
         include_explanations: bool = False,
+        answer_query_text: str | None = None,
     ) -> RAGResult:
         logger.info("answer_query | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
+        user_query = (answer_query_text or query).strip()
         local_documents = self.retrieve(
             query,
             top_k=top_k,
@@ -176,11 +179,11 @@ class RAGPipeline:
             logger.info("Recuperacion local suficiente")
 
         logger.info("Generando respuesta con LLM...")
-        prompt = self.answer_generator.build_prompt(query, documents)
-        answer = self.answer_generator.generate(query, documents, prompt=prompt)
+        prompt = self.answer_generator.build_prompt(user_query, documents)
+        answer = self.answer_generator.generate(user_query, documents, prompt=prompt)
         logger.info("Respuesta generada | answer_len=%d", len(answer))
         return RAGResult(
-            query=query,
+            query=user_query,
             prompt=prompt,
             answer=answer,
             documents=documents,
@@ -558,15 +561,8 @@ class RAGPipeline:
         focus_tokens = self._focus_query_tokens(set(query_tokens))
 
         query_vector = index.vectorize_query(query_tokens)
-        doc_matrix = np.asarray(index.matrix, dtype=float)
-        doc_norms = np.linalg.norm(doc_matrix, axis=1)
-        query_norm = np.linalg.norm(query_vector)
-        denom = doc_norms * query_norm
-
-        similarities = np.zeros(doc_matrix.shape[0], dtype=float)
-        valid = denom > 0
-        if np.any(valid):
-            similarities[valid] = (doc_matrix[valid] @ query_vector) / denom[valid]
+        doc_matrix = index.matrix
+        similarities = sparse_cosine_similarity(doc_matrix, query_vector).ravel()
 
         candidate_count = max(int(top_k) * 6, 12)
         top_indices = np.argsort(similarities)[::-1][:candidate_count]

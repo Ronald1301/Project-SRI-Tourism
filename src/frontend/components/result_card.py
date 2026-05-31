@@ -93,7 +93,16 @@ def _build_explanation_tile(explanation: dict | None) -> ft.Control | None:
     )
 
 
-def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None):
+def ResultCard(
+    doc,
+    index,
+    query,
+    page: ft.Page | None = None,
+    on_feedback=None,
+    on_explicit_feedback=None,
+    on_implicit_feedback=None,
+    initially_hidden: bool = False,
+):
     title = doc.get("title") or "Sin titulo"
     snippet = highlight_text(doc.get("snippet", ""), query)
     score = doc.get("score", 0.0)
@@ -111,8 +120,22 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
         if not url or page is None:
             return
         page.run_task(page.clipboard.set, url)
+        if callable(on_implicit_feedback):
+            on_implicit_feedback(doc.get("doc_id"), "copy_url")
         if callable(on_feedback):
             on_feedback("URL copiada al portapapeles.")
+
+    def open_source(_):
+        if callable(on_implicit_feedback):
+            on_implicit_feedback(doc.get("doc_id"), "open_source")
+
+    def mark_relevant(_):
+        if callable(on_explicit_feedback):
+            on_explicit_feedback(doc.get("doc_id"), 1)
+
+    def mark_not_relevant(_):
+        if callable(on_explicit_feedback):
+            on_explicit_feedback(doc.get("doc_id"), 0)
 
     metadata_controls = [
         _pill(f"Tipo: {content_type}", bgcolor="#273449"),
@@ -124,7 +147,7 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
         metadata_controls.append(_pill(f"Rating: {rating}", bgcolor="#4a3521"))
     explanation_tile = _build_explanation_tile(explanation)
 
-    return ft.Container(
+    card = ft.Container(
         padding=20,
         margin=ft.Margin(left=0, top=6, right=0, bottom=6),
         bgcolor="#171717",
@@ -144,7 +167,12 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
                 offset=ft.Offset(0, 8),
             )
         ],
+        opacity=0 if initially_hidden else 1,
+        scale=0.98 if initially_hidden else 1,
+        offset=ft.Offset(0, 0.04) if initially_hidden else ft.Offset(0, 0),
         animate_opacity=300,
+        animate_scale=220,
+        animate_offset=220,
         content=ft.Column(
             spacing=14,
             controls=[
@@ -188,6 +216,18 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
                             spacing=0,
                             controls=[
                                 ft.IconButton(
+                                    icon=ft.Icons.THUMB_UP,
+                                    tooltip="Marcar como relevante",
+                                    icon_color="#86efac",
+                                    on_click=mark_relevant,
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.THUMB_DOWN,
+                                    tooltip="Marcar como no relevante",
+                                    icon_color="#fca5a5",
+                                    on_click=mark_not_relevant,
+                                ),
+                                ft.IconButton(
                                     icon=ft.Icons.CONTENT_COPY,
                                     tooltip="Copiar URL",
                                     on_click=copy_url,
@@ -197,6 +237,7 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
                                     "Abrir fuente",
                                     url=url if url else None,
                                     icon=ft.Icons.OPEN_IN_NEW,
+                                    on_click=open_source,
                                     disabled=not bool(url),
                                 ),
                             ],
@@ -207,3 +248,12 @@ def ResultCard(doc, index, query, page: ft.Page | None = None, on_feedback=None)
             ]
         )
     )
+
+    def handle_hover(event):
+        is_hovering = str(event.data).lower() == "true"
+        card.scale = 1.01 if is_hovering else 1
+        card.bgcolor = "#1b1b1b" if is_hovering else "#171717"
+        card.update()
+
+    card.on_hover = handle_hover
+    return card

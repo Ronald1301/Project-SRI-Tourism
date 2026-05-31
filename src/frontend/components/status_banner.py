@@ -113,7 +113,7 @@ def StatusBanner(state):
                     ft.Column(
                         spacing=4,
                         controls=[
-                            ft.Text("Buscando resultados...", weight="bold", color="#eff6ff"),
+                            ft.Text(getattr(state, "loading_label", "Cargando."), weight="bold", color="#eff6ff"),
                             ft.Text("Consultando el recuperador y preparando la respuesta.", size=12, color="#bfdbfe"),
                         ],
                     ),

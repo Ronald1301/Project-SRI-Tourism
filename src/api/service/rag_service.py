@@ -1,6 +1,7 @@
 import logging
 
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
+from src.retrieval.query_expansion import QueryExpander
 from src.retrieval.search import SemanticSearcher
 from src.api.config import (
     DEFAULT_TFIDF_MATRIX,
@@ -28,6 +29,7 @@ class RAGSearchService:
             documents_path=DEFAULT_DOCUMENTS,
         )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
+        self.query_expander = QueryExpander(self.searcher)
         logger.info("RAGSearchService listo")
 
     def search(
@@ -36,16 +38,102 @@ class RAGSearchService:
         search_mode: str = "lsi",
         top_k: int = 5,
         include_explanations: bool = False,
-    ) -> tuple[list[RetrievedDocument], str]:
+    ) -> tuple[list[RetrievedDocument], str, dict]:
         logger.info("service.search | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
-        rag_result = self.rag_pipeline.answer_query(
-            query=query,
-            top_k=top_k,
+        preview_k = max(int(top_k), 3)
+        raw_preview = self.rag_pipeline.retrieve(
+            query,
+            top_k=preview_k,
             search_mode=search_mode,
             include_explanations=include_explanations,
         )
+        expansion = self.query_expander.expand_query(
+            query,
+            method="hybrid",
+            top_documents=raw_preview[:3],
+        )
+        selected_query = query
+
+        if expansion.applied:
+            expanded_preview = self.rag_pipeline.retrieve(
+                expansion.expanded_query,
+                top_k=preview_k,
+                search_mode=search_mode,
+                include_explanations=include_explanations,
+            )
+            if self._should_use_expanded_results(raw_preview, expanded_preview):
+                selected_query = expansion.expanded_query
+                expansion.selected_strategy = "expanded"
+            else:
+                expansion.selected_strategy = "raw_fallback"
+            expansion.selected_query = selected_query
+
+        rag_result = self.rag_pipeline.answer_query(
+            query=selected_query,
+            top_k=top_k,
+            search_mode=search_mode,
+            include_explanations=include_explanations,
+            answer_query_text=query,
+        )
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
-        return rag_result.documents, rag_result.answer
+        return rag_result.documents, rag_result.answer, expansion.to_dict()
+
+    def add_explicit_feedback(
+        self,
+        *,
+        query: str,
+        doc_id: str,
+        relevance: int,
+        expanded_query: str | None = None,
+        search_mode: str | None = None,
+    ) -> dict:
+        return self.query_expander.record_explicit_feedback(
+            query=query,
+            doc_id=doc_id,
+            relevance=relevance,
+            expanded_query=expanded_query,
+            search_mode=search_mode,
+        )
+
+    def add_implicit_feedback(
+        self,
+        *,
+        query: str,
+        doc_id: str,
+        event: str,
+        search_mode: str | None = None,
+    ) -> tuple[dict, bool]:
+        return self.query_expander.record_implicit_feedback(
+            query=query,
+            doc_id=doc_id,
+            event=event,
+            search_mode=search_mode,
+        )
+
+    def _should_use_expanded_results(
+        self,
+        raw_documents: list[RetrievedDocument],
+        expanded_documents: list[RetrievedDocument],
+    ) -> bool:
+        if not expanded_documents:
+            return False
+        if not raw_documents:
+            return True
+
+        raw_top_score = max(float(doc.score) for doc in raw_documents[:3])
+        expanded_top_score = max(float(doc.score) for doc in expanded_documents[:3])
+        raw_ids = {doc.doc_id for doc in raw_documents[:3]}
+        expanded_ids = {doc.doc_id for doc in expanded_documents[:3]}
+        has_overlap = bool(raw_ids & expanded_ids)
+
+        if not has_overlap and expanded_top_score < (raw_top_score * 0.65):
+            logger.info(
+                "Expansion descartada: score expandido debil | raw=%.4f expanded=%.4f",
+                raw_top_score,
+                expanded_top_score,
+            )
+            return False
+        return True
 
 
 _rag_service: RAGSearchService | None = None

@@ -10,7 +10,15 @@ def _meta_pill(label: str, *, bgcolor: str, color: str = "#e5e7eb") -> ft.Contai
     )
 
 
-def RagAnswerCard(answer, *, query: str = "", mode: str = "", result_count: int = 0, prompt: str | None = None):
+def RagAnswerCard(
+    answer,
+    *,
+    query: str = "",
+    mode: str = "",
+    result_count: int = 0,
+    prompt: str | None = None,
+    expansion: dict | None = None,
+):
 
     if not answer:
         return None
@@ -52,6 +60,44 @@ def RagAnswerCard(answer, *, query: str = "", mode: str = "", result_count: int 
                 size=12,
                 color="#bfdbfe",
                 italic=True,
+            )
+        )
+
+    if isinstance(expansion, dict) and expansion.get("terms"):
+        strategy_label = (
+            "consulta enriquecida"
+            if expansion.get("selected_strategy") == "expanded"
+            else "consulta original"
+        )
+        controls.append(
+            ft.Container(
+                padding=ft.Padding(left=12, top=10, right=12, bottom=10),
+                border_radius=14,
+                bgcolor="#0b1726",
+                border=ft.Border(
+                    left=ft.BorderSide(1, "#26415f"),
+                    top=ft.BorderSide(1, "#26415f"),
+                    right=ft.BorderSide(1, "#26415f"),
+                    bottom=ft.BorderSide(1, "#26415f"),
+                ),
+                content=ft.Column(
+                    spacing=6,
+                    controls=[
+                        ft.Text(
+                            f"Expansion automatica activa: se uso {strategy_label}.",
+                            size=12,
+                            color="#bfdbfe",
+                        ),
+                        ft.Row(
+                            wrap=True,
+                            spacing=6,
+                            controls=[
+                                _meta_pill(term, bgcolor="#26384f", color="#dbeafe")
+                                for term in expansion.get("terms", [])[:5]
+                            ],
+                        ),
+                    ],
+                ),
             )
         )
 

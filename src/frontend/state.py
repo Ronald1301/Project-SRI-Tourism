@@ -19,21 +19,25 @@ class AppState:
         self.results = []
         self.answer_rag = None
         self.prompt = None
+        self.expansion_info = None
 
         self.page = 1
         self.has_more = False
 
         self.ui_state = UIState.IDLE
         self.error_message = None
+        self.loading_label = "Cargando."
 
     def set_loading(self):
         self.ui_state = UIState.LOADING
         self.error_message = None
+        self.loading_label = "Cargando."
 
-    def set_success(self, results, answer_rag=None, prompt=None, has_more=False):
+    def set_success(self, results, answer_rag=None, prompt=None, has_more=False, expansion_info=None):
         self.results = list(results)
         self.answer_rag = answer_rag
         self.prompt = prompt
+        self.expansion_info = expansion_info
         self.has_more = has_more
         self.ui_state = UIState.SUCCESS if results else UIState.EMPTY
 
@@ -49,6 +53,7 @@ class AppState:
         self.results = []
         self.answer_rag = None
         self.prompt = None
+        self.expansion_info = None
         self.has_more = False
         self.error_message = None
 
