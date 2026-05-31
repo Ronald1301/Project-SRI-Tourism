@@ -10,16 +10,6 @@ def SearchBar(on_search):
         expand=True,
     )
 
-    mode_selector = ft.Dropdown(
-        width=170,
-        options=[
-            ft.dropdown.Option(key="vectorial", text="Vectorial"),
-            ft.dropdown.Option(key="lsi", text="LSI"),
-            ft.dropdown.Option(key="hybrid_search", text="Hibrido"),
-        ],
-        value="vectorial"
-    )
-
     topk_selector = ft.Dropdown(
         width=100,
         options=[ft.dropdown.Option(str(i)) for i in [3, 5, 10]],
@@ -48,13 +38,11 @@ def SearchBar(on_search):
     def set_loading(is_loading: bool):
         loading_state["value"] = bool(is_loading)
         query_input.disabled = bool(is_loading)
-        mode_selector.disabled = bool(is_loading)
         topk_selector.disabled = bool(is_loading)
         search_button.disabled = bool(is_loading)
         refresh_button_label()
         try:
             query_input.update()
-            mode_selector.update()
             topk_selector.update()
             search_button.update()
         except AssertionError:
@@ -66,7 +54,6 @@ def SearchBar(on_search):
         try:
             result = on_search(
                 query_input.value,
-                mode_selector.value,
                 int(topk_selector.value)
             )
             if inspect.isawaitable(result):
@@ -95,7 +82,6 @@ def SearchBar(on_search):
         vertical_alignment=ft.CrossAxisAlignment.END,
         controls=[
             query_input,
-            mode_selector,
             topk_selector,
             search_button
         ]

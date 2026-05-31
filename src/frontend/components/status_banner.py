@@ -128,7 +128,7 @@ def StatusBanner(state):
             "No encontramos resultados claros para esa consulta.",
             bgcolor="#191919",
             icon_color="#fbbf24",
-            help_text="Prueba con otros terminos, un destino mas concreto o cambia el modo de recuperacion.",
+            help_text="Prueba con otros terminos o un destino mas concreto para obtener evidencias más cercanas.",
         )
 
     if state.ui_state == UIState.ERROR:

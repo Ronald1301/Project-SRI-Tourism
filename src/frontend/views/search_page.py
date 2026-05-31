@@ -8,14 +8,6 @@ from src.frontend.components.search_bar import SearchBar
 from src.frontend.components.status_banner import StatusBanner
 from src.frontend.state import AppState, UIState
 
-def _mode_label(mode: str) -> str:
-    labels = {
-        "vectorial": "Vectorial",
-        "lsi": "LSI",
-        "hybrid_search": "Hibrido",
-    }
-    return labels.get(mode, mode or "N/D")
-
 
 def _loading_placeholder() -> ft.Container:
     return ft.Container(
@@ -108,7 +100,6 @@ def SearchPage(page: ft.Page):
                 RagAnswerCard(
                     state.answer_rag,
                     query=state.query,
-                    mode=_mode_label(state.mode),
                     result_count=len(state.results),
                     prompt=state.prompt,
                     expansion=state.expansion_info,
@@ -141,20 +132,20 @@ def SearchPage(page: ft.Page):
         page.update()
         return cards_to_reveal
 
-    async def handle_search(query, mode, top_k):
+    async def handle_search(query, top_k):
 
         if not query.strip():
             state.set_error("Consulta vacía")
             update_ui()
             return
 
-        state.reset_search(query, mode, top_k)
+        state.reset_search(query, top_k)
         state.set_loading()
         update_ui()
         start_loading_animation()
 
         try:
-            data = await asyncio.to_thread(search, query, mode, top_k, state.page)
+            data = await asyncio.to_thread(search, query, top_k, state.page)
         finally:
             stop_loading_animation()
 
@@ -179,7 +170,7 @@ def SearchPage(page: ft.Page):
         start_loading_animation()
 
         try:
-            data = await asyncio.to_thread(search, state.query, state.mode, state.top_k, state.page)
+            data = await asyncio.to_thread(search, state.query, state.top_k, state.page)
         finally:
             stop_loading_animation()
 
@@ -208,7 +199,6 @@ def SearchPage(page: ft.Page):
             doc_id,
             relevance,
             expanded_query=(state.expansion_info or {}).get("expanded_query"),
-            search_mode=state.mode,
         )
         if response.get("error"):
             show_feedback(response["error"])
@@ -223,7 +213,6 @@ def SearchPage(page: ft.Page):
             state.query,
             doc_id,
             event,
-            search_mode=state.mode,
         )
 
     load_more_button.on_click = load_more
@@ -269,7 +258,7 @@ def SearchPage(page: ft.Page):
                                         color="#f8fafc",
                                     ),
                                     ft.Text(
-                                        "Explora resultados con recuperacion vectorial, LSI y busqueda hibrida desde una sola interfaz.",
+                                        "Explora resultados con recuperacion hibrida y respuestas generadas a partir del contexto recuperado.",
                                         size=14,
                                         color="#cbd5e1",
                                     ),

@@ -14,7 +14,6 @@ def RagAnswerCard(
     answer,
     *,
     query: str = "",
-    mode: str = "",
     result_count: int = 0,
     prompt: str | None = None,
     expansion: dict | None = None,
@@ -24,8 +23,6 @@ def RagAnswerCard(
         return None
 
     chips = []
-    if mode:
-        chips.append(_meta_pill(f"Modo: {mode}", bgcolor="#1f2f4a", color="#bfdbfe"))
     if result_count:
         chips.append(_meta_pill(f"Fuentes: {result_count}", bgcolor="#243227", color="#bbf7d0"))
 

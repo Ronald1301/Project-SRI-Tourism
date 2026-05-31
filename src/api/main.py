@@ -44,11 +44,10 @@ def health_check():
 
 @app.post("/search", response_model=SearchResponse)
 def search(request: SearchRequest):
-    logger.info("POST /search | query=\"%s\" | mode=%s | top_k=%d", request.query, request.search_mode, request.top_k)
+    logger.info("POST /search | query=\"%s\" | top_k=%d", request.query, request.top_k)
     service = get_rag_service()
     documents, answer, expansion = service.search(
         query=request.query,
-        search_mode=request.search_mode,
         top_k=request.top_k,
         include_explanations=request.explanations,
     )
@@ -80,7 +79,6 @@ def feedback(request: FeedbackRequest):
         doc_id=request.doc_id,
         relevance=1 if int(request.relevance) > 0 else 0,
         expanded_query=request.expanded_query,
-        search_mode=request.search_mode,
     )
     logger.info(
         "Feedback explicito | query=\"%s\" | doc_id=%s | relevance=%s",
@@ -98,7 +96,6 @@ def implicit_feedback(request: ImplicitFeedbackRequest):
         query=request.query,
         doc_id=request.doc_id,
         event=request.event,
-        search_mode=request.search_mode,
     )
     logger.info(
         "Feedback implicito | query=\"%s\" | doc_id=%s | event=%s | counted=%s",
