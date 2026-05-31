@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from typing import Any
@@ -22,7 +23,7 @@ class RAGAnswerGenerator:
         """
         self.model = self._read_env("RAG_LLM_MODEL", "qwen3")
         self.ollama_cmd = self._read_env("RAG_OLLAMA_CMD", "ollama")
-        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 120)
+        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 180)
         self.enabled = self._read_bool_env("RAG_LLM_ENABLED", default=True)
         self._init_error = ""
 
@@ -78,17 +79,23 @@ class RAGAnswerGenerator:
                 "3. Integra detalles concretos del contexto y ancla cada idea con citas [1], [2], etc.",
                 "4. Prioriza claridad, sintesis y fidelidad al contexto recuperado.",
                 "5. Responde en espanol.",
+                "6. No muestres razonamiento interno, pasos de analisis ni bloques tipo Thinking.",
+                "7. Cubre todos los documentos recuperados; no te limites a los primeros.",
                 "",
                 "Consulta del usuario:",
                 query.strip(),
+                "",
+                f"Cantidad de documentos recuperados: {len(documents)}",
                 "",
                 "Contexto recuperado:",
                 context_block,
                 "",
                 "Formato esperado:",
-                "- Un parrafo breve que responda la consulta.",
-                "- Uno o dos detalles complementarios si aportan valor.",
-                "- No extrapoles mas alla de la evidencia.",
+                f"- Una lista numerada con exactamente {len(documents)} entradas, una por cada documento del contexto recuperado.",
+                "- Cada entrada debe empezar con la cita correspondiente [1], [2], etc. y el titulo.",
+                "- Para cada documento, explica en una o dos oraciones que aporta a la consulta.",
+                "- Si un documento aporta poca evidencia, dilo brevemente en su propia entrada.",
+                "- No omitas documentos recuperados y no extrapoles mas alla de la evidencia.",
             ]
         )
 
@@ -156,8 +163,30 @@ class RAGAnswerGenerator:
 
         output = (result.stdout or "").strip()
         if output:
-            return output
+            return self._strip_thinking_trace(output)
         return "Ollama devolvio una respuesta vacia."
+
+    def _strip_thinking_trace(self, output: str) -> str:
+        """Elimina razonamiento visible devuelto por modelos tipo Qwen/DeepSeek."""
+        cleaned = str(output or "").strip()
+        if not cleaned:
+            return cleaned
+
+        without_xml_think = re.sub(
+            r"(?is)<think>.*?</think>\s*",
+            "",
+            cleaned,
+        ).strip()
+        if without_xml_think:
+            cleaned = without_xml_think
+
+        without_text_think = re.sub(
+            r"(?is)^\s*thinking\.\.\.\s*.*?(?:\.\.\.\s*)?done thinking\.?\s*",
+            "",
+            cleaned,
+            count=1,
+        ).strip()
+        return without_text_think or cleaned
 
     def _generate_local_answer(self, query: str, documents: list[Any], *, error: str) -> str:
         """Construye una respuesta local de respaldo cuando el LLM falla.
@@ -176,13 +205,8 @@ class RAGAnswerGenerator:
                 f"a la consulta: {query}."
             )
 
-        selected = documents[: min(3, len(documents))]
+        selected = documents
         parts: list[str] = []
-        prefixes = [
-            "Segun la informacion recuperada, ",
-            "Ademas, ",
-            "Tambien, ",
-        ]
 
         for index, doc in enumerate(selected):
             citation_id = self._get_doc_field(doc, "citation_id", index + 1)
@@ -193,17 +217,16 @@ class RAGAnswerGenerator:
             summary = self._to_text(self._get_doc_field(doc, "summary", ""), "")
             content_text = self._to_text(self._get_doc_field(doc, "content_text", ""), "")
             excerpt = self._best_excerpt(summary, content_text, title).rstrip(".!?")
-            prefix = prefixes[index] if index < len(prefixes) else ""
-            parts.append(f"{prefix}{excerpt} [{citation_id}].")
+            parts.append(f"[{citation_id}] {title}: {excerpt}.")
 
         sources = ", ".join(
             f"[{self._get_doc_field(doc, 'citation_id', idx + 1)}] "
             f"{self._to_text(self._get_doc_field(doc, 'title', f'Documento {idx + 1}'), f'Documento {idx + 1}') }"
             for idx, doc in enumerate(selected)
         )
-        parts.append(f"Se devolvio respuesta local porque Ollama fallo: {self._short_error(error)}")
+        parts.append(f"Se devolvio respuesta local porque Ollama fallo: {self._short_error(error)}.")
         parts.append(f"Fuentes usadas: {sources}.")
-        return " ".join(parts)
+        return "\n".join(parts)
 
     def _best_excerpt(self, summary: str, content_text: str, title: str) -> str:
         """Selecciona el mejor fragmento disponible para mostrar como evidencia.
