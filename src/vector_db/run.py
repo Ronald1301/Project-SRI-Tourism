@@ -4,6 +4,11 @@ from src.vector_db.preset import OUTPUT_DIR, build_vector_db_from_preset, resolv
 
 
 def main() -> int:
+    """Ejecuta la construccion de la base vectorial desde el preset.
+
+    Returns:
+        int: `0` si la construccion finaliza correctamente, `1` si ocurre un error.
+    """
     try:
         source_path = resolve_documents_path()
         db = build_vector_db_from_preset()

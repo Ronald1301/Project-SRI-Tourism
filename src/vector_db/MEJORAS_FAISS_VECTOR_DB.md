@@ -2,6 +2,8 @@
 
 Este documento describe las mejoras implementadas en `src/vector_db/vector_store.py` y su justificación técnica, alineadas con los criterios de: búsqueda más rápida/estable y persistencia correcta.
 
+El modelo de embeddings configurado por defecto es `paraphrase-multilingual-MiniLM-L12-v2`, elegido por su equilibrio entre costo computacional, soporte multilingüe y calidad semántica para tareas de recuperación.
+
 ## 1. Problemas de la implementación original
 
 La versión previa presentaba estas limitaciones estructurales:

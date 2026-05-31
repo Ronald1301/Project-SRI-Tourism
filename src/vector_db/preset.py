@@ -12,7 +12,7 @@ OUTPUT_DIR = Path("data/processed/vector_db")
 TEXT_FIELDS = ["title", "content_text"]
 ID_FIELD = "doc_id"
 STORE_FIELDS = ["url", "title", "summary", "content_type", "rating", "review_date", "location"]
-MODEL_NAME = "all-MiniLM-L6-v2"
+MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 BATCH_SIZE = 32
 NORMALIZE_EMBEDDINGS = True
 SHOW_PROGRESS_BAR = True
@@ -25,6 +25,14 @@ HNSW_EF_CONSTRUCTION = 200
 HNSW_EF_SEARCH = 64
 
 def resolve_documents_path() -> Path:
+    """Resuelve la ruta del corpus JSONL base para construir la base vectorial.
+
+    Returns:
+        Path: Ruta existente al archivo de documentos.
+
+    Raises:
+        FileNotFoundError: Si el corpus inicial no existe.
+    """
     if CRAWL_DOCUMENTS_PATH.exists():
         return CRAWL_DOCUMENTS_PATH
     raise FileNotFoundError(
@@ -32,6 +40,15 @@ def resolve_documents_path() -> Path:
     )
 
 def build_vector_db_from_preset() -> "VectorDatabase":
+    """Construye y persiste la base vectorial usando la configuracion por defecto.
+
+    Returns:
+        VectorDatabase: Instancia construida y guardada en `OUTPUT_DIR`.
+
+    Raises:
+        FileNotFoundError: Si no existe el corpus de entrada.
+        ValueError: Si el corpus no contiene texto utilizable.
+    """
     from src.vector_db.vector_store import VectorDatabase
 
     jsonl_path = resolve_documents_path()
