@@ -69,6 +69,7 @@ class RAGSearchService:
             query=selected_query,
             top_k=top_k,
             include_explanations=include_explanations,
+            web_query=query,
         )
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
         return rag_result.documents, rag_result.answer, expansion.to_dict()

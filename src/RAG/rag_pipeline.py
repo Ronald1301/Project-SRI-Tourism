@@ -204,6 +204,7 @@ class RAGPipeline:
         query: str,
         top_k: int = 4,
         include_explanations: bool = False,
+        web_query: str | None = None,
     ) -> RAGResult:
         """Responde una consulta ejecutando recuperacion hibrida y generacion.
 
@@ -211,12 +212,14 @@ class RAGPipeline:
             query: Consulta del usuario.
             top_k: Numero maximo de documentos finales a recuperar.
             include_explanations: Si se deben incluir explicaciones en la parte LSI.
+            web_query: Consulta original que se debe usar para la ampliacion web.
 
         Returns:
             RAGResult: Resultado final con prompt, respuesta y documentos usados.
         """
         logger.info("answer_query | query=\"%s\" | hybrid | top_k=%d", query, top_k)
         user_query = query.strip()
+        web_query_text = (web_query or query).strip()
         local_documents = self.retrieve(
             query,
             top_k=top_k,
@@ -226,20 +229,15 @@ class RAGPipeline:
 
         if self._is_retrieval_insufficient(local_documents):
             logger.info("Recuperacion local INSUFICIENTE — activando busqueda web")
-            web_documents = self._retrieve_and_index_web_context(query, top_k=top_k)
+            web_documents = self._retrieve_and_index_web_context(web_query_text, top_k=top_k)
             if web_documents:
-                logger.info("Web search obtuvo %d documentos, re-consultando vectorial...", len(web_documents))
-                augmented_documents = self.retrieve(
-                    query,
-                    top_k=top_k,
-                    include_explanations=False,
+                documents = self._merge_retrieved_documents(local_documents, web_documents, top_k=top_k)
+                logger.info(
+                    "Usando merge local+web: %d locales + %d web -> %d documentos",
+                    len(local_documents),
+                    len(web_documents),
+                    len(documents),
                 )
-                if augmented_documents:
-                    documents = augmented_documents
-                    logger.info("Re-consulta exitosa: %d documentos", len(documents))
-                else:
-                    documents = (local_documents + web_documents)[: max(int(top_k), 0)]
-                    logger.info("Usando merge local+web: %d documentos", len(documents))
             else:
                 documents = local_documents
                 logger.info("Web search no retorno documentos, usando solo locales")
@@ -518,8 +516,71 @@ class RAGPipeline:
         logger.info("Indexando en VectorDatabase...")
         self._index_web_documents(normalized_docs)
         self._merge_web_documents_into_repository(normalized_docs)
-        logger.info("Web context listo: %d documentos convertidos", min(len(normalized_docs), max(int(top_k), 0)))
-        return self._convert_web_docs_to_retrieved(normalized_docs[: max(int(top_k), 0)])
+        logger.info("Web context listo: %d documentos convertidos", len(normalized_docs))
+        return self._convert_web_docs_to_retrieved(normalized_docs)
+
+    def _merge_retrieved_documents(
+        self,
+        local_documents: list[RetrievedDocument],
+        web_documents: list[RetrievedDocument],
+        *,
+        top_k: int,
+    ) -> list[RetrievedDocument]:
+        """Fusiona resultados locales y web en una unica lista ordenada.
+
+        Args:
+            local_documents: Documentos recuperados desde el corpus local.
+            web_documents: Documentos recuperados desde la busqueda web.
+            top_k: Numero maximo de resultados finales a devolver.
+
+        Returns:
+            list[RetrievedDocument]: Lista fusionada, deduplicada y ordenada por score.
+        """
+        merged_by_id: dict[str, RetrievedDocument] = {}
+
+        def _ingest(document: RetrievedDocument) -> None:
+            existing = merged_by_id.get(document.doc_id)
+            if existing is None:
+                merged_by_id[document.doc_id] = document
+                return
+
+            merged_metadata = dict(existing.metadata)
+            merged_metadata.update(document.metadata or {})
+
+            if document.score >= existing.score:
+                merged_by_id[document.doc_id] = RetrievedDocument(
+                    citation_id=existing.citation_id,
+                    doc_id=document.doc_id,
+                    title=document.title or existing.title,
+                    url=document.url or existing.url,
+                    score=document.score,
+                    summary=document.summary or existing.summary,
+                    content_text=document.content_text or existing.content_text,
+                    metadata=merged_metadata,
+                )
+            else:
+                merged_by_id[document.doc_id] = RetrievedDocument(
+                    citation_id=existing.citation_id,
+                    doc_id=existing.doc_id,
+                    title=existing.title or document.title,
+                    url=existing.url or document.url,
+                    score=existing.score,
+                    summary=existing.summary or document.summary,
+                    content_text=existing.content_text or document.content_text,
+                    metadata=merged_metadata,
+                )
+
+        for document in local_documents:
+            _ingest(document)
+        for document in web_documents:
+            _ingest(document)
+
+        merged_documents = sorted(
+            merged_by_id.values(),
+            key=lambda item: float(item.score),
+            reverse=True,
+        )
+        return merged_documents[: max(int(top_k), 0)]
 
     def _normalize_web_documents(self, documents: list[dict[str, object]]) -> list[dict[str, object]]:
         """Normaliza documentos web para su persistencia e indexacion.
