@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,15 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
     explanations: bool = False
+
+
+class ProcessingEvent(BaseModel):
+    event_type: str
+    message: str
+    stage: str
+    timestamp: str
+    progress: float | None = None
+    data: dict[str, Any] | None = None
 
 
 class ExplanationComponent(BaseModel):
@@ -76,6 +85,7 @@ class SearchResponse(BaseModel):
     answer: str | None = None
     total: int
     expansion: QueryExpansionInfo | None = None
+    events: list[ProcessingEvent] = Field(default_factory=list)
 
 
 class FeedbackRequest(BaseModel):

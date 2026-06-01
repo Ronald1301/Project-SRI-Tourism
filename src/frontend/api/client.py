@@ -65,6 +65,7 @@ def search(query, top_k=5, page=1):
             "results": normalized_results,
             "answer": payload.get("answer"),
             "expansion": payload.get("expansion"),
+            "events": payload.get("events", []),
             "total": payload.get("total", len(normalized_results)),
             "has_more": False,
         }
