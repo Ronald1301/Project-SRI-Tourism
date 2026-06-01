@@ -171,6 +171,26 @@ def _iter_jsonl(path: Path) -> Iterable[dict]:
             except json.JSONDecodeError:
                 continue
 
+
+def _extract_jsonl_document_text(item: object) -> str:
+    """Extrae el texto util de un documento JSONL usando solo `title` y `content_text`.
+
+    Args:
+        item: Elemento JSON ya decodificado desde una linea del JSONL.
+
+    Returns:
+        str: Texto concatenado de `title` y `content_text`, o una cadena vacia si no hay
+            informacion util.
+    """
+    if not isinstance(item, dict):
+        return ""
+
+    title = str(item.get("title") or "").strip()
+    content_text = str(item.get("content_text") or "").strip()
+
+    parts = [part for part in (title, content_text) if part]
+    return "\n".join(parts)
+
 def guess_text_column_by_length(df: "pd.DataFrame", sample_size: int = 200) -> Optional[str]:
     """
     Heuristic fallback: pick the column whose values have the highest average length.
@@ -387,7 +407,7 @@ def process_generic_file(path: Path, pipeline: PreprocessingPipeline, text_colum
             if not doc_id:
                 doc_id = f"{dataset_id}_doc_{idx}"
 
-            text = "\n".join(_collect_json_strings(obj))
+            text = _extract_jsonl_document_text(obj)
             if not text.strip():
                 continue
             documents[doc_id] = pipeline.process_text(text)
