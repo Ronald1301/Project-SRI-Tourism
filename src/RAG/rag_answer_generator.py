@@ -6,12 +6,11 @@ import shutil
 import subprocess
 from typing import Any
 
+import requests
+
 
 class RAGAnswerGenerator:
-    """Generador de respuesta RAG usando `ollama run`.
-
-    Recibe query + documentos, construye prompt y genera con `ollama run qwen3`.
-    """
+    """Generador de respuesta RAG usando Ollama via HTTP o CLI local."""
 
     def __init__(self) -> None:
         """Inicializa la configuracion del generador.
@@ -23,14 +22,15 @@ class RAGAnswerGenerator:
         """
         self.model = self._read_env("RAG_LLM_MODEL", "qwen3")
         self.ollama_cmd = self._read_env("RAG_OLLAMA_CMD", "ollama")
+        self.ollama_base_url = self._read_env("RAG_OLLAMA_BASE_URL", "").rstrip("/")
         self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 180)
         self.enabled = self._read_bool_env("RAG_LLM_ENABLED", default=True)
         self._init_error = ""
 
-        if shutil.which(self.ollama_cmd) is None:
+        if not self.ollama_base_url and shutil.which(self.ollama_cmd) is None:
             self._init_error = (
-                f"No se encontro el comando '{self.ollama_cmd}'. "
-                "Instala Ollama y verifica que este en PATH."
+                f"No se encontro el comando '{self.ollama_cmd}' y RAG_OLLAMA_BASE_URL no esta configurado. "
+                "Instala Ollama localmente o configura un servidor Ollama accesible."
             )
 
     def build_prompt(self, query: str, documents: list[Any]) -> str:
@@ -118,12 +118,60 @@ class RAGAnswerGenerator:
             return "No hay modelo configurado para el generador LLM de RAG."
 
         active_prompt = prompt or self.build_prompt(query, documents)
-        answer = self._generate_with_ollama_run(active_prompt)
+        if self.ollama_base_url:
+            answer = self._generate_with_ollama_http(active_prompt)
+        else:
+            answer = self._generate_with_ollama_run(active_prompt)
 
         # Si Ollama falla, evita cortar el flujo y devuelve algo util local.
         if answer.startswith("No se pudo generar la respuesta con Ollama"):
             return self._generate_local_answer(query, documents, error=answer)
         return answer
+
+    def _generate_with_ollama_http(self, prompt: str) -> str:
+        """Ejecuta el modelo configurado contra el servidor HTTP de Ollama.
+
+        Args:
+            prompt: Texto de entrada que se enviara al modelo.
+
+        Returns:
+            str: Respuesta del modelo o un mensaje explicando el fallo.
+        """
+        if not self.ollama_base_url:
+            return "No se configuro RAG_OLLAMA_BASE_URL para usar Ollama por HTTP."
+
+        endpoint = f"{self.ollama_base_url}/api/generate"
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+        }
+
+        try:
+            response = requests.post(
+                endpoint,
+                json=payload,
+                timeout=max(self.timeout_seconds, 5),
+            )
+        except requests.RequestException as exc:
+            return f"No se pudo generar la respuesta con Ollama. Error HTTP: {exc}"
+
+        if response.status_code != 200:
+            detail = self._short_error(response.text or response.reason or "sin detalle")
+            return (
+                "No se pudo generar la respuesta con Ollama. "
+                f"HTTP {response.status_code} en {endpoint}: {detail}"
+            )
+
+        try:
+            data = response.json()
+        except ValueError as exc:
+            return f"No se pudo generar la respuesta con Ollama. Respuesta invalida: {exc}"
+
+        output = str(data.get("response") or "").strip()
+        if output:
+            return self._strip_thinking_trace(output)
+        return "Ollama devolvio una respuesta vacia."
 
     def _generate_with_ollama_run(self, prompt: str) -> str:
         """Ejecuta el modelo configurado mediante `ollama run`.

@@ -76,34 +76,43 @@ docker run --rm -it \
 
 ### Docker Compose
 
-Construir:
+La composición ahora separa el sistema en tres contenedores:
+
+- `ollama`: servidor de inferencia para la generación RAG.
+- `backend`: API FastAPI + recuperación + RAG.
+- `frontend`: interfaz visual Flet que consume la API.
+
+Construir ambos servicios:
 
 ```bash
 docker compose build
 ```
 
-Ejecutar el pipeline:
+Levantar la API y el frontend:
 
 ```bash
-docker compose run --rm sri-tourism
+docker compose up
 ```
 
-Consultar LSI:
+La API quedará disponible en:
+
+- `http://localhost:8000`
+
+Ollama quedará disponible en:
+
+- `http://localhost:11434`
+
+La interfaz visual quedará disponible en:
+
+- `http://localhost:8550`
+
+Si necesitas reconstruir la base vectorial y los artefactos LSI al arrancar la API, asegúrate de montar `data/` como volumen y tener disponible el corpus inicial en el host.
+La primera vez que levantes `docker compose up` puede tardar más porque el contenedor de Ollama descarga el modelo `qwen3` en su volumen persistente.
+
+Si quieres ejecutar comandos puntuales del backend desde Compose, puedes usar:
 
 ```bash
-docker compose run --rm sri-tourism python3 main.py lsi_query "turismo en cuba" --top-k 5
-```
-
-Evaluar REC-01:
-
-```bash
-docker compose run --rm sri-tourism python3 main.py evaluate_rec01 --top-k 5
-```
-
-Consultar el RAG:
-
-```bash
-docker compose run --rm sri-tourism python3 main.py rag_query "playas en cuba" --top-k 4
+docker compose run --rm backend python3 main.py lsi_query "turismo en cuba" --top-k 5
 ```
 
 ## Uso
@@ -167,6 +176,18 @@ python3 -m  src.web_crawler.run
 
 El crawler usa valores por defecto definidos en `src/web_crawler/sites.py`.
 Edita ese archivo para cambiar seeds, dominios, limites y politicas por sitio.
+
+### Ejecución del frontend en local
+
+```bash
+python3 src/frontend/app.py
+```
+
+Si el frontend debe apuntar a otra API, define:
+
+```bash
+export SRI_API_BASE_URL=http://127.0.0.1:8000
+```
 
 Para construir la base de datos vectorial inicial:
 

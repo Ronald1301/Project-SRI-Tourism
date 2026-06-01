@@ -1,11 +1,55 @@
 services:
-  sri-tourism:
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  backend:
     build: .
-    image: sri-tourism:latest
+    image: sri-tourism-backend:latest
     working_dir: /app
+    command: ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RAG_OLLAMA_BASE_URL: "http://ollama:11434"
+      RAG_LLM_MODEL: "qwen3:1.7b"
+      RAG_LLM_TIMEOUT_SECONDS: "180"
+    ports:
+      - "8000:8000"
     volumes:
       - ./data:/app/data
-    stdin_open: true
-    tty: true
-    # command: ["python3", "main.py", "--help"]
-    command: ["/bin/bash"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: .
+    image: sri-tourism-frontend:latest
+    working_dir: /app
+    command: ["python3", "src/frontend/app.py"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+      SRI_API_BASE_URL: "http://backend:8000"
+      FLET_HOST: "0.0.0.0"
+      FLET_PORT: "8550"
+      FLET_VIEW: "web_browser"
+    ports:
+      - "8550:8550"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama:
