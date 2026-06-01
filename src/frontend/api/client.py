@@ -6,6 +6,7 @@ from src.frontend.api.mock_client import mock_search
 USE_MOCK = False
 
 BASE_URL = os.getenv("SRI_API_BASE_URL", "http://localhost:8000").rstrip("/")
+SEARCH_TIMEOUT_SECONDS = 300
 
 
 def _friendly_request_error(response_text: str) -> str:
@@ -39,7 +40,7 @@ def search(query, top_k=5, page=1):
                 "top_k": top_k,
                 "explanations": True,
             },
-            timeout=10
+            timeout=SEARCH_TIMEOUT_SECONDS,
         )
         if response.status_code >= 400:
             return {"error": _friendly_request_error(response.text)}
