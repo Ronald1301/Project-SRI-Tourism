@@ -1,0 +1,76 @@
+{
+  "PLAYAS_CAYOS": {
+    "playa": ["beach", "cayo", "balneario", "costa", "litoral", "arenal", "mar"],
+    "playas": ["beaches", "cayos", "balnearios", "costas", "litorales", "arenales"],
+    "beach": ["playa", "cayo", "coast", "seaside", "shore", "beaches"],
+    "beaches": ["playas", "cayos", "coast", "seaside", "shore"],
+    "cayo": ["key", "islet", "islote", "cayeria", "archipielago", "playa"],
+    "cayos": ["keys", "islets", "islotes", "cayeria", "archipielago", "playas"],
+    "varadero": ["playa", "balneario", "resort", "matanzas", "hicacos"]
+  },
+  "ALOJAMIENTO": {
+    "hotel": ["hoteles", "lodging", "accommodation", "alojamiento", "hostal", "reserva"],
+    "hoteles": ["hotel", "lodging", "accommodation", "alojamiento", "hostales", "reservas"],
+    "hostal": ["hostel", "casa particular", "alojamiento", "habitacion"],
+    "accommodation": ["hotel", "hostel", "lodging", "alojamiento"],
+    "resort": ["hotel", "balneario", "todo incluido", "vacaciones"]
+  },
+  "ACTIVIDADES": {
+    "excursion": ["tour", "ruta", "recorrido", "actividad", "visita guiada"],
+    "excursiones": ["tours", "rutas", "recorridos", "actividades", "visitas guiadas"],
+    "tour": ["excursion", "route", "itinerary", "guided visit"],
+    "tours": ["excursiones", "routes", "itineraries", "guided visits"],
+    "senderismo": ["hiking", "caminata", "ruta", "sendero", "naturaleza"],
+    "buceo": ["diving", "snorkel", "mar", "arrecife"],
+    "snorkel": ["buceo", "diving", "arrecife", "mar"],
+    "vida nocturna": ["nightlife", "bar", "musica", "club", "noche"],
+    "compras": ["shopping", "mercado", "artesania", "tienda"]
+  },
+  "GASTRONOMIA": {
+    "restaurante": ["restaurant", "gastronomia", "comida", "cocina", "paladar"],
+    "restaurantes": ["restaurants", "gastronomia", "comida", "cocina", "paladares"],
+    "restaurant": ["restaurante", "food", "cuisine", "paladar"],
+    "food": ["comida", "gastronomia", "cocina", "restaurant"],
+    "comida": ["food", "gastronomia", "cocina", "restaurante"],
+    "paladar": ["restaurante", "comida criolla", "cocina cubana"]
+  },
+  "PATRIMONIO_CULTURAL": {
+    "museo": ["museum", "galeria", "patrimonio", "cultura", "exposicion"],
+    "museos": ["museums", "galerias", "patrimonio", "cultura", "exposiciones"],
+    "museum": ["museo", "gallery", "heritage", "culture"],
+    "cultura": ["culture", "patrimonio", "historia", "arte", "tradicion"],
+    "patrimonio": ["heritage", "historia", "cultura", "monumento"],
+    "historia": ["history", "patrimonio", "casco historico", "monumento"],
+    "habana vieja": ["old havana", "casco historico", "centro historico", "patrimonio"]
+  },
+  "NATURALEZA_PAISAJES": {
+    "naturaleza": ["nature", "parque", "sendero", "reserva", "paisaje"],
+    "nature": ["naturaleza", "park", "trail", "reserve", "landscape"],
+    "parque": ["park", "reserva", "naturaleza", "sendero"],
+    "reserva": ["reserve", "parque", "naturaleza", "ecoturismo"],
+    "valle": ["valley", "paisaje", "naturaleza", "mirador"],
+    "vinales": ["valle", "mogotes", "naturaleza", "pinar del rio"]
+  },
+  "CIUDADES_REGIONES": {
+    "habana": ["havana", "capital", "malecon", "vedado", "habana vieja"],
+    "havana": ["habana", "capital", "malecon", "vedado", "old havana"],
+    "trinidad": ["patrimonio", "colonial", "santi spiritus", "valle de los ingenios"],
+    "santiago": ["santiago de cuba", "oriente", "cultura", "historia"],
+    "holguin": ["guardalavaca", "playa", "oriente", "cayo saetia"],
+    "matanzas": ["varadero", "playa", "cuevas", "yunque"],
+    "baracoa": ["naturaleza", "yunque", "playa", "oriente"],
+    "cienfuegos": ["bahia", "patrimonio", "malecon", "ciudad"]
+  },
+  "TERMINOS_GENERALES": {
+    "turismo": ["tourism", "viaje", "vacaciones", "destino", "visita"],
+    "tourism": ["turismo", "travel", "vacation", "destination", "visit"],
+    "viaje": ["travel", "ruta", "itinerario", "vacaciones"],
+    "travel": ["viaje", "trip", "route", "itinerary"],
+    "destino": ["destination", "ciudad", "lugar", "atraccion"],
+    "destination": ["destino", "place", "attraction", "city"],
+    "transporte": ["transport", "bus", "taxi", "viazul", "traslado"],
+    "transport": ["transporte", "bus", "taxi", "transfer"],
+    "familia": ["family", "ninos", "children", "kids", "actividades"],
+    "family": ["familia", "children", "kids", "activities"]
+  }
+}
