@@ -1,3 +1,4 @@
+import json
 
 import requests
 from src.frontend.api.mock_client import mock_search
@@ -8,7 +9,25 @@ BASE_URL = "http://localhost:8000"
 
 
 def _friendly_request_error(response_text: str) -> str:
+    try:
+        payload = json.loads(response_text)
+        detail = payload.get("detail", {})
+        if isinstance(detail, dict) and detail.get("error") == "OUT_OF_DOMAIN":
+            return (
+                "Esta consulta parece estar fuera del dominio del sistema. "
+                "Prueba con preguntas sobre destinos, hoteles, playas, transporte, "
+                "lugares historicos o actividades turisticas en Cuba."
+            )
+    except (TypeError, ValueError):
+        pass
+
     lowered = response_text.lower()
+    if "out_of_domain" in lowered or "turismo en cuba" in lowered:
+        return (
+            "Esta consulta parece estar fuera del dominio del sistema. "
+            "Prueba con preguntas sobre destinos, hoteles, playas, transporte, "
+            "lugares historicos o actividades turisticas en Cuba."
+        )
     if "documents.jsonl" in lowered:
         return (
             "La busqueda no pudo comenzar porque faltan los documentos base del proyecto. "

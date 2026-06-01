@@ -2,6 +2,7 @@ import logging
 
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
 from src.retrieval.query_expansion import QueryExpander
+from src.retrieval.domain_detector import DomainDetector, OllamaDomainClient
 from src.retrieval.search import SemanticSearcher
 from src.api.config import (
     DEFAULT_TFIDF_MATRIX,
@@ -14,6 +15,13 @@ from src.api.config import (
 )
 
 logger = logging.getLogger("src.api.service.rag_service")
+
+
+class OutOfDomainQueryError(ValueError):
+    def __init__(self, query: str, explanation: dict):
+        self.query = query
+        self.explanation = explanation
+        super().__init__("La consulta no pertenece al dominio de turismo en Cuba.")
 
 
 class RAGSearchService:
@@ -30,6 +38,10 @@ class RAGSearchService:
         )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
         self.query_expander = QueryExpander(self.searcher)
+        self.domain_detector = DomainDetector.from_searcher(
+            self.searcher,
+            llm_client=OllamaDomainClient(),
+        )
         logger.info("RAGSearchService listo")
 
     def search(
@@ -38,7 +50,17 @@ class RAGSearchService:
         top_k: int = 5,
         include_explanations: bool = False,
     ) -> tuple[list[RetrievedDocument], str, dict]:
-        logger.info("service.search | query=\"%s\" | hybrid | top_k=%d", query, top_k)
+        logger.info("service.search | query=\"%s\" | mode=%s | top_k=%d", query, search_mode, top_k)
+        domain_explanation = self.domain_detector.explain(query)
+        if domain_explanation.get("decision") == "OUT_OF_DOMAIN":
+            logger.info(
+                "Consulta fuera de dominio | query=\"%s\" | features=%s | used_llm=%s",
+                query,
+                domain_explanation.get("features"),
+                domain_explanation.get("used_llm"),
+            )
+            raise OutOfDomainQueryError(query, domain_explanation)
+
         preview_k = max(int(top_k), 3)
         raw_preview = self.rag_pipeline.retrieve(
             query,
@@ -117,11 +139,13 @@ class RAGSearchService:
         expanded_ids = {doc.doc_id for doc in expanded_documents[:3]}
         has_overlap = bool(raw_ids & expanded_ids)
 
-        if not has_overlap and expanded_top_score < (raw_top_score * 0.65):
+        threshold = float(getattr(self.query_expander, "acceptance_threshold", 0.75))
+        if not has_overlap and expanded_top_score < (raw_top_score * threshold):
             logger.info(
-                "Expansion descartada: score expandido debil | raw=%.4f expanded=%.4f",
+                "Expansion descartada: score expandido debil | raw=%.4f expanded=%.4f threshold=%.2f",
                 raw_top_score,
                 expanded_top_score,
+                threshold,
             )
             return False
         return True

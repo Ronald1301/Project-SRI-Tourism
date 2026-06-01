@@ -21,23 +21,17 @@ logger = logging.getLogger("src.retrieval.domain_detector")
 
 DEFAULT_DOMAIN_KEYWORDS = {
     "alojamiento",
-    "arte",
     "baracoa",
     "beach",
     "beaches",
-    "bus",
     "cayo",
     "cayos",
     "cienfuegos",
     "cuba",
-    "cubano",
-    "cubana",
     "cultura",
     "destino",
     "destination",
     "excursion",
-    "excursiones",
-    "family",
     "gastronomia",
     "guardalavaca",
     "habana",
@@ -45,49 +39,83 @@ DEFAULT_DOMAIN_KEYWORDS = {
     "heritage",
     "historia",
     "hostal",
-    "hostel",
     "hotel",
     "hoteles",
     "hotels",
-    "itinerario",
     "malecon",
     "matanzas",
     "museo",
     "museos",
     "museum",
-    "museums",
     "naturaleza",
     "nature",
-    "old",
-    "paladar",
     "patrimonio",
     "playa",
     "playas",
     "reserva",
-    "restaurante",
-    "restaurantes",
     "restaurant",
     "restaurants",
-    "route",
+    "restaurante",
+    "restaurantes",
     "ruta",
     "santiago",
     "senderismo",
-    "tourism",
-    "tourist",
     "tour",
+    "tourism",
     "tours",
     "travel",
     "transporte",
     "transport",
     "trinidad",
     "turismo",
-    "turistico",
-    "turistica",
     "varadero",
     "vedado",
     "vinales",
     "viaje",
-    "viajes",
+}
+
+TOURISM_INTENT_KEYWORDS = {
+    "alojamiento",
+    "beach",
+    "beaches",
+    "cayo",
+    "cayos",
+    "cultura",
+    "destino",
+    "destination",
+    "excursion",
+    "gastronomia",
+    "heritage",
+    "historia",
+    "hostal",
+    "hotel",
+    "hoteles",
+    "hotels",
+    "malecon",
+    "museo",
+    "museos",
+    "museum",
+    "naturaleza",
+    "nature",
+    "patrimonio",
+    "playa",
+    "playas",
+    "reserva",
+    "restaurant",
+    "restaurants",
+    "restaurante",
+    "restaurantes",
+    "ruta",
+    "senderismo",
+    "tour",
+    "tourism",
+    "tours",
+    "travel",
+    "transporte",
+    "transport",
+    "turismo",
+    "vedado",
+    "viaje",
 }
 
 OUT_OF_DOMAIN_KEYWORDS = {
@@ -104,7 +132,6 @@ OUT_OF_DOMAIN_KEYWORDS = {
     "futbol",
     "gano",
     "juego",
-    "llover",
     "llueve",
     "lluvia",
     "manana",
@@ -122,28 +149,20 @@ OUT_OF_DOMAIN_KEYWORDS = {
 
 @dataclass(frozen=True)
 class DomainThresholds:
-    """Thresholds for fast heuristic domain classification.
-
-    The values are intentionally conservative: only very weak retrieval and
-    lexical signals produce OUT_OF_DOMAIN without LLM fallback.
-    """
-
     out_max_score: float = 0.15
     out_avg_score: float = 0.005
     out_lsi_similarity: float = 0.10
     in_max_score: float = 0.18
-    in_lsi_similarity: float = 0.22
     in_avg_score: float = 0.015
+    in_lsi_similarity: float = 0.22
 
 
 class LLMClient(Protocol):
     def classify_domain(self, prompt: str) -> bool:
-        """Return True for YES / in-domain and False for NO / out-of-domain."""
+        """Return True for in-domain and False for out-of-domain."""
 
 
 class OllamaDomainClient:
-    """Tiny Ollama client for YES/NO domain classification fallback."""
-
     def __init__(
         self,
         *,
@@ -200,7 +219,6 @@ class DomainDetector:
         *,
         thresholds: DomainThresholds | None = None,
         language: str = "spanish",
-        vocabulary_sample_size: int = 5000,
     ) -> None:
         self.tfidf_index = tfidf_index
         self.lsi_model = lsi_model
@@ -208,9 +226,10 @@ class DomainDetector:
         self.llm_client = llm_client
         self.thresholds = thresholds or DomainThresholds()
         self.preprocessing = PreprocessingPipeline(language=language)
-        self.domain_keyword_tokens = self._normalize_domain_keywords(self.domain_keywords)
-        self.out_of_domain_tokens = self._normalize_domain_keywords(OUT_OF_DOMAIN_KEYWORDS)
-        self.domain_vocabulary = self._extract_domain_vocabulary(vocabulary_sample_size)
+        self.domain_keyword_tokens = self._normalize_keywords(self.domain_keywords)
+        self.tourism_intent_tokens = self._normalize_keywords(TOURISM_INTENT_KEYWORDS)
+        self.out_of_domain_tokens = self._normalize_keywords(OUT_OF_DOMAIN_KEYWORDS)
+        self.domain_vocabulary = self._extract_domain_vocabulary()
         self._lsi_centroid = self._compute_lsi_centroid()
 
     @classmethod
@@ -234,20 +253,15 @@ class DomainDetector:
     def compute_features(self, query: str) -> dict[str, float | int]:
         tokens = self.preprocessing.process_text(query or "")
         query_vector = self.tfidf_index.vectorize_query(tokens)
-
         tfidf_scores = self._tfidf_scores(query_vector)
-        max_score = float(np.max(tfidf_scores)) if tfidf_scores.size else 0.0
-        avg_score = float(np.mean(tfidf_scores)) if tfidf_scores.size else 0.0
-        lsi_similarity = self._lsi_centroid_similarity(query_vector)
-        keyword_overlap = self._keyword_overlap(tokens)
-        out_of_domain_overlap = self._out_of_domain_overlap(tokens)
 
         features = {
-            "max_score": max_score,
-            "avg_score": avg_score,
-            "lsi_similarity": lsi_similarity,
-            "keyword_overlap": keyword_overlap,
-            "out_of_domain_overlap": out_of_domain_overlap,
+            "max_score": float(np.max(tfidf_scores)) if tfidf_scores.size else 0.0,
+            "avg_score": float(np.mean(tfidf_scores)) if tfidf_scores.size else 0.0,
+            "lsi_similarity": self._lsi_centroid_similarity(query_vector),
+            "keyword_overlap": self._overlap(tokens, self.domain_keyword_tokens | self.domain_vocabulary),
+            "tourism_intent_overlap": self._overlap(tokens, self.tourism_intent_tokens),
+            "out_of_domain_overlap": self._overlap(tokens, self.out_of_domain_tokens),
         }
         logger.debug("Domain features | query=%r | features=%s", query, features)
         return features
@@ -257,29 +271,18 @@ class DomainDetector:
         avg_score = float(features.get("avg_score", 0.0))
         lsi_similarity = float(features.get("lsi_similarity", 0.0))
         keyword_overlap = int(features.get("keyword_overlap", 0))
+        tourism_intent_overlap = int(features.get("tourism_intent_overlap", 0))
         out_of_domain_overlap = int(features.get("out_of_domain_overlap", 0))
         t = self.thresholds
 
+        if out_of_domain_overlap > 0 and tourism_intent_overlap == 0:
+            return "OUT_OF_DOMAIN"
         if keyword_overlap > 0:
             return "IN_DOMAIN"
-
-        if out_of_domain_overlap > 0:
+        if max_score < t.out_max_score and avg_score < t.out_avg_score and lsi_similarity < t.out_lsi_similarity:
             return "OUT_OF_DOMAIN"
-
-        if (
-            max_score < t.out_max_score
-            and avg_score < t.out_avg_score
-            and lsi_similarity < t.out_lsi_similarity
-        ):
-            return "OUT_OF_DOMAIN"
-
-        if (
-            max_score > t.in_max_score
-            and avg_score > t.in_avg_score
-            and lsi_similarity > t.in_lsi_similarity
-        ):
+        if max_score > t.in_max_score and avg_score > t.in_avg_score and lsi_similarity > t.in_lsi_similarity:
             return "IN_DOMAIN"
-
         return "UNCERTAIN"
 
     def llm_decision(self, query: str) -> bool:
@@ -322,8 +325,8 @@ class DomainDetector:
                 "out_avg_score": self.thresholds.out_avg_score,
                 "out_lsi_similarity": self.thresholds.out_lsi_similarity,
                 "in_max_score": self.thresholds.in_max_score,
-                "in_lsi_similarity": self.thresholds.in_lsi_similarity,
                 "in_avg_score": self.thresholds.in_avg_score,
+                "in_lsi_similarity": self.thresholds.in_lsi_similarity,
             },
         }
 
@@ -346,34 +349,16 @@ class DomainDetector:
             return 0.0
         return self._cosine(query_lsi, self._lsi_centroid)
 
-    def _keyword_overlap(self, query_tokens: list[str]) -> int:
-        token_set = set(query_tokens)
-        if not token_set:
-            return 0
-        keyword_hits = token_set & self.domain_keyword_tokens
-        vocab_hits = token_set & self.domain_vocabulary
-        return len(keyword_hits | vocab_hits)
-
-    def _out_of_domain_overlap(self, query_tokens: list[str]) -> int:
-        token_set = set(query_tokens)
-        if not token_set:
-            return 0
-        return len(token_set & self.out_of_domain_tokens)
-
-    def _normalize_domain_keywords(self, keywords: set[str]) -> set[str]:
+    def _normalize_keywords(self, keywords: set[str] | list[str] | tuple[str, ...]) -> set[str]:
         normalized: set[str] = set()
         for keyword in keywords:
             normalized.update(self.preprocessing.process_text(keyword))
         return normalized
 
-    def _extract_domain_vocabulary(self, sample_size: int) -> set[str]:
+    def _extract_domain_vocabulary(self) -> set[str]:
         vocabulary = getattr(self.tfidf_index, "vocabulary", {}) or {}
         if not vocabulary:
             return set()
-        # Domain vocabulary extracted from the corpus: keep only domain keyword
-        # stems that actually exist in the TF-IDF vocabulary. Using the whole
-        # vocabulary would make generic corpus terms look like domain evidence.
-        del sample_size
         return {token for token in self.domain_keyword_tokens if token in vocabulary}
 
     def _compute_lsi_centroid(self) -> np.ndarray | None:
@@ -395,6 +380,9 @@ class DomainDetector:
                 f"Consulta: {query}",
             ]
         )
+
+    def _overlap(self, query_tokens: list[str], target_tokens: set[str]) -> int:
+        return len(set(query_tokens) & target_tokens)
 
     def _cosine(self, left: np.ndarray, right: np.ndarray) -> float:
         left_norm = np.linalg.norm(left)
