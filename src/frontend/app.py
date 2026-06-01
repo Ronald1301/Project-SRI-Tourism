@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 
 # Add project root to path
@@ -9,6 +10,31 @@ DEFAULT_APP_ICON = project_root / "src" / "frontend" / "icons" / "cuba3.ico"
 import flet as ft
 from src.frontend.theme import get_dark_theme
 from src.frontend.views.search_page import SearchPage
+
+
+def _resolve_host() -> str:
+    return os.getenv("FLET_HOST", "0.0.0.0")
+
+
+def _resolve_port() -> int:
+    value = os.getenv("FLET_PORT", "8550").strip()
+    try:
+        port = int(value)
+    except ValueError:
+        return 8550
+    return port if port > 0 else 8550
+
+
+def _resolve_view() -> ft.AppView:
+    value = os.getenv("FLET_VIEW", "web_browser").strip().lower()
+    if value in {"flet_app", "desktop"}:
+        return ft.AppView.FLET_APP
+    if value in {"flet_app_web", "web"}:
+        return ft.AppView.FLET_APP_WEB
+    if value in {"flet_app_hidden", "hidden"}:
+        return ft.AppView.FLET_APP_HIDDEN
+    return ft.AppView.WEB_BROWSER
+
 
 def main(page: ft.Page):
     page.title = "SRI - Sistema de Recuperacion de Turismo"
@@ -21,4 +47,5 @@ def main(page: ft.Page):
 
     page.add(SearchPage(page))
 
-ft.run(main)
+
+ft.run(main, host=_resolve_host(), port=_resolve_port(), view=_resolve_view())

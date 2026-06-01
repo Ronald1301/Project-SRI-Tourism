@@ -18,5 +18,5 @@ RUN apt-get update \
 
 COPY . /app
 
-# Default to showing help. Override with docker run command.
+# Default to showing help. Override with docker run or docker compose commands.
 CMD ["python3", "main.py", "--help"]

@@ -1,10 +1,11 @@
+import os
 
 import requests
 from src.frontend.api.mock_client import mock_search
 
 USE_MOCK = False
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("SRI_API_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
 def _friendly_request_error(response_text: str) -> str:
