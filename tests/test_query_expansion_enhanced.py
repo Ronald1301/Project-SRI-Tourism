@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,18 +38,22 @@ class QueryExpansionEnhancedTests(unittest.TestCase):
     def test_load_synonyms_bidirectional(self):
         config = ConfigLoader().load()
         synonyms = SynonymLoader(config).load()
+        raw_synonyms = json.loads(config.synonyms_path.read_text(encoding="utf-8"))
 
         self.assertIn("playa", synonyms.get("cayo", []))
         self.assertIn("beach", synonyms.get("playa", []))
         self.assertGreater(sum(len(values) for values in synonyms.values()), 70)
+        for category in raw_synonyms.values():
+            for values in category.values():
+                self.assertLessEqual(len(values), 2)
 
     def test_ngram_extraction(self):
-        extractor = NGramExtractor(enabled=True, min_n=1, max_n=3, multipliers={"1": 1.0, "2": 1.2, "3": 1.5})
+        extractor = NGramExtractor(enabled=True, min_n=1, max_n=3, multipliers={"1": 1.0, "2": 1.2, "3": 1.3})
         grams = extractor.extract(["habana", "vieja", "museo"])
 
         self.assertIn(("habana", 1.0), grams)
         self.assertIn(("habana vieja", 1.2), grams)
-        self.assertIn(("habana vieja museo", 1.5), grams)
+        self.assertIn(("habana vieja museo", 1.3), grams)
 
     def test_feedback_database_crud_and_implicit_dedup(self):
         with tempfile.TemporaryDirectory() as tmp:

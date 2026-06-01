@@ -13,7 +13,7 @@ class NGramExtractor:
         self.enabled = bool(enabled)
         self.min_n = max(int(min_n), 1)
         self.max_n = max(int(max_n), self.min_n)
-        self.multipliers = multipliers or {"1": 1.0, "2": 1.2, "3": 1.5}
+        self.multipliers = multipliers or {"1": 1.0, "2": 1.2, "3": 1.3}
 
     def extract(self, tokens: list[str], *, max_items: int | None = None) -> list[tuple[str, float]]:
         if not self.enabled:

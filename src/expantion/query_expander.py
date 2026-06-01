@@ -47,7 +47,7 @@ class QueryExpander:
             enabled=bool(self.config.get("ngrams.enabled", True)),
             min_n=int(self.config.get("ngrams.min_n", 1)),
             max_n=int(self.config.get("ngrams.max_n", 3)),
-            multipliers=dict(self.config.get("ngrams.multipliers", {"1": 1.0, "2": 1.2, "3": 1.5})),
+            multipliers=dict(self.config.get("ngrams.multipliers", {"1": 1.0, "2": 1.2, "3": 1.3})),
         )
 
     def expand_query(

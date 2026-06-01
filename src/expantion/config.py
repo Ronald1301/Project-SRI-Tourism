@@ -96,7 +96,7 @@ class ConfigLoader:
                 "enabled": True,
                 "min_n": 1,
                 "max_n": 3,
-                "multipliers": {"1": 1.0, "2": 1.2, "3": 1.5},
+                "multipliers": {"1": 1.0, "2": 1.2, "3": 1.3},
             },
             "logging": {
                 "enabled": True,
