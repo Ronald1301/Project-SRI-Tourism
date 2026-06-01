@@ -28,6 +28,8 @@ class AppState:
         self.loading_stage = "idle"
         self.loading_label = "Cargando."
         self.loading_detail = "Preparando la consulta."
+        self.loading_progress = 0.0
+        self.loading_history: list[dict[str, object]] = []
 
     def set_loading(self):
         self.ui_state = UIState.LOADING
@@ -35,6 +37,8 @@ class AppState:
         self.loading_stage = "checking_domain"
         self.loading_label = "Analizando consulta..."
         self.loading_detail = "Verificando el dominio antes de buscar."
+        self.loading_progress = 0.1
+        self.loading_history = []
 
     def set_success(self, results, answer_rag=None, prompt=None, expansion_info=None, domain_info=None):
         self.results = list(results)
@@ -46,6 +50,7 @@ class AppState:
         self.loading_stage = "done"
         self.loading_label = "Listo."
         self.loading_detail = "La respuesta ya fue recibida."
+        self.loading_progress = 1.0
 
     def set_out_of_domain(self, message=None, domain_info=None):
         self.results = []
@@ -58,11 +63,13 @@ class AppState:
         self.loading_stage = "out_of_domain"
         self.loading_label = "Fuera de dominio."
         self.loading_detail = "La consulta no corresponde al sistema."
+        self.loading_progress = 1.0
 
     def set_error(self, message):
         self.ui_state = UIState.ERROR
         self.error_message = message
         self.loading_stage = "done"
+        self.loading_progress = 1.0
 
     def reset_search(self, query, top_k):
         self.query = query
@@ -77,6 +84,22 @@ class AppState:
         self.loading_stage = "idle"
         self.loading_label = "Cargando."
         self.loading_detail = "Preparando la consulta."
+        self.loading_progress = 0.0
+        self.loading_history = []
+
+    def push_loading_step(self, step: str, message: str, progress: float | None = None):
+        entry = {
+            "step": step,
+            "message": message,
+            "progress": progress,
+        }
+        self.loading_history.append(entry)
+        self.loading_history = self.loading_history[-5:]
+        self.loading_stage = step
+        self.loading_label = message
+        self.loading_detail = message
+        if progress is not None:
+            self.loading_progress = max(0.0, min(float(progress), 1.0))
 
     def append_results(self, new_results):
         self.results.extend(new_results)

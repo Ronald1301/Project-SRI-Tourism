@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -54,26 +55,36 @@ class RAGSearchService:
         query: str,
         top_k: int = 5,
         include_explanations: bool = False,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> tuple[list[RetrievedDocument], str | None, dict, dict[str, Any], list[dict[str, Any]]]:
         logger.info("service.search | query=\"%s\" | hybrid | top_k=%d", query, top_k)
         events: list[dict[str, Any]] = [
             self._stage_event("checking_domain", "Analizando consulta...", progress=0.1)
         ]
+        if event_sink is not None:
+            event_sink(dict(events[-1]))
         domain_info = self._detect_domain(query)
         if domain_info.get("status") == "OUT_OF_DOMAIN":
             logger.info("Consulta fuera de dominio; se omite retrieval | query=\"%s\"", query)
-            events.append(
-                self._stage_event(
-                    "out_of_domain",
-                    "La consulta no pertenece al dominio del sistema.",
-                    progress=1.0,
-                    data={"domain": domain_info},
-                )
+            out_event = self._stage_event(
+                "out_of_domain",
+                "La consulta no pertenece al dominio del sistema.",
+                progress=1.0,
+                data={"domain": domain_info},
             )
-            events.append(self._stage_event("done", "Proceso finalizado.", progress=1.0))
+            events.append(out_event)
+            if event_sink is not None:
+                event_sink(dict(out_event))
+            done_event = self._stage_event("done", "Proceso finalizado.", progress=1.0)
+            events.append(done_event)
+            if event_sink is not None:
+                event_sink(dict(done_event))
             return [], None, {}, domain_info, events
 
-        events.append(self._stage_event("searching_local", "Buscando en base de datos local...", progress=0.35))
+        local_event = self._stage_event("searching_local", "Buscando en base de datos local...", progress=0.35)
+        events.append(local_event)
+        if event_sink is not None:
+            event_sink(dict(local_event))
         preview_k = max(int(top_k), 3)
         raw_preview = self.rag_pipeline.retrieve(
             query,
@@ -81,7 +92,10 @@ class RAGSearchService:
             include_explanations=include_explanations,
         )
         if not raw_preview:
-            events.append(self._stage_event("searching_web", "Buscando en la web...", progress=0.7))
+            web_event = self._stage_event("searching_web", "Buscando en la web...", progress=0.7)
+            events.append(web_event)
+            if event_sink is not None:
+                event_sink(dict(web_event))
         expansion = self.query_expander.expand_query(
             query,
             method="hybrid",
@@ -109,9 +123,12 @@ class RAGSearchService:
             query=selected_query,
             top_k=top_k,
             include_explanations=include_explanations,
-            web_query=web_query,
+            event_sink=event_sink,
         )
-        events.append(self._stage_event("done", "Busqueda completada.", progress=1.0))
+        done_event = self._stage_event("done", "Busqueda completada.", progress=1.0)
+        events.append(done_event)
+        if event_sink is not None:
+            event_sink(dict(done_event))
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
         return rag_result.documents, rag_result.answer, expansion.to_dict(), domain_info, events
 

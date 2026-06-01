@@ -1,8 +1,10 @@
 import asyncio
+import threading
+from typing import Any
 
 import flet as ft
 
-from src.frontend.api.client import search, send_explicit_feedback, send_implicit_feedback
+from src.frontend.api.client import search, send_explicit_feedback, send_implicit_feedback, stream_search
 from src.frontend.components.rag_answer_card import RagAnswerCard
 from src.frontend.components.result_card import ResultCard
 from src.frontend.components.search_bar import SearchBar
@@ -51,23 +53,11 @@ def SearchPage(page: ft.Page):
         expand=True,
         spacing=14,
     )
-    loading_token = {"value": None}
 
     def show_feedback(message: str):
         feedback_bar.content = ft.Text(message, color="#f8fafc")
         feedback_bar.open = True
         page.update()
-
-    async def animate_loading(token):
-        loading_token["dots"] = 0
-        while loading_token["value"] is token and state.ui_state == UIState.LOADING:
-            loading_token["dots"] = (int(loading_token.get("dots", 0)) % 3) + 1
-            dots = "." * loading_token["dots"]
-            state.loading_stage = "checking_domain"
-            state.loading_label = f"Analizando consulta{dots}"
-            state.loading_detail = "Verificando el dominio antes de buscar."
-            update_ui()
-            await asyncio.sleep(0.45)
 
     async def reveal_cards(cards):
         for card in cards:
@@ -79,15 +69,6 @@ def SearchPage(page: ft.Page):
                 card.update()
             except AssertionError:
                 return
-
-    def start_loading_animation():
-        token = object()
-        loading_token["value"] = token
-        loading_token["dots"] = 0
-        page.run_task(animate_loading, token)
-
-    def stop_loading_animation():
-        loading_token["value"] = None
 
     async def submit_feedback(doc_id: str, choice: str):
         relevance = 1 if choice == "like" else 0
@@ -163,39 +144,78 @@ def SearchPage(page: ft.Page):
 
         state.reset_search(query, top_k)
         state.set_loading()
-        state.loading_detail = "Verificando el dominio antes de buscar."
         update_ui()
-        start_loading_animation()
 
-        try:
-            data = await asyncio.to_thread(search, query, top_k)
-        finally:
-            stop_loading_animation()
+        loop = asyncio.get_running_loop()
+        event_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
-        if data.get("error"):
-            state.set_error(data["error"])
+        def enqueue_status(payload: dict[str, Any]) -> None:
+            if payload.get("type") == "status":
+                loop.call_soon_threadsafe(event_queue.put_nowait, payload)
+            elif payload.get("type") == "error":
+                loop.call_soon_threadsafe(event_queue.put_nowait, payload)
+
+        def worker() -> None:
+            result = stream_search(query, top_k, on_event=enqueue_status)
+            loop.call_soon_threadsafe(event_queue.put_nowait, {"type": "__final__", "data": result})
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        final_payload: dict[str, Any] | None = None
+        while True:
+            event = await event_queue.get()
+            event_type = str(event.get("type") or "")
+            if event_type == "status":
+                step = str(event.get("step") or "processing")
+                message = str(event.get("message") or "")
+                progress = event.get("progress")
+                state.push_loading_step(
+                    step,
+                    message,
+                    float(progress) if isinstance(progress, (int, float)) else None,
+                )
+                data = event.get("data")
+                if isinstance(data, dict):
+                    domain = data.get("domain")
+                    if isinstance(domain, dict):
+                        state.domain_info = domain
+                update_ui()
+                continue
+
+            if event_type == "error":
+                state.set_error(str(event.get("message") or "La transmision de estados fallo."))
+                update_ui()
+                return
+
+            if event_type == "__final__":
+                final_payload = event.get("data") or {}
+                break
+
+        if final_payload is None:
+            state.set_error("La busqueda termino sin un resultado final.")
             update_ui()
             return
 
-        domain = data.get("domain") or {}
-        state.domain_info = domain
-        events = data.get("events") or []
-        if events:
-            last_event = events[-1]
-            state.loading_stage = str(last_event.get("stage") or "done")
-            state.loading_label = str(last_event.get("message") or "Listo.")
-            state.loading_detail = str(last_event.get("message") or "La respuesta ya fue recibida.")
+        if final_payload.get("error"):
+            fallback = await asyncio.to_thread(search, query, top_k)
+            if fallback.get("error"):
+                state.set_error(str(fallback.get("error")))
+                update_ui()
+                return
+            final_payload = fallback
 
+        domain = final_payload.get("domain") or {}
+        state.domain_info = domain
         if domain.get("status") == "OUT_OF_DOMAIN":
             state.set_out_of_domain(domain.get("message"), domain_info=domain)
             update_ui()
             return
 
         state.set_success(
-            data.get("results", []),
-            answer_rag=data.get("answer"),
-            prompt=data.get("prompt"),
-            expansion_info=data.get("expansion"),
+            final_payload.get("results", []),
+            answer_rag=final_payload.get("answer"),
+            prompt=final_payload.get("prompt"),
+            expansion_info=final_payload.get("expansion"),
             domain_info=domain,
         )
 

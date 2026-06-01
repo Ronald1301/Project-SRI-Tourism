@@ -1,6 +1,10 @@
 import logging
 import sys
+import asyncio
+import json
+import threading
 from contextlib import asynccontextmanager
+from queue import Queue
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
@@ -14,6 +18,8 @@ logging.basicConfig(
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 
 from src.api.bootstrap import ensure_api_artifacts
 from src.api.models import (
@@ -21,6 +27,8 @@ from src.api.models import (
     FeedbackRequest,
     FeedbackResponse,
     ImplicitFeedbackRequest,
+    ProcessingEvent,
+    QueryExpansionInfo,
     SearchRequest,
     SearchResponse,
 )
@@ -71,26 +79,16 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.post("/search", response_model=SearchResponse)
-def search(request: SearchRequest):
-    logger.info("POST /search | query=\"%s\" | top_k=%d", request.query, request.top_k)
-    service = get_rag_service()
-    documents, answer, expansion, domain, events = service.search(
-        query=request.query,
-        top_k=request.top_k,
-        include_explanations=request.explanations,
-    )
-
-    if domain.get("status") == "OUT_OF_DOMAIN":
-        logger.info("Consulta fuera de dominio detectada antes del retrieval")
-        return SearchResponse(
-            results=[],
-            answer=None,
-            total=0,
-            expansion=None,
-            domain=domain,
-            events=events,
-        )
+def _build_search_response(
+    documents,
+    answer,
+    expansion,
+    domain,
+    events,
+) -> SearchResponse:
+    expansion_model = None
+    if expansion:
+        expansion_model = QueryExpansionInfo.model_validate(expansion)
 
     results = [
         DocumentResult(
@@ -107,15 +105,117 @@ def search(request: SearchRequest):
         for doc in documents
     ]
 
-    logger.info("Respuesta enviada | %d resultados | answer_len=%d", len(results), len(answer or ""))
     return SearchResponse(
         results=results,
         answer=answer,
         total=len(results),
-        expansion=expansion,
+        expansion=expansion_model,
         domain=domain,
-        events=events,
+        events=[ProcessingEvent.model_validate(item) for item in events],
     )
+
+
+@app.post("/search", response_model=SearchResponse)
+def search(request: SearchRequest):
+    logger.info("POST /search | query=\"%s\" | top_k=%d", request.query, request.top_k)
+    service = get_rag_service()
+    documents, answer, expansion, domain, events = service.search(
+        query=request.query,
+        top_k=request.top_k,
+        include_explanations=request.explanations,
+    )
+
+    if domain.get("status") == "OUT_OF_DOMAIN":
+        logger.info("Consulta fuera de dominio detectada antes del retrieval")
+        response = _build_search_response([], None, None, domain, events)
+        return response
+
+    response = _build_search_response(documents, answer, expansion, domain, events)
+    logger.info("Respuesta enviada | %d resultados | answer_len=%d", len(response.results), len(answer or ""))
+    return response
+
+
+@app.get("/query-stream")
+async def query_stream(q: str, top_k: int = 5, explanations: bool = False):
+    logger.info("GET /query-stream | query=\"%s\" | top_k=%d", q, top_k)
+    service = get_rag_service()
+    event_queue: Queue[dict[str, object]] = Queue()
+    sentinel = object()
+
+    def publish(event: dict[str, object]) -> None:
+        event_queue.put(event)
+
+    def worker() -> None:
+        try:
+            documents, answer, expansion, domain, events = service.search(
+                query=q,
+                top_k=top_k,
+                include_explanations=explanations,
+                event_sink=publish,
+            )
+            response = _build_search_response(documents, answer, expansion, domain, events)
+            event_queue.put(
+                {
+                    "type": "result",
+                    "data": jsonable_encoder(response),
+                }
+            )
+        except Exception as exc:  # pragma: no cover - depende del entorno/IO
+            logger.exception("query-stream fallo: %s", exc)
+            event_queue.put(
+                {
+                    "type": "error",
+                    "message": str(exc),
+                }
+            )
+        finally:
+            event_queue.put(sentinel)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    async def event_generator():
+        stage_alias = {
+            "checking_domain": "validating_domain",
+            "searching_local": "local_search",
+            "searching_web": "web_search",
+            "generating_answer": "generating_answer",
+            "request": "validating_domain",
+            "retrieval": "local_search",
+            "analysis": "validating_domain",
+            "web_search": "web_search",
+            "generation": "generating_answer",
+            "done": "done",
+            "out_of_domain": "out_of_domain",
+        }
+        while True:
+            item = await asyncio.to_thread(event_queue.get)
+            if item is sentinel:
+                break
+
+            if item.get("type") == "result":
+                yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+                break
+
+            if item.get("type") == "error":
+                yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+                break
+
+            stage = str(item.get("stage") or "")
+            payload = {
+                "type": "status",
+                "step": stage_alias.get(stage, stage or "processing"),
+                "message": item.get("message") or "",
+                "progress": item.get("progress"),
+                "data": item.get("data"),
+            }
+            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)
 
 
 @app.post("/feedback", response_model=FeedbackResponse)
