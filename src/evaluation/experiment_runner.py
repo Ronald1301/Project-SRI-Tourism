@@ -6,9 +6,12 @@ from typing import Any
 from src.evaluation.constants import BASELINE_SYSTEM
 from src.evaluation.metrics import (
     average_precision,
+    bootstrap_mean_ci,
     extract_doc_ids,
     f1_at_k,
     ndcg_at_k,
+    metric_mean,
+    metric_stddev,
     precision_at_k,
     r_precision,
     recall_at_k,
@@ -18,6 +21,8 @@ from src.evaluation.qrels import QueryJudgment, normalize_qrels, validate_qrels
 from src.evaluation.report_generator import render_markdown_report
 from src.evaluation.systems import build_systems, parse_systems, system_label
 from src.retrieval.search import SemanticSearcher
+
+EVALUATION_KS = (3, 5, 10)
 
 
 def evaluate_searcher(searcher: SemanticSearcher, qrels: dict[str, Any], top_k: int) -> dict[str, Any]:
@@ -53,6 +58,7 @@ def evaluate_systems(
                 "status": "skipped",
                 "reason": skipped[name],
                 "summary": empty_summary(top_k),
+                "statistics": {},
                 "queries": [],
             }
             continue
@@ -61,7 +67,7 @@ def evaluate_systems(
         rows: list[dict[str, Any]] = []
         for query_judgment in judgments:
             try:
-                results = runnable.search(query_judgment.query, top_k)
+                results = runnable.search(query_judgment.query, max(top_k, max(EVALUATION_KS)))
             except Exception as exc:
                 validation_warnings.append(
                     f"{name}/{query_judgment.query_id}: error recuperando resultados: {exc}"
@@ -80,11 +86,13 @@ def evaluate_systems(
                 )
             )
 
+        summary, statistics = summarize(rows, top_k)
         systems_report[name] = {
             "system": name,
             "label": runnable.label,
             "status": "ok",
-            "summary": summarize(rows, top_k),
+            "summary": summary,
+            "statistics": statistics,
             "queries": rows,
         }
 
@@ -119,6 +127,13 @@ def evaluate_query(query_judgment: QueryJudgment, retrieved_ids: list[str], top_
         "relevant_count": len(relevant_ids),
         "retrieved_count": len(retrieved_ids),
         "retrieved_doc_ids": retrieved_ids,
+        "precision_at_3": precision_at_k(retrieved_ids, relevant_ids, 3),
+        "precision_at_5": precision_at_k(retrieved_ids, relevant_ids, 5),
+        "recall_at_5": recall_at_k(retrieved_ids, relevant_ids, 5),
+        "recall_at_10": recall_at_k(retrieved_ids, relevant_ids, 10),
+        "map": average_precision(retrieved_ids, relevant_ids),
+        "ndcg_at_5": ndcg_at_k(retrieved_ids, query_judgment.judgments, 5),
+        "mrr": reciprocal_rank_at_k(retrieved_ids, relevant_ids, len(retrieved_ids)),
         "precision_at_k": precision_at_k(retrieved_ids, relevant_ids, top_k),
         "recall_at_k": recall_at_k(retrieved_ids, relevant_ids, top_k),
         "f1_at_k": f1_at_k(retrieved_ids, relevant_ids, top_k),
@@ -129,25 +144,52 @@ def evaluate_query(query_judgment: QueryJudgment, retrieved_ids: list[str], top_
     }
 
 
-def summarize(rows: list[dict[str, Any]], top_k: int) -> dict[str, float]:
-    return {
-        "precision_at_k": mean_metric(rows, "precision_at_k"),
-        "recall_at_k": mean_metric(rows, "recall_at_k"),
-        "f1_at_k": mean_metric(rows, "f1_at_k"),
-        "map": mean_metric(rows, "ap"),
-        "mrr_at_k": mean_metric(rows, "mrr_at_k"),
-        "ndcg_at_k": mean_metric(rows, "ndcg_at_k"),
-        "r_precision": mean_metric(rows, "r_precision"),
-        "k": float(top_k),
-    }
+def summarize(rows: list[dict[str, Any]], top_k: int) -> tuple[dict[str, Any], dict[str, Any]]:
+    metric_keys = [
+        "precision_at_3",
+        "precision_at_5",
+        "recall_at_5",
+        "recall_at_10",
+        "map",
+        "ndcg_at_5",
+        "mrr",
+        "precision_at_k",
+        "recall_at_k",
+        "f1_at_k",
+        "ap",
+        "mrr_at_k",
+        "ndcg_at_k",
+        "r_precision",
+    ]
+    summary = {metric: metric_mean([float(row.get(metric, 0.0)) for row in rows]) for metric in metric_keys}
+    summary["k"] = float(top_k)
+
+    statistics = {}
+    for metric in metric_keys:
+        values = [float(row.get(metric, 0.0)) for row in rows]
+        ci_low, ci_high = bootstrap_mean_ci(values)
+        statistics[metric] = {
+            "mean": metric_mean(values),
+            "stddev": metric_stddev(values),
+            "ci95": {"low": ci_low, "high": ci_high},
+        }
+
+    return summary, statistics
 
 
 def empty_summary(top_k: int) -> dict[str, float]:
     return {
+        "precision_at_3": 0.0,
+        "precision_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "map": 0.0,
+        "ndcg_at_5": 0.0,
+        "mrr": 0.0,
         "precision_at_k": 0.0,
         "recall_at_k": 0.0,
         "f1_at_k": 0.0,
-        "map": 0.0,
+        "ap": 0.0,
         "mrr_at_k": 0.0,
         "ndcg_at_k": 0.0,
         "r_precision": 0.0,

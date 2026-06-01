@@ -183,9 +183,9 @@ class ExpansionResult:
 
 @dataclass(frozen=True)
 class ExpansionSettings:
-    max_terms: int = 5
+    max_terms: int = 28
     top_documents_for_context: int = 3
-    acceptance_threshold: float = 0.65
+    acceptance_threshold: float = 0.75
     cache_max_size: int = 128
     cache_ttl_seconds: int = 300
     score_floor: float = 0.1

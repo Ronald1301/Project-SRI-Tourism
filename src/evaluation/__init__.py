@@ -8,7 +8,10 @@ from src.evaluation.constants import (
 from src.evaluation.experiment_runner import evaluate_searcher, evaluate_systems
 from src.evaluation.metrics import (
     average_precision,
+    bootstrap_mean_ci,
     f1_at_k,
+    metric_mean,
+    metric_stddev,
     ndcg_at_k,
     precision_at_k,
     r_precision,
@@ -27,9 +30,12 @@ __all__ = [
     "SUPPORTED_SYSTEMS",
     "QueryJudgment",
     "average_precision",
+    "bootstrap_mean_ci",
     "evaluate_searcher",
     "evaluate_systems",
     "f1_at_k",
+    "metric_mean",
+    "metric_stddev",
     "load_qrels",
     "missing_lsi_artifacts",
     "ndcg_at_k",

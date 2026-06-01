@@ -1,0 +1,7 @@
+{
+  "max_score_out": 0.03,
+  "avg_score_out": 0.005,
+  "lsi_similarity_out": 0.05,
+  "max_score_in": 0.6,
+  "lsi_similarity_in": 0.35
+}

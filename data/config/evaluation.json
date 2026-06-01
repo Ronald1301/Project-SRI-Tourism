@@ -1,0 +1,5 @@
+{
+  "bootstrap_resamples": 1000,
+  "confidence": 0.95,
+  "output_dir": "data/evaluation/results"
+}
