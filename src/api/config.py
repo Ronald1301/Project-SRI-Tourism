@@ -10,3 +10,5 @@ DEFAULT_LSI_META = str(PROJECT_ROOT / "data/index/lsi_metadata.json")
 DEFAULT_DOCUMENTS = str(PROJECT_ROOT / "data/processed/documents.jsonl")
 VECTOR_DB_DIR = str(PROJECT_ROOT / "data/processed/vector_db")
 DEFAULT_DOMAIN_LLM_MODEL = "phi3"
+DEFAULT_QUERY_EXPANSION_CONFIG = str(PROJECT_ROOT / "data/config/query_expansion.json")
+DEFAULT_DOMAIN_SYNONYMS = str(PROJECT_ROOT / "data/config/tourism_synonyms.json")
