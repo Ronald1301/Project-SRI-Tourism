@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -69,6 +70,7 @@ class RAGResult:
     prompt: str
     answer: str
     documents: list[RetrievedDocument]
+    events: list[dict[str, Any]] = field(default_factory=list)
 
 
 class DocumentRepository:
@@ -220,15 +222,59 @@ class RAGPipeline:
         logger.info("answer_query | query=\"%s\" | hybrid | top_k=%d", query, top_k)
         user_query = query.strip()
         web_query_text = (web_query or query).strip()
+        events: list[dict[str, Any]] = []
+        self._emit_event(
+            events,
+            "request_received",
+            "Consulta recibida por el backend.",
+            stage="request",
+            progress=0.0,
+            data={"top_k": int(top_k)},
+        )
+        self._emit_event(
+            events,
+            "retrieval_started",
+            "Iniciando recuperacion local.",
+            stage="retrieval",
+            progress=0.15,
+            data={"query": query},
+        )
         local_documents = self.retrieve(
             query,
             top_k=top_k,
             include_explanations=include_explanations,
         )
         logger.info("Recuperacion local: %d documentos", len(local_documents))
+        self._emit_event(
+            events,
+            "retrieval_completed",
+            "Recuperacion local completada.",
+            stage="retrieval",
+            progress=0.45,
+            data={
+                "documents": len(local_documents),
+                "top_score": float(local_documents[0].score) if local_documents else 0.0,
+            },
+        )
 
         if self._is_retrieval_insufficient(local_documents):
             logger.info("Recuperacion local INSUFICIENTE — activando busqueda web")
+            self._emit_event(
+                events,
+                "insufficiency_detected",
+                "La evidencia local fue insuficiente; se activara busqueda web.",
+                stage="analysis",
+                progress=0.55,
+                data={"documents": len(local_documents)},
+            )
+            self._emit_event(
+                events,
+                "web_search_started",
+                "Iniciando ampliacion web.",
+                stage="web_search",
+                progress=0.65,
+                data={"query": web_query_text},
+            )
             web_documents = self._retrieve_and_index_web_context(web_query_text, top_k=top_k)
             if web_documents:
                 documents = self._merge_retrieved_documents(local_documents, web_documents, top_k=top_k)
@@ -246,14 +292,31 @@ class RAGPipeline:
             logger.info("Recuperacion local suficiente")
 
         logger.info("Generando respuesta con LLM...")
+        self._emit_event(
+            events,
+            "generation_started",
+            "Iniciando generacion final.",
+            stage="generation",
+            progress=0.85,
+            data={"documents": len(documents)},
+        )
         prompt = self.answer_generator.build_prompt(user_query, documents)
         answer = self.answer_generator.generate(user_query, documents, prompt=prompt)
         logger.info("Respuesta generada | answer_len=%d", len(answer))
+        self._emit_event(
+            events,
+            "request_completed",
+            "Consulta completada.",
+            stage="done",
+            progress=1.0,
+            data={"documents": len(documents), "answer_length": len(answer)},
+        )
         return RAGResult(
             query=user_query,
             prompt=prompt,
             answer=answer,
             documents=documents,
+            events=events,
         )
 
     def answer_with_lsi(
@@ -280,6 +343,7 @@ class RAGPipeline:
             prompt=prompt,
             answer=answer,
             documents=documents,
+            events=[],
         )
 
     def retrieve(
@@ -477,6 +541,41 @@ class RAGPipeline:
             reverse=True,
         )
         return merged[:top_k]
+
+    def _emit_event(
+        self,
+        events: list[dict[str, Any]],
+        event_type: str,
+        message: str,
+        *,
+        stage: str,
+        progress: float | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        """Anade un evento estructurado al flujo de trazas del RAG.
+
+        Args:
+            events: Lista mutable donde se acumulan los eventos.
+            event_type: Nombre tecnico del evento.
+            message: Mensaje breve para la interfaz.
+            stage: Fase funcional del proceso.
+            progress: Progreso aproximado en el rango `[0, 1]`.
+            data: Datos adicionales opcionales.
+
+        Returns:
+            None
+        """
+        payload: dict[str, Any] = {
+            "event_type": event_type,
+            "message": message,
+            "stage": stage,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if progress is not None:
+            payload["progress"] = max(0.0, min(float(progress), 1.0))
+        if data:
+            payload["data"] = data
+        events.append(payload)
 
     def _is_retrieval_insufficient(self, documents: list[RetrievedDocument]) -> bool:
         """Evalua si la evidencia recuperada es insuficiente para responder.

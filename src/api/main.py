@@ -97,7 +97,13 @@ def search(request: SearchRequest):
     ]
 
     logger.info("Respuesta enviada | %d resultados | answer_len=%d", len(results), len(answer or ""))
-    return SearchResponse(results=results, answer=answer, total=len(results), expansion=expansion)
+    return SearchResponse(
+        results=results,
+        answer=answer,
+        total=len(results),
+        expansion=expansion,
+        events=rag_result.events,
+    )
 
 
 @app.post("/feedback", response_model=FeedbackResponse)
