@@ -652,9 +652,12 @@ class DuckDuckGoWebSearchClient:
                 continue
             cuba_score = float(cuba_scores[idx])
             query_score = float(query_scores[idx])
+            final_score = query_score
             payload["cuba_score"] = round(cuba_score, 4)
             payload["query_score"] = round(query_score, 4)
             payload["topic_relevance_percent"] = round(query_score * 100.0, 2)
+            payload["semantic_score"] = round(final_score, 4)
+            payload["score"] = round(final_score, 4)
             scored_documents.append(payload)
 
         if not scored_documents:
