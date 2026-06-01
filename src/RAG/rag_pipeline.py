@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import numpy as np # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity as sparse_cosine_similarity
@@ -207,6 +207,7 @@ class RAGPipeline:
         top_k: int = 4,
         include_explanations: bool = False,
         web_query: str | None = None,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> RAGResult:
         """Responde una consulta ejecutando recuperacion hibrida y generacion.
 
@@ -230,6 +231,7 @@ class RAGPipeline:
             stage="request",
             progress=0.0,
             data={"top_k": int(top_k)},
+            event_sink=event_sink,
         )
         self._emit_event(
             events,
@@ -238,6 +240,7 @@ class RAGPipeline:
             stage="retrieval",
             progress=0.15,
             data={"query": query},
+            event_sink=event_sink,
         )
         local_documents = self.retrieve(
             query,
@@ -255,6 +258,7 @@ class RAGPipeline:
                 "documents": len(local_documents),
                 "top_score": float(local_documents[0].score) if local_documents else 0.0,
             },
+            event_sink=event_sink,
         )
 
         if self._is_retrieval_insufficient(local_documents):
@@ -266,6 +270,7 @@ class RAGPipeline:
                 stage="analysis",
                 progress=0.55,
                 data={"documents": len(local_documents)},
+                event_sink=event_sink,
             )
             self._emit_event(
                 events,
@@ -274,6 +279,7 @@ class RAGPipeline:
                 stage="web_search",
                 progress=0.65,
                 data={"query": web_query_text},
+                event_sink=event_sink,
             )
             web_documents = self._retrieve_and_index_web_context(web_query_text, top_k=top_k)
             if web_documents:
@@ -299,6 +305,7 @@ class RAGPipeline:
             stage="generation",
             progress=0.85,
             data={"documents": len(documents)},
+            event_sink=event_sink,
         )
         prompt = self.answer_generator.build_prompt(user_query, documents)
         answer = self.answer_generator.generate(user_query, documents, prompt=prompt)
@@ -310,6 +317,7 @@ class RAGPipeline:
             stage="done",
             progress=1.0,
             data={"documents": len(documents), "answer_length": len(answer)},
+            event_sink=event_sink,
         )
         return RAGResult(
             query=user_query,
@@ -551,6 +559,7 @@ class RAGPipeline:
         stage: str,
         progress: float | None = None,
         data: dict[str, Any] | None = None,
+        event_sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         """Anade un evento estructurado al flujo de trazas del RAG.
 
@@ -576,6 +585,8 @@ class RAGPipeline:
         if data:
             payload["data"] = data
         events.append(payload)
+        if event_sink is not None:
+            event_sink(dict(payload))
 
     def _is_retrieval_insufficient(self, documents: list[RetrievedDocument]) -> bool:
         """Evalua si la evidencia recuperada es insuficiente para responder.

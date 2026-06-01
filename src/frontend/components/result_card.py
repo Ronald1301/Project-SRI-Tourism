@@ -128,7 +128,7 @@ def ResultCard(
         if callable(on_implicit_feedback):
             on_implicit_feedback(doc.get("doc_id"), "copy_url")
         if callable(on_feedback):
-            on_feedback("URL copiada al portapapeles.")
+            on_feedback("Enlace copiado")
 
     def open_source(_):
         if callable(on_implicit_feedback):

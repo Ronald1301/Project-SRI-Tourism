@@ -1,4 +1,6 @@
 import os
+import json
+from typing import Callable, Any
 
 import requests
 from src.frontend.api.mock_client import mock_search
@@ -77,6 +79,66 @@ def search(query, top_k=5):
         return {"error": "No se pudo conectar con la API local del proyecto."}
     except requests.exceptions.RequestException:
         return {"error": "No se pudo completar la comunicacion con el servidor de busqueda."}
+
+
+def stream_search(query: str, top_k: int = 5, *, on_event: Callable[[dict[str, Any]], None] | None = None):
+    if USE_MOCK:
+        payload = mock_search(query, top_k)
+        if on_event is not None:
+            on_event(
+                {
+                    "type": "result",
+                    "data": payload,
+                }
+            )
+        return payload
+
+    try:
+        with requests.get(
+            f"{BASE_URL}/query-stream",
+            params={
+                "q": query,
+                "top_k": top_k,
+                "explanations": True,
+            },
+            stream=True,
+            timeout=(10, SEARCH_TIMEOUT_SECONDS),
+        ) as response:
+            if response.status_code >= 400:
+                return {"error": _friendly_request_error(response.text)}
+
+            final_payload: dict[str, Any] | None = None
+            for raw_line in response.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                line = str(raw_line).strip()
+                if not line.startswith("data:"):
+                    continue
+                payload_text = line.removeprefix("data:").strip()
+                if not payload_text:
+                    continue
+                payload = json.loads(payload_text)
+                if on_event is not None:
+                    on_event(payload)
+                if payload.get("type") == "result":
+                    final_payload = payload.get("data") or {}
+                    break
+                if payload.get("type") == "error":
+                    message = payload.get("message") or "La transmision de estados termino con error."
+                    return {"error": str(message)}
+
+            if final_payload is not None:
+                return final_payload
+            return {"error": "La transmision termino sin un resultado final."}
+
+    except requests.exceptions.Timeout:
+        return {"error": "La busqueda tardo demasiado en responder."}
+    except requests.exceptions.ConnectionError:
+        return {"error": "No se pudo conectar con la API local del proyecto."}
+    except requests.exceptions.RequestException:
+        return {"error": "No se pudo completar la comunicacion con el servidor de busqueda."}
+    except json.JSONDecodeError:
+        return {"error": "El servidor devolvio un evento invalido durante la transmision."}
 
 
 def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None):

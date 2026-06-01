@@ -94,6 +94,8 @@ def StatusBanner(state):
         return LoadingIndicator(
             getattr(state, "loading_label", "Analizando consulta..."),
             getattr(state, "loading_detail", "Consultando el recuperador y preparando la respuesta."),
+            progress=getattr(state, "loading_progress", None),
+            history=getattr(state, "loading_history", None),
         )
 
     if state.ui_state == UIState.OUT_OF_DOMAIN:
