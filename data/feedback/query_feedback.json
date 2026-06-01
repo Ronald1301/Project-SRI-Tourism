@@ -98,6 +98,42 @@
       "relevance": 0,
       "search_mode": "lsi",
       "timestamp": "2026-05-28T07:24:25.041043+00:00"
+    },
+    {
+      "query": "playas cuba",
+      "query_key": "playas cuba",
+      "expanded_query": "playas cuba cayo agencias santiago organizacion playa",
+      "doc_id": "97ddd6b7d73f35968fcb0dafe5370b88be18fa9c",
+      "relevance": 1,
+      "search_mode": null,
+      "timestamp": "2026-06-01T17:08:51.387677+00:00"
+    },
+    {
+      "query": "playas cuba",
+      "query_key": "playas cuba",
+      "expanded_query": "playas cuba cayo agencias santiago organizacion playa",
+      "doc_id": "97ddd6b7d73f35968fcb0dafe5370b88be18fa9c",
+      "relevance": 0,
+      "search_mode": null,
+      "timestamp": "2026-06-01T17:08:55.966751+00:00"
+    },
+    {
+      "query": "playas cuba",
+      "query_key": "playas cuba",
+      "expanded_query": "playas cuba cayo agencias santiago organizacion playa",
+      "doc_id": "95aca889f0c43800a8cef75a3a6a5b6b5961f651",
+      "relevance": 1,
+      "search_mode": null,
+      "timestamp": "2026-06-01T17:09:00.437921+00:00"
+    },
+    {
+      "query": "restaurantes en la habana",
+      "query_key": "restaurantes en la habana",
+      "expanded_query": "restaurantes en la habana vieja plaza encuentra capital del",
+      "doc_id": "f7db409ff804e2386402104f10f627d5933d45d7",
+      "relevance": 0,
+      "search_mode": null,
+      "timestamp": "2026-06-01T18:29:51.355524+00:00"
     }
   ],
   "implicit": [

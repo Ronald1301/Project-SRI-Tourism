@@ -4,6 +4,7 @@ from typing import Any
 
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
 from src.api.config import DEFAULT_DOMAIN_LLM_MODEL
+from src.api.config import DEFAULT_DOMAIN_SYNONYMS, DEFAULT_QUERY_EXPANSION_CONFIG
 from src.retrieval.domain_detector import DomainDetector
 from src.retrieval.query_expansion import QueryExpander
 from src.retrieval.search import SemanticSearcher
@@ -41,7 +42,11 @@ class RAGSearchService:
             language="spanish",
         )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
-        self.query_expander = QueryExpander(self.searcher)
+        self.query_expander = QueryExpander(
+            self.searcher,
+            config_path=DEFAULT_QUERY_EXPANSION_CONFIG,
+            synonyms_path=DEFAULT_DOMAIN_SYNONYMS,
+        )
         logger.info("RAGSearchService listo")
 
     def search(
@@ -97,10 +102,14 @@ class RAGSearchService:
                 expansion.selected_strategy = "raw_fallback"
             expansion.selected_query = selected_query
 
+        web_query = query
+        # Si quieres que la busqueda web use la consulta expandida, cambia esta linea a:
+        # web_query = selected_query
         rag_result = self.rag_pipeline.answer_query(
             query=selected_query,
             top_k=top_k,
             include_explanations=include_explanations,
+            web_query=web_query,
         )
         events.append(self._stage_event("done", "Busqueda completada.", progress=1.0))
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
@@ -149,8 +158,9 @@ class RAGSearchService:
         raw_ids = {doc.doc_id for doc in raw_documents[:3]}
         expanded_ids = {doc.doc_id for doc in expanded_documents[:3]}
         has_overlap = bool(raw_ids & expanded_ids)
+        acceptance_threshold = float(getattr(self.query_expander.settings, "acceptance_threshold", 0.65))
 
-        if not has_overlap and expanded_top_score < (raw_top_score * 0.65):
+        if not has_overlap and expanded_top_score < (raw_top_score * acceptance_threshold):
             logger.info(
                 "Expansion descartada: score expandido debil | raw=%.4f expanded=%.4f",
                 raw_top_score,
