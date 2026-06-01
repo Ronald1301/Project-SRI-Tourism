@@ -9,5 +9,4 @@ DEFAULT_LSI_VECTORS = str(PROJECT_ROOT / "data/index/doc_vectors.npy")
 DEFAULT_LSI_META = str(PROJECT_ROOT / "data/index/lsi_metadata.json")
 DEFAULT_DOCUMENTS = str(PROJECT_ROOT / "data/processed/documents.jsonl")
 VECTOR_DB_DIR = str(PROJECT_ROOT / "data/processed/vector_db")
-
-print(PROJECT_ROOT)
+DEFAULT_DOMAIN_LLM_MODEL = "phi3"

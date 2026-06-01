@@ -75,11 +75,22 @@ def health_check():
 def search(request: SearchRequest):
     logger.info("POST /search | query=\"%s\" | top_k=%d", request.query, request.top_k)
     service = get_rag_service()
-    documents, answer, expansion = service.search(
+    documents, answer, expansion, domain, events = service.search(
         query=request.query,
         top_k=request.top_k,
         include_explanations=request.explanations,
     )
+
+    if domain.get("status") == "OUT_OF_DOMAIN":
+        logger.info("Consulta fuera de dominio detectada antes del retrieval")
+        return SearchResponse(
+            results=[],
+            answer=None,
+            total=0,
+            expansion=None,
+            domain=domain,
+            events=events,
+        )
 
     results = [
         DocumentResult(
@@ -102,7 +113,8 @@ def search(request: SearchRequest):
         answer=answer,
         total=len(results),
         expansion=expansion,
-        events=rag_result.events,
+        domain=domain,
+        events=events,
     )
 
 

@@ -80,11 +80,23 @@ class QueryExpansionInfo(BaseModel):
     applied: bool = False
 
 
+class DomainDetectionInfo(BaseModel):
+    query: str
+    status: Literal["IN_DOMAIN", "OUT_OF_DOMAIN", "UNCERTAIN"]
+    fast_decision: Literal["IN_DOMAIN", "OUT_OF_DOMAIN", "UNCERTAIN"]
+    used_llm: bool = False
+    llm_result: bool | None = None
+    message: str | None = None
+    model: str | None = None
+    features: dict[str, float | int] = Field(default_factory=dict)
+
+
 class SearchResponse(BaseModel):
     results: list[DocumentResult]
     answer: str | None = None
     total: int
     expansion: QueryExpansionInfo | None = None
+    domain: DomainDetectionInfo | None = None
     events: list[ProcessingEvent] = Field(default_factory=list)
 
 

@@ -27,10 +27,10 @@ def _friendly_request_error(response_text: str) -> str:
     )
 
 
-def search(query, top_k=5, page=1):
+def search(query, top_k=5):
 
     if USE_MOCK:
-        return mock_search(query, top_k, page)
+        return mock_search(query, top_k)
 
     try:
         response = requests.post(
@@ -65,6 +65,7 @@ def search(query, top_k=5, page=1):
             "results": normalized_results,
             "answer": payload.get("answer"),
             "expansion": payload.get("expansion"),
+            "domain": payload.get("domain"),
             "events": payload.get("events", []),
             "total": payload.get("total", len(normalized_results)),
             "has_more": False,

@@ -1,6 +1,7 @@
 import asyncio
 
 import flet as ft
+
 from src.frontend.api.client import search, send_explicit_feedback, send_implicit_feedback
 from src.frontend.components.rag_answer_card import RagAnswerCard
 from src.frontend.components.result_card import ResultCard
@@ -35,7 +36,6 @@ def _loading_placeholder() -> ft.Container:
 
 
 def SearchPage(page: ft.Page):
-
     state = AppState()
     feedback_bar = ft.SnackBar(
         ft.Text(""),
@@ -51,7 +51,6 @@ def SearchPage(page: ft.Page):
         expand=True,
         spacing=14,
     )
-    load_more_button = ft.TextButton("Cargar más")
     loading_token = {"value": None}
 
     def show_feedback(message: str):
@@ -60,17 +59,19 @@ def SearchPage(page: ft.Page):
         page.update()
 
     async def animate_loading(token):
-        frames = ["Cargando.", "Cargando..", "Cargando..."]
-        index = 0
+        loading_token["dots"] = 0
         while loading_token["value"] is token and state.ui_state == UIState.LOADING:
-            state.loading_label = frames[index % len(frames)]
+            loading_token["dots"] = (int(loading_token.get("dots", 0)) % 3) + 1
+            dots = "." * loading_token["dots"]
+            state.loading_stage = "checking_domain"
+            state.loading_label = f"Analizando consulta{dots}"
+            state.loading_detail = "Verificando el dominio antes de buscar."
             update_ui()
-            index += 1
-            await asyncio.sleep(0.35)
+            await asyncio.sleep(0.45)
 
     async def reveal_cards(cards):
         for card in cards:
-            await asyncio.sleep(0.055)
+            await asyncio.sleep(0.05)
             card.opacity = 1
             card.scale = 1
             card.offset = ft.Offset(0, 0)
@@ -82,10 +83,30 @@ def SearchPage(page: ft.Page):
     def start_loading_animation():
         token = object()
         loading_token["value"] = token
+        loading_token["dots"] = 0
         page.run_task(animate_loading, token)
 
     def stop_loading_animation():
         loading_token["value"] = None
+
+    async def submit_feedback(doc_id: str, choice: str):
+        relevance = 1 if choice == "like" else 0
+        return await asyncio.to_thread(
+            send_explicit_feedback,
+            state.query,
+            doc_id,
+            relevance,
+            expanded_query=(state.expansion_info or {}).get("expanded_query"),
+        )
+
+    def persist_feedback(doc_id: str, choice: str | None):
+        state.set_feedback_choice(state.query, doc_id, choice)
+
+    def confirm_feedback(choice: str):
+        if choice == "like":
+            show_feedback("Marcado como relevante.")
+        elif choice == "dislike":
+            show_feedback("Marcado como no relevante.")
 
     def update_ui(*, reveal_results: bool = False):
         results_column.controls.clear()
@@ -95,7 +116,12 @@ def SearchPage(page: ft.Page):
         if banner:
             results_column.controls.append(banner)
 
-        if state.answer_rag:
+        if state.ui_state == UIState.LOADING and not state.results:
+            results_column.controls.extend(
+                [_loading_placeholder(), _loading_placeholder(), _loading_placeholder()]
+            )
+
+        if state.ui_state == UIState.SHOWING_RESULTS and state.answer_rag:
             results_column.controls.append(
                 RagAnswerCard(
                     state.answer_rag,
@@ -106,34 +132,30 @@ def SearchPage(page: ft.Page):
                 )
             )
 
-        if state.ui_state == UIState.LOADING and not state.results:
-            results_column.controls.extend(
-                [_loading_placeholder(), _loading_placeholder(), _loading_placeholder()]
-            )
-
         for i, doc in enumerate(state.results):
+            doc_id = str(doc.get("doc_id") or "")
             card = ResultCard(
                 doc,
                 i,
                 state.query,
                 page,
                 show_feedback,
-                handle_explicit_feedback,
                 handle_implicit_feedback,
+                feedback_value=state.get_feedback_choice(state.query, doc_id),
+                on_feedback_submit=lambda choice, current_doc_id=doc_id: submit_feedback(current_doc_id, choice),
+                on_feedback_persist=lambda choice, current_doc_id=doc_id: persist_feedback(current_doc_id, choice),
+                on_feedback_success=confirm_feedback,
+                on_feedback_error=show_feedback,
                 initially_hidden=reveal_results,
             )
             results_column.controls.append(card)
             if reveal_results:
                 cards_to_reveal.append(card)
 
-        if state.ui_state in (UIState.SUCCESS, UIState.LOADING) and state.results and state.has_more:
-            results_column.controls.append(load_more_button)
-
         page.update()
         return cards_to_reveal
 
     async def handle_search(query, top_k):
-
         if not query.strip():
             state.set_error("Consulta vacía")
             update_ui()
@@ -141,70 +163,44 @@ def SearchPage(page: ft.Page):
 
         state.reset_search(query, top_k)
         state.set_loading()
+        state.loading_detail = "Verificando el dominio antes de buscar."
         update_ui()
         start_loading_animation()
 
         try:
-            data = await asyncio.to_thread(search, query, top_k, state.page)
+            data = await asyncio.to_thread(search, query, top_k)
         finally:
             stop_loading_animation()
 
         if data.get("error"):
             state.set_error(data["error"])
-        else:
-            state.set_success(
-                data.get("results", []),
-                answer_rag=data.get("answer"),
-                prompt=data.get("prompt"),
-                has_more=data.get("has_more", False),
-                expansion_info=data.get("expansion"),
-            )
-
-        cards = update_ui(reveal_results=not data.get("error"))
-        await reveal_cards(cards)
-
-    async def load_more(e):
-        state.page += 1
-        state.set_loading()
-        update_ui()
-        start_loading_animation()
-
-        try:
-            data = await asyncio.to_thread(search, state.query, state.top_k, state.page)
-        finally:
-            stop_loading_animation()
-
-        if data.get("error"):
-            state.set_error(data["error"])
-        else:
-            state.append_results(data.get("results", []))
-            if data.get("answer"):
-                state.answer_rag = data.get("answer")
-            if data.get("prompt"):
-                state.prompt = data.get("prompt")
-            if data.get("expansion"):
-                state.expansion_info = data.get("expansion")
-            state.has_more = data.get("has_more", False)
-            state.ui_state = UIState.SUCCESS if state.results else UIState.EMPTY
-
-        cards = update_ui(reveal_results=not data.get("error"))
-        await reveal_cards(cards)
-
-    def handle_explicit_feedback(doc_id, relevance):
-        if not doc_id:
-            show_feedback("No se pudo valorar este resultado porque falta su identificador.")
+            update_ui()
             return
-        response = send_explicit_feedback(
-            state.query,
-            doc_id,
-            relevance,
-            expanded_query=(state.expansion_info or {}).get("expanded_query"),
+
+        domain = data.get("domain") or {}
+        state.domain_info = domain
+        events = data.get("events") or []
+        if events:
+            last_event = events[-1]
+            state.loading_stage = str(last_event.get("stage") or "done")
+            state.loading_label = str(last_event.get("message") or "Listo.")
+            state.loading_detail = str(last_event.get("message") or "La respuesta ya fue recibida.")
+
+        if domain.get("status") == "OUT_OF_DOMAIN":
+            state.set_out_of_domain(domain.get("message"), domain_info=domain)
+            update_ui()
+            return
+
+        state.set_success(
+            data.get("results", []),
+            answer_rag=data.get("answer"),
+            prompt=data.get("prompt"),
+            expansion_info=data.get("expansion"),
+            domain_info=domain,
         )
-        if response.get("error"):
-            show_feedback(response["error"])
-            return
-        message = "Marcado como relevante." if relevance else "Marcado como no relevante."
-        show_feedback(f"{message} Puedes pulsar Refinar busqueda para aplicar el feedback.")
+
+        cards = update_ui(reveal_results=True)
+        await reveal_cards(cards)
 
     def handle_implicit_feedback(doc_id, event):
         if not doc_id:
@@ -215,7 +211,6 @@ def SearchPage(page: ft.Page):
             event,
         )
 
-    load_more_button.on_click = load_more
     search_bar = SearchBar(handle_search)
 
     return ft.Row(
@@ -284,5 +279,5 @@ def SearchPage(page: ft.Page):
                     ],
                 ),
             ),
-        ]
+        ],
     )

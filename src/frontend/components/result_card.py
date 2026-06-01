@@ -1,6 +1,7 @@
 import flet as ft
 from urllib.parse import urlparse
 
+from src.frontend.components.feedback_buttons import FeedbackButtons
 from src.frontend.utils.highlight import highlight_text
 
 
@@ -99,8 +100,12 @@ def ResultCard(
     query,
     page: ft.Page | None = None,
     on_feedback=None,
-    on_explicit_feedback=None,
     on_implicit_feedback=None,
+    feedback_value: str | None = None,
+    on_feedback_submit=None,
+    on_feedback_persist=None,
+    on_feedback_success=None,
+    on_feedback_error=None,
     initially_hidden: bool = False,
 ):
     title = doc.get("title") or "Sin titulo"
@@ -129,14 +134,6 @@ def ResultCard(
         if callable(on_implicit_feedback):
             on_implicit_feedback(doc.get("doc_id"), "open_source")
 
-    def mark_relevant(_):
-        if callable(on_explicit_feedback):
-            on_explicit_feedback(doc.get("doc_id"), 1)
-
-    def mark_not_relevant(_):
-        if callable(on_explicit_feedback):
-            on_explicit_feedback(doc.get("doc_id"), 0)
-
     metadata_controls = [
         _pill(f"Tipo: {content_type}", bgcolor="#273449"),
         _pill(f"Fuente: {source}", bgcolor="#2c2c2c"),
@@ -146,6 +143,16 @@ def ResultCard(
     if rating:
         metadata_controls.append(_pill(f"Rating: {rating}", bgcolor="#4a3521"))
     explanation_tile = _build_explanation_tile(explanation)
+    feedback_buttons = FeedbackButtons(
+        query=query,
+        doc_id=str(doc.get("doc_id") or ""),
+        initial_value=feedback_value,
+        on_submit=on_feedback_submit,
+        on_persist=on_feedback_persist,
+        on_success=on_feedback_success,
+        on_error=on_feedback_error,
+        page=page,
+    )
 
     card = ft.Container(
         padding=20,
@@ -215,18 +222,7 @@ def ResultCard(
                         ft.Row(
                             spacing=0,
                             controls=[
-                                ft.IconButton(
-                                    icon=ft.Icons.THUMB_UP,
-                                    tooltip="Marcar como relevante",
-                                    icon_color="#86efac",
-                                    on_click=mark_relevant,
-                                ),
-                                ft.IconButton(
-                                    icon=ft.Icons.THUMB_DOWN,
-                                    tooltip="Marcar como no relevante",
-                                    icon_color="#fca5a5",
-                                    on_click=mark_not_relevant,
-                                ),
+                                feedback_buttons.control,
                                 ft.IconButton(
                                     icon=ft.Icons.CONTENT_COPY,
                                     tooltip="Copiar URL",
