@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import random
+from statistics import mean, pstdev
 from typing import Any
 
 
@@ -100,6 +102,45 @@ def extract_doc_ids(results: list[Any]) -> list[str]:
 
 def hit_count_at_k(retrieved_ids: list[str], relevant_ids: set[str], k: int) -> int:
     return _hit_count_at_k(retrieved_ids, relevant_ids, k)
+
+
+def metric_mean(values: list[float]) -> float:
+    return mean(values) if values else 0.0
+
+
+def metric_stddev(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return 0.0
+    return pstdev(values)
+
+
+def bootstrap_mean_ci(
+    values: list[float],
+    *,
+    confidence: float = 0.95,
+    resamples: int = 1000,
+    seed: int = 42,
+) -> tuple[float, float]:
+    if not values:
+        return 0.0, 0.0
+    if len(values) == 1:
+        single = float(values[0])
+        return single, single
+
+    rng = random.Random(seed)
+    sample_means: list[float] = []
+    n = len(values)
+    for _ in range(max(int(resamples), 1)):
+        sample = [values[rng.randrange(n)] for _ in range(n)]
+        sample_means.append(mean(sample))
+
+    sample_means.sort()
+    alpha = max(0.0, min(1.0, 1.0 - float(confidence))) / 2.0
+    lower_idx = max(int(alpha * len(sample_means)), 0)
+    upper_idx = min(int((1.0 - alpha) * len(sample_means)) - 1, len(sample_means) - 1)
+    return float(sample_means[lower_idx]), float(sample_means[upper_idx])
 
 
 def _hit_count_at_k(retrieved_ids: list[str], relevant_ids: set[str], k: int) -> int:

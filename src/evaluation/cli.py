@@ -26,13 +26,30 @@ def print_report(report: dict[str, Any]) -> None:
             print(f"  razon: {payload['reason']}")
             continue
         summary = payload["summary"]
+        print(f"  Precision@3: {summary['precision_at_3']:.4f}")
+        print(f"  Precision@5: {summary['precision_at_5']:.4f}")
+        print(f"  Recall@5: {summary['recall_at_5']:.4f}")
+        print(f"  Recall@10: {summary['recall_at_10']:.4f}")
+        print(f"  MAP: {summary['map']:.4f}")
+        print(f"  NDCG@5: {summary['ndcg_at_5']:.4f}")
+        print(f"  MRR: {summary['mrr']:.4f}")
         print(f"  Precision@k: {summary['precision_at_k']:.4f}")
         print(f"  Recall@k: {summary['recall_at_k']:.4f}")
         print(f"  F1@k: {summary['f1_at_k']:.4f}")
-        print(f"  MAP: {summary['map']:.4f}")
-        print(f"  MRR@k: {summary['mrr_at_k']:.4f}")
-        print(f"  NDCG@k: {summary['ndcg_at_k']:.4f}")
-        print(f"  R-Precision: {summary['r_precision']:.4f}")
+
+    baseline_name = report.get("baseline_system")
+    deltas = report.get("delta_vs_baseline", {})
+    if baseline_name and deltas:
+        print("")
+        print("Comparacion con baseline:")
+        print(f"  baseline: {baseline_name}")
+        for name, values in deltas.items():
+            print(
+                f"  {name}: "
+                f"Delta MAP={float(values.get('map', 0.0)):+.4f}, "
+                f"Delta NDCG@5={float(values.get('ndcg_at_5', 0.0)):+.4f}, "
+                f"Delta MRR={float(values.get('mrr', values.get('mrr_at_k', 0.0))):+.4f}"
+            )
 
     if report.get("analysis"):
         print("")

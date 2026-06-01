@@ -208,21 +208,7 @@ class DomainDetector:
         logger.warning("LLM returned an unexpected answer; falling back to NO | response=%r", response_text)
         return False
 
-    def classify(self, query: str) -> DecisionLabel:
-        features = self.compute_features(query)
-        decision = self.fast_decision(features)
-        if decision != "UNCERTAIN":
-            return decision
-
-        if self.llm_client is not None:
-            try:
-                return "IN_DOMAIN" if self.llm_decision(query) else "OUT_OF_DOMAIN"
-            except Exception as exc:  # pragma: no cover - runtime fallback guard
-                logger.warning("LLM fallback failed; using OUT_OF_DOMAIN | error=%s", exc)
-
-        return "OUT_OF_DOMAIN"
-
-    def explain(self, query: str) -> dict[str, Any]:
+    def is_in_domain(self, query: str) -> dict[str, Any]:
         features = self.compute_features(query)
         fast_decision = self.fast_decision(features)
         used_llm = False
@@ -240,11 +226,28 @@ class DomainDetector:
         else:
             final_decision = fast_decision if fast_decision != "UNCERTAIN" else "OUT_OF_DOMAIN"
 
+        scores = {
+            "heuristic": round(self._heuristic_score(features), 4),
+            "lsi": round(self._lsi_score(features), 4),
+            "llm": round(1.0 if llm_result is True else 0.0, 4),
+        }
+        confidence = round(
+            self._confidence_from_scores(
+                scores,
+                used_llm=used_llm,
+                decision=final_decision,
+                features=features,
+            ),
+            4,
+        )
+
         return {
             "query": query,
             "features": features,
             "fast_decision": fast_decision,
             "decision": final_decision,
+            "confidence": confidence,
+            "scores": scores,
             "used_llm": used_llm,
             "llm_result": llm_result,
             "thresholds": {
@@ -255,6 +258,12 @@ class DomainDetector:
                 "lsi_similarity_in": self.thresholds.lsi_similarity_in,
             },
         }
+
+    def classify(self, query: str) -> DecisionLabel:
+        return self.is_in_domain(query)["decision"]
+
+    def explain(self, query: str) -> dict[str, Any]:
+        return self.is_in_domain(query)
 
     def _tokenize_query(self, query: str) -> list[str]:
         if not query or not query.strip():
@@ -298,6 +307,39 @@ class DomainDetector:
 
         query_token_set = {token for token in query_tokens if token}
         return int(len(query_token_set & self._non_domain_keyword_tokens))
+
+    def _heuristic_score(self, features: Mapping[str, float | int]) -> float:
+        max_score = float(features.get("max_score", 0.0))
+        avg_score = float(features.get("avg_score", 0.0))
+        lsi_similarity = float(features.get("lsi_similarity", 0.0))
+        keyword_overlap = float(features.get("keyword_overlap", 0))
+        non_domain_hint = float(features.get("non_domain_hint", 0))
+        max_norm = min(max_score / max(self.thresholds.max_score_in, 1e-6), 1.0)
+        avg_norm = min(avg_score / max(self.thresholds.avg_score_out * 10.0, 1e-6), 1.0)
+        lsi_norm = min(lsi_similarity / max(self.thresholds.lsi_similarity_in, 1e-6), 1.0)
+        keyword_norm = min(keyword_overlap / 2.0, 1.0)
+        penalty = 0.15 if non_domain_hint > 0 and keyword_overlap == 0 else 0.0
+        return max(0.0, min(1.0, ((max_norm + avg_norm + lsi_norm + keyword_norm) / 4.0) - penalty))
+
+    def _lsi_score(self, features: Mapping[str, float | int]) -> float:
+        lsi_similarity = float(features.get("lsi_similarity", 0.0))
+        return max(0.0, min(1.0, lsi_similarity / max(self.thresholds.lsi_similarity_in, 1e-6)))
+
+    def _confidence_from_scores(
+        self,
+        scores: Mapping[str, float],
+        *,
+        used_llm: bool,
+        decision: DecisionLabel,
+        features: Mapping[str, float | int],
+    ) -> float:
+        base_scores = [float(scores.get("heuristic", 0.0)), float(scores.get("lsi", 0.0))]
+        if used_llm:
+            base_scores.append(float(scores.get("llm", 0.0)))
+        confidence = float(sum(base_scores) / max(len(base_scores), 1))
+        if decision == "OUT_OF_DOMAIN" and int(features.get("non_domain_hint", 0)) > 0:
+            confidence = min(1.0, confidence + 0.1)
+        return max(0.0, min(1.0, confidence))
 
     def _build_lsi_centroid(self, doc_vectors: np.ndarray | None) -> np.ndarray | None:
         if doc_vectors is None:

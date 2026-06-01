@@ -88,6 +88,8 @@ class DomainDetectionInfo(BaseModel):
     llm_result: bool | None = None
     message: str | None = None
     model: str | None = None
+    confidence: float | None = None
+    scores: dict[str, float] = Field(default_factory=dict)
     features: dict[str, float | int] = Field(default_factory=dict)
 
 

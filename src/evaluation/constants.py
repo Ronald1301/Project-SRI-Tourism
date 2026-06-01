@@ -2,8 +2,9 @@ from pathlib import Path
 
 
 DEFAULT_QRELS_PATH = Path("data/evaluation/rec01_qrels.json")
-DEFAULT_REPORT_PATH = Path("data/evaluation/reports/eval_report.json")
-DEFAULT_MARKDOWN_REPORT_PATH = Path("data/evaluation/reports/eval_report.md")
+DEFAULT_RESULTS_DIR = Path("data/evaluation/results")
+DEFAULT_REPORT_PATH = DEFAULT_RESULTS_DIR / "eval_report.json"
+DEFAULT_MARKDOWN_REPORT_PATH = DEFAULT_RESULTS_DIR / "eval_report.md"
 
 SUPPORTED_SYSTEMS = [
     "lsi_baseline",

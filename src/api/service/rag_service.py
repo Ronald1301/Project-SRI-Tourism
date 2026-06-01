@@ -1,11 +1,13 @@
 import logging
+import json
 from collections.abc import Callable
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
-from src.api.config import DEFAULT_DOMAIN_LLM_MODEL
-from src.api.config import DEFAULT_DOMAIN_SYNONYMS, DEFAULT_QUERY_EXPANSION_CONFIG
+from src.api.config import DEFAULT_DOMAIN_LLM_MODEL, DEFAULT_OLLAMA_TIMEOUT_SECONDS
+from src.api.config import DEFAULT_DOMAIN_DETECTION_CONFIG, DEFAULT_DOMAIN_SYNONYMS, DEFAULT_QUERY_EXPANSION_CONFIG
 from src.retrieval.domain_detector import DomainDetector
 from src.retrieval.query_expansion import QueryExpander
 from src.retrieval.search import SemanticSearcher
@@ -41,6 +43,7 @@ class RAGSearchService:
             llm_client=self._build_ollama_client(),
             llm_model=DEFAULT_DOMAIN_LLM_MODEL,
             language="spanish",
+            thresholds=self._load_domain_thresholds(DEFAULT_DOMAIN_DETECTION_CONFIG),
         )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
         self.query_expander = QueryExpander(
@@ -187,7 +190,7 @@ class RAGSearchService:
         return True
 
     def _detect_domain(self, query: str) -> dict[str, Any]:
-        explanation = self.domain_detector.explain(query)
+        explanation = self.domain_detector.is_in_domain(query)
         status = str(explanation.get("decision") or "OUT_OF_DOMAIN")
         message: str | None = None
 
@@ -210,6 +213,8 @@ class RAGSearchService:
             "llm_result": explanation.get("llm_result"),
             "message": message,
             "model": DEFAULT_DOMAIN_LLM_MODEL,
+            "confidence": explanation.get("confidence"),
+            "scores": explanation.get("scores", {}),
             "features": explanation.get("features", {}),
         }
 
@@ -262,10 +267,23 @@ class RAGSearchService:
             return None
 
         try:
-            return ollama.Client()
+            return ollama.Client(timeout=DEFAULT_OLLAMA_TIMEOUT_SECONDS)
         except Exception as exc:  # pragma: no cover - depende del entorno local
             logger.warning("No se pudo inicializar Ollama; el fallback LLM quedara desactivado: %s", exc)
             return None
+
+    def _load_domain_thresholds(self, path: str | Path | None) -> dict[str, Any] | None:
+        if not path:
+            return None
+        threshold_path = Path(path)
+        if not threshold_path.exists():
+            return None
+        try:
+            payload = json.loads(threshold_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("No se pudo leer la configuracion de domain detection (%s): %s", threshold_path, exc)
+            return None
+        return payload if isinstance(payload, dict) else None
 
     def _stage_event(
         self,

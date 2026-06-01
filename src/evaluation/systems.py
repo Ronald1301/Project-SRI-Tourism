@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from src.api.config import DEFAULT_DOMAIN_SYNONYMS, DEFAULT_QUERY_EXPANSION_CONFIG
 from src.evaluation.constants import SUPPORTED_SYSTEMS
 from src.retrieval.query_expansion import QueryExpander
 from src.retrieval.search import (
@@ -87,7 +88,11 @@ def build_systems(
                 label="TF-IDF + LSI + reranking",
                 search=lambda query, top_k: searcher.search(query, top_k=top_k),
             )
-            expander = QueryExpander(searcher)
+            expander = QueryExpander(
+                searcher,
+                config_path=DEFAULT_QUERY_EXPANSION_CONFIG,
+                synonyms_path=DEFAULT_DOMAIN_SYNONYMS,
+            )
             runnable["lsi_expanded"] = RunnableSystem(
                 name="lsi_expanded",
                 label="TF-IDF + LSI + expansion + reranking",
