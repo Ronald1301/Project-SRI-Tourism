@@ -447,12 +447,19 @@ class RAGPipeline:
                     continue
 
                 contribution = 1.0 / (float(rrf_k) + float(rank))
+                source_score = float(item.get("score", 0.0))
                 if doc_id not in accumulator:
                     base_payload = dict(item)
-                    base_payload["score"] = 0.0
+                    base_payload["rrf_score"] = 0.0
+                    base_payload["semantic_score"] = source_score
                     accumulator[doc_id] = base_payload
 
-                accumulator[doc_id]["score"] = float(accumulator[doc_id]["score"]) + contribution
+                accumulator[doc_id]["rrf_score"] = float(accumulator[doc_id]["rrf_score"]) + contribution
+                accumulator[doc_id]["semantic_score"] = max(
+                    float(accumulator[doc_id].get("semantic_score", 0.0)),
+                    source_score,
+                )
+                accumulator[doc_id]["score"] = float(accumulator[doc_id]["semantic_score"])
 
                 if not accumulator[doc_id].get("title") and item.get("title"):
                     accumulator[doc_id]["title"] = item.get("title")
@@ -466,7 +473,7 @@ class RAGPipeline:
 
         merged = sorted(
             accumulator.values(),
-            key=lambda payload: float(payload.get("score", 0.0)),
+            key=lambda payload: float(payload.get("rrf_score", 0.0)),
             reverse=True,
         )
         return merged[:top_k]
