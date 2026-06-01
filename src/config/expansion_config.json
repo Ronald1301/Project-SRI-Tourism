@@ -1,0 +1,71 @@
+{
+  "global": {
+    "max_terms_to_add": 5,
+    "acceptance_threshold": 0.75,
+    "top_documents_for_prf": 3,
+    "cache_enabled": true,
+    "cache_max_size": 256,
+    "cache_ttl_seconds": 600,
+    "language": "auto"
+  },
+  "techniques": {
+    "synonyms": {
+      "enabled": true,
+      "weight": 0.85
+    },
+    "pseudo_relevance": {
+      "enabled": true,
+      "title_weight": 0.7,
+      "body_weight": 0.35,
+      "max_title_terms": 24,
+      "max_body_terms": 12
+    },
+    "cooccurrence": {
+      "enabled": true,
+      "weight": 0.28,
+      "window_size": 4
+    },
+    "feedback": {
+      "enabled": true,
+      "explicit_positive_weight": 0.95,
+      "explicit_negative_weight": -0.75,
+      "implicit_default_weight": 0.2,
+      "implicit_source_weight": 0.65,
+      "implicit_dwell_weight": 0.35
+    },
+    "rocchio": {
+      "enabled": true,
+      "alpha": 1.0,
+      "beta_with_explicit": 0.75,
+      "beta_without_explicit": 0.25,
+      "gamma": 0.15,
+      "candidate_weight": 0.8,
+      "max_vector_terms": 18,
+      "debug_vectors": false
+    }
+  },
+  "ngrams": {
+    "enabled": true,
+    "min_n": 1,
+    "max_n": 3,
+    "multipliers": {
+      "1": 1.0,
+      "2": 1.2,
+      "3": 1.3
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "level": "INFO",
+    "trace_candidates": true,
+    "trace_rocchio_errors": true,
+    "trace_cache": true
+  },
+  "feedback_database": {
+    "path": "data/feedback/query_feedback.db"
+  },
+  "synonyms": {
+    "path": "src/expantion/synonyms_tourism.json",
+    "bidirectional": true
+  }
+}
