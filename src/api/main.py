@@ -11,7 +11,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.models import (
@@ -22,7 +22,7 @@ from src.api.models import (
     SearchRequest,
     SearchResponse,
 )
-from src.api.service.rag_service import get_rag_service
+from src.api.service.rag_service import OutOfDomainQueryError, get_rag_service
 
 logger = logging.getLogger("src.api.main")
 
@@ -46,12 +46,26 @@ def health_check():
 def search(request: SearchRequest):
     logger.info("POST /search | query=\"%s\" | mode=%s | top_k=%d", request.query, request.search_mode, request.top_k)
     service = get_rag_service()
-    documents, answer, expansion = service.search(
-        query=request.query,
-        search_mode=request.search_mode,
-        top_k=request.top_k,
-        include_explanations=request.explanations,
-    )
+    try:
+        documents, answer, expansion = service.search(
+            query=request.query,
+            search_mode=request.search_mode,
+            top_k=request.top_k,
+            include_explanations=request.explanations,
+        )
+    except OutOfDomainQueryError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "OUT_OF_DOMAIN",
+                "message": (
+                    "La consulta no pertenece al dominio del sistema. "
+                    "Este buscador esta enfocado en turismo en Cuba."
+                ),
+                "query": exc.query,
+                "domain": exc.explanation,
+            },
+        ) from exc
 
     results = [
         DocumentResult(
