@@ -1,5 +1,7 @@
 import flet as ft
 
+from src.frontend.components.loading_indicator import LoadingIndicator
+from src.frontend.components.status_text import StatusText
 from src.frontend.state import UIState
 
 
@@ -12,10 +14,7 @@ def _message_container(
     icon_color: str,
     help_text: str | None = None,
 ) -> ft.Container:
-    details = [
-        ft.Text(title, weight="bold", color="#f8fafc"),
-        ft.Text(subtitle, size=12, color="#cbd5e1"),
-    ]
+    details = [StatusText(title, subtitle)]
     if help_text:
         details.append(
             ft.Container(
@@ -42,10 +41,7 @@ def _message_container(
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
                 ft.Icon(icon, color=icon_color, size=22),
-                ft.Column(
-                    spacing=4,
-                    controls=details,
-                ),
+                ft.Column(spacing=4, controls=details),
             ],
         ),
     )
@@ -95,33 +91,23 @@ def _friendly_error_copy(error_message: str | None) -> tuple[str, str, str]:
 def StatusBanner(state):
 
     if state.ui_state == UIState.LOADING:
-        return ft.Container(
-            bgcolor="#132238",
-            border_radius=14,
-            padding=16,
-            border=ft.Border(
-                left=ft.BorderSide(1, "#24456a"),
-                top=ft.BorderSide(1, "#24456a"),
-                right=ft.BorderSide(1, "#24456a"),
-                bottom=ft.BorderSide(1, "#24456a"),
-            ),
-            content=ft.Row(
-                spacing=14,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                controls=[
-                    ft.ProgressRing(width=18, height=18, stroke_width=2),
-                    ft.Column(
-                        spacing=4,
-                        controls=[
-                            ft.Text(getattr(state, "loading_label", "Cargando."), weight="bold", color="#eff6ff"),
-                            ft.Text("Consultando el recuperador y preparando la respuesta.", size=12, color="#bfdbfe"),
-                        ],
-                    ),
-                ],
-            ),
+        return LoadingIndicator(
+            getattr(state, "loading_label", "Analizando consulta..."),
+            getattr(state, "loading_detail", "Consultando el recuperador y preparando la respuesta."),
         )
 
-    if state.ui_state == UIState.EMPTY:
+    if state.ui_state == UIState.OUT_OF_DOMAIN:
+        message = "La consulta no está relacionada con el dominio del sistema."
+        return _message_container(
+            ft.Icons.SEARCH_OFF,
+            "Fuera de dominio",
+            message,
+            bgcolor="#1f1b12",
+            icon_color="#fbbf24",
+            help_text="Prueba con hoteles, playas, destinos o lugares concretos de Cuba para activar el recuperador.",
+        )
+
+    if state.ui_state == UIState.SHOWING_RESULTS and not getattr(state, "results", []):
         return _message_container(
             ft.Icons.SEARCH_OFF,
             "Sin resultados",

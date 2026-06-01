@@ -1,6 +1,7 @@
 import sys
 import os
 from pathlib import Path
+import importlib.util
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -24,20 +25,23 @@ def _resolve_port() -> int:
         return 8550
     return port if port > 0 else 8550
 
-
 def _resolve_view() -> ft.AppView:
-    value = os.getenv("FLET_VIEW", "web_browser").strip().lower()
-    if value in {"flet_app", "desktop"}:
-        return ft.AppView.FLET_APP
-    if value in {"flet_app_web", "web"}:
-        return ft.AppView.FLET_APP_WEB
-    if value in {"flet_app_hidden", "hidden"}:
-        return ft.AppView.FLET_APP_HIDDEN
-    return ft.AppView.WEB_BROWSER
+    value = os.getenv("FLET_VIEW", "").strip().lower()
 
+    if value in {"desktop", "flet_app"}:
+        return ft.AppView.FLET_APP
+
+    if value in {"web", "web_browser", "flet_app_web"}:
+        return ft.AppView.WEB_BROWSER
+
+    if value in {"hidden", "flet_app_hidden"}:
+        return ft.AppView.FLET_APP_HIDDEN
+
+    # fallback inteligente
+    return ft.AppView.FLET_APP
 
 def main(page: ft.Page):
-    page.title = "SRI - Sistema de Recuperacion de Turismo"
+    page.title = "SRI - Sistema de Recuperacion de Turismo en Cuba"
     page.theme_mode = ft.ThemeMode.DARK
     page.theme = get_dark_theme()
     page.bgcolor = "#0f0f0f"
@@ -48,4 +52,9 @@ def main(page: ft.Page):
     page.add(SearchPage(page))
 
 
-ft.run(main, host=_resolve_host(), port=_resolve_port(), view=_resolve_view())
+if __name__ == "__main__":
+    ft.run(
+        main, 
+        host=_resolve_host(),
+        port=_resolve_port(), 
+        view=_resolve_view())

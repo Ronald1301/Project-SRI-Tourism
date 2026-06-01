@@ -1,6 +1,10 @@
 import logging
+from datetime import datetime, timezone
+from typing import Any
 
 from src.RAG.rag_pipeline import RAGPipeline, RetrievedDocument
+from src.api.config import DEFAULT_DOMAIN_LLM_MODEL
+from src.retrieval.domain_detector import DomainDetector
 from src.retrieval.query_expansion import QueryExpander
 from src.retrieval.search import SemanticSearcher
 from src.api.config import (
@@ -28,6 +32,14 @@ class RAGSearchService:
             lsi_meta_path=DEFAULT_LSI_META,
             documents_path=DEFAULT_DOCUMENTS,
         )
+        self.domain_detector = DomainDetector(
+            tfidf_index=self.searcher.tfidf_index,
+            lsi_model=self.searcher.lsi_model,
+            domain_keywords=self._build_domain_keywords(),
+            llm_client=self._build_ollama_client(),
+            llm_model=DEFAULT_DOMAIN_LLM_MODEL,
+            language="spanish",
+        )
         self.rag_pipeline = RAGPipeline.from_preset(semantic_searcher=self.searcher)
         self.query_expander = QueryExpander(self.searcher)
         logger.info("RAGSearchService listo")
@@ -37,14 +49,34 @@ class RAGSearchService:
         query: str,
         top_k: int = 5,
         include_explanations: bool = False,
-    ) -> tuple[list[RetrievedDocument], str, dict]:
+    ) -> tuple[list[RetrievedDocument], str | None, dict, dict[str, Any], list[dict[str, Any]]]:
         logger.info("service.search | query=\"%s\" | hybrid | top_k=%d", query, top_k)
+        events: list[dict[str, Any]] = [
+            self._stage_event("checking_domain", "Analizando consulta...", progress=0.1)
+        ]
+        domain_info = self._detect_domain(query)
+        if domain_info.get("status") == "OUT_OF_DOMAIN":
+            logger.info("Consulta fuera de dominio; se omite retrieval | query=\"%s\"", query)
+            events.append(
+                self._stage_event(
+                    "out_of_domain",
+                    "La consulta no pertenece al dominio del sistema.",
+                    progress=1.0,
+                    data={"domain": domain_info},
+                )
+            )
+            events.append(self._stage_event("done", "Proceso finalizado.", progress=1.0))
+            return [], None, {}, domain_info, events
+
+        events.append(self._stage_event("searching_local", "Buscando en base de datos local...", progress=0.35))
         preview_k = max(int(top_k), 3)
         raw_preview = self.rag_pipeline.retrieve(
             query,
             top_k=preview_k,
             include_explanations=include_explanations,
         )
+        if not raw_preview:
+            events.append(self._stage_event("searching_web", "Buscando en la web...", progress=0.7))
         expansion = self.query_expander.expand_query(
             query,
             method="hybrid",
@@ -69,10 +101,10 @@ class RAGSearchService:
             query=selected_query,
             top_k=top_k,
             include_explanations=include_explanations,
-            web_query=query,
         )
+        events.append(self._stage_event("done", "Busqueda completada.", progress=1.0))
         logger.info("service.search completo | %d documentos", len(rag_result.documents))
-        return rag_result.documents, rag_result.answer, expansion.to_dict()
+        return rag_result.documents, rag_result.answer, expansion.to_dict(), domain_info, events
 
     def add_explicit_feedback(
         self,
@@ -126,6 +158,104 @@ class RAGSearchService:
             )
             return False
         return True
+
+    def _detect_domain(self, query: str) -> dict[str, Any]:
+        explanation = self.domain_detector.explain(query)
+        status = str(explanation.get("decision") or "OUT_OF_DOMAIN")
+        message: str | None = None
+
+        if status == "OUT_OF_DOMAIN":
+            message = (
+                "Tu consulta parece estar fuera del dominio de turismo en Cuba. "
+                "Prueba con destinos, hoteles, playas, excursiones o lugares de la isla."
+            )
+        elif status == "UNCERTAIN":
+            message = (
+                "La consulta quedo incierta para el detector de dominio; se usara el flujo "
+                "normal solo si el clasificador local la acepta."
+            )
+
+        return {
+            "query": query,
+            "status": status,
+            "fast_decision": explanation.get("fast_decision"),
+            "used_llm": bool(explanation.get("used_llm", False)),
+            "llm_result": explanation.get("llm_result"),
+            "message": message,
+            "model": DEFAULT_DOMAIN_LLM_MODEL,
+            "features": explanation.get("features", {}),
+        }
+
+    def _build_domain_keywords(self) -> list[str]:
+        keywords: set[str] = {
+            "turismo",
+            "cuba",
+            "cubana",
+            "cubano",
+            "varadero",
+            "habana",
+            "la habana",
+            "trinidad",
+            "matanzas",
+            "pinar del rio",
+            "baracoa",
+            "santiago de cuba",
+            "cayo guillermo",
+            "cayo coco",
+            "playa",
+            "playas",
+            "hotel",
+            "hoteles",
+            "alojamiento",
+            "resort",
+            "excursion",
+            "excursiones",
+            "viaje",
+            "viajes",
+            "destino",
+            "destinos",
+        }
+
+        for document in self.searcher.documents_by_id.values():
+            for field in ("title", "entity_name", "location"):
+                value = str(document.get(field) or "").strip()
+                if not value:
+                    continue
+                keywords.update(self.searcher.pipeline.process_text(value))
+
+        cleaned = sorted({keyword for keyword in keywords if keyword})
+        logger.info("Domain keywords preparadas | total=%d", len(cleaned))
+        return cleaned
+
+    def _build_ollama_client(self):
+        try:
+            import ollama
+        except ImportError:
+            logger.warning("Ollama no esta instalado; el fallback LLM quedara desactivado")
+            return None
+
+        try:
+            return ollama.Client()
+        except Exception as exc:  # pragma: no cover - depende del entorno local
+            logger.warning("No se pudo inicializar Ollama; el fallback LLM quedara desactivado: %s", exc)
+            return None
+
+    def _stage_event(
+        self,
+        stage: str,
+        message: str,
+        *,
+        progress: float | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "event_type": "processing",
+            "stage": stage,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "progress": progress,
+            "data": data,
+        }
 
 
 _rag_service: RAGSearchService | None = None
