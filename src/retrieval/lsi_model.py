@@ -20,6 +20,7 @@ It integrates with the TF-IDF indexer and is used by the search module.
 """
 
 import json
+import logging
 import os
 import pickle
 
@@ -28,6 +29,8 @@ from scipy import sparse
 from sklearn.decomposition import TruncatedSVD
 
 from src.utils.file_manager import load_json, load_numpy, load_pickle, save_json, save_numpy, save_pickle
+
+logger = logging.getLogger("src.retrieval.lsi_model")
 
 
 class LSIModel:
@@ -97,6 +100,11 @@ class LSIModel:
         """
         self._validate_tfidf_matrix(tfidf_matrix)
         self._validate_components_vs_matrix(tfidf_matrix)
+        logger.info(
+            "Entrenando LSI | matrix_shape=%s | n_components=%d",
+            getattr(tfidf_matrix, "shape", None),
+            self.n_components,
+        )
         
         try:
             # Initialize Truncated SVD with randomized solver for efficiency
@@ -111,9 +119,15 @@ class LSIModel:
             self.doc_vectors = self.svd_model.fit_transform(tfidf_matrix).astype(np.float32, copy=False)
             
             self.is_trained = True
+            logger.info(
+                "LSI entrenado | doc_vectors_shape=%s | explained_variance_sum=%.6f",
+                getattr(self.doc_vectors, "shape", None),
+                float(np.sum(self.svd_model.explained_variance_ratio_)),
+            )
             return self
             
         except Exception as e:
+            logger.exception("SVD training failed")
             raise RuntimeError(f"SVD training failed: {str(e)}") from e
     
     def transform_query(self, query_vector) -> np.ndarray:
@@ -217,6 +231,12 @@ class LSIModel:
             raise RuntimeError("Cannot save untrained model")
         
         try:
+            logger.info(
+                "Guardando LSI | model=%s | vectors=%s | metadata=%s",
+                model_path,
+                vectors_path,
+                metadata_path,
+            )
             # Save SVD model
             save_pickle(self.svd_model, model_path)
             
@@ -232,8 +252,15 @@ class LSIModel:
                 "is_trained": self.is_trained
             }
             save_json(metadata, metadata_path)
+            logger.info(
+                "LSI guardado | num_documents=%d | num_terms=%d | n_components=%d",
+                self.doc_vectors.shape[0],
+                self.svd_model.components_.shape[1],
+                self.n_components,
+            )
             
         except IOError as e:
+            logger.exception("Error guardando LSI")
             raise IOError(f"Failed to save LSI model artifacts: {str(e)}") from e
     
     @classmethod
@@ -270,6 +297,12 @@ class LSIModel:
                 raise FileNotFoundError(f"Missing artifact: {path}")
         
         try:
+            logger.info(
+                "Cargando LSI | model=%s | vectors=%s | metadata=%s",
+                model_path,
+                vectors_path,
+                metadata_path,
+            )
             # Load SVD model
             svd_model = load_pickle(model_path)
             
@@ -285,10 +318,16 @@ class LSIModel:
             obj.svd_model = svd_model
             obj.doc_vectors = doc_vectors
             obj.is_trained = True
+            logger.info(
+                "LSI cargado | doc_vectors_shape=%s | n_components=%d",
+                getattr(doc_vectors, "shape", None),
+                obj.n_components,
+            )
             
             return obj
             
         except (IOError, pickle.UnpicklingError, json.JSONDecodeError) as e:
+            logger.exception("Error cargando LSI")
             raise IOError(f"Failed to load LSI model artifacts: {str(e)}") from e
     
     def get_explained_variance(self) -> np.ndarray:

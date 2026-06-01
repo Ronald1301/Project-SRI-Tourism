@@ -1,5 +1,6 @@
 import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
@@ -14,6 +15,7 @@ logging.basicConfig(
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.bootstrap import ensure_api_artifacts
 from src.api.models import (
     DocumentResult,
     FeedbackRequest,
@@ -26,7 +28,36 @@ from src.api.service.rag_service import get_rag_service
 
 logger = logging.getLogger("src.api.main")
 
-app = FastAPI(title="SRI Tourism API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Prepara los artefactos de recuperacion antes de levantar la API.
+
+    Args:
+        app: Instancia de FastAPI sobre la que se administra el ciclo de vida.
+
+    Yields:
+        None: Permite que la aplicacion atienda requests una vez lista.
+    """
+    logger.info("Preparando artefactos de recuperacion para la API...")
+    try:
+        summary = ensure_api_artifacts()
+        get_rag_service()
+        app.state.retrieval_bootstrap = summary
+        logger.info(
+            "Artefactos listos | vector_db_built=%s | lsi_built=%s",
+            summary.get("vector_db_built"),
+            summary.get("lsi", {}).get("built"),
+        )
+        yield
+    except Exception as exc:
+        logger.exception("No fue posible preparar los artefactos de recuperacion: %s", exc)
+        raise
+    finally:
+        logger.info("Cerrando ciclo de vida de la API.")
+
+
+app = FastAPI(title="SRI Tourism API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,8 +66,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
