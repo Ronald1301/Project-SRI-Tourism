@@ -44,17 +44,16 @@ def _friendly_request_error(response_text: str) -> str:
     )
 
 
-def search(query, mode, top_k=5, page=1):
+def search(query, top_k=5, page=1):
 
     if USE_MOCK:
-        return mock_search(query, mode, top_k, page)
+        return mock_search(query, top_k, page)
 
     try:
         response = requests.post(
             f"{BASE_URL}/search",
             json={
                 "query": query,
-                "search_mode": mode,
                 "top_k": top_k,
                 "explanations": True,
             },
@@ -95,7 +94,7 @@ def search(query, mode, top_k=5, page=1):
         return {"error": "No se pudo completar la comunicacion con el servidor de busqueda."}
 
 
-def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None, search_mode=None):
+def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None):
     if USE_MOCK:
         return {"status": "ok", "counted": True}
 
@@ -107,7 +106,6 @@ def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None, sea
                 "doc_id": doc_id,
                 "relevance": int(relevance),
                 "expanded_query": expanded_query,
-                "search_mode": search_mode,
             },
             timeout=5,
         )
@@ -120,7 +118,7 @@ def send_explicit_feedback(query, doc_id, relevance, *, expanded_query=None, sea
         return {"error": "No se pudo guardar la valoracion del resultado."}
 
 
-def send_implicit_feedback(query, doc_id, event, *, search_mode=None):
+def send_implicit_feedback(query, doc_id, event):
     if USE_MOCK:
         return {"status": "ok", "counted": True}
 
@@ -131,7 +129,6 @@ def send_implicit_feedback(query, doc_id, event, *, search_mode=None):
                 "query": query,
                 "doc_id": doc_id,
                 "event": event,
-                "search_mode": search_mode,
             },
             timeout=5,
         )

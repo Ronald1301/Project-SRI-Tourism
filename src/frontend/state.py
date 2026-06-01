@@ -13,7 +13,6 @@ class UIState(Enum):
 class AppState:
     def __init__(self):
         self.query = ""
-        self.mode = "vectorial"
         self.top_k = 5
 
         self.results = []
@@ -45,9 +44,8 @@ class AppState:
         self.ui_state = UIState.ERROR
         self.error_message = message
 
-    def reset_search(self, query, mode, top_k):
+    def reset_search(self, query, top_k):
         self.query = query
-        self.mode = mode
         self.top_k = top_k
         self.page = 1
         self.results = []

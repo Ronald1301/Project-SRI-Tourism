@@ -1,5 +1,6 @@
 import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
@@ -14,6 +15,7 @@ logging.basicConfig(
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.bootstrap import ensure_api_artifacts
 from src.api.models import (
     DocumentResult,
     FeedbackRequest,
@@ -26,7 +28,36 @@ from src.api.service.rag_service import OutOfDomainQueryError, get_rag_service
 
 logger = logging.getLogger("src.api.main")
 
-app = FastAPI(title="SRI Tourism API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Prepara los artefactos de recuperacion antes de levantar la API.
+
+    Args:
+        app: Instancia de FastAPI sobre la que se administra el ciclo de vida.
+
+    Yields:
+        None: Permite que la aplicacion atienda requests una vez lista.
+    """
+    logger.info("Preparando artefactos de recuperacion para la API...")
+    try:
+        summary = ensure_api_artifacts()
+        get_rag_service()
+        app.state.retrieval_bootstrap = summary
+        logger.info(
+            "Artefactos listos | vector_db_built=%s | lsi_built=%s",
+            summary.get("vector_db_built"),
+            summary.get("lsi", {}).get("built"),
+        )
+        yield
+    except Exception as exc:
+        logger.exception("No fue posible preparar los artefactos de recuperacion: %s", exc)
+        raise
+    finally:
+        logger.info("Cerrando ciclo de vida de la API.")
+
+
+app = FastAPI(title="SRI Tourism API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,8 +66,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -44,7 +73,7 @@ def health_check():
 
 @app.post("/search", response_model=SearchResponse)
 def search(request: SearchRequest):
-    logger.info("POST /search | query=\"%s\" | mode=%s | top_k=%d", request.query, request.search_mode, request.top_k)
+    logger.info("POST /search | query=\"%s\" | top_k=%d", request.query, request.top_k)
     service = get_rag_service()
     try:
         documents, answer, expansion = service.search(
@@ -94,7 +123,6 @@ def feedback(request: FeedbackRequest):
         doc_id=request.doc_id,
         relevance=1 if int(request.relevance) > 0 else 0,
         expanded_query=request.expanded_query,
-        search_mode=request.search_mode,
     )
     logger.info(
         "Feedback explicito | query=\"%s\" | doc_id=%s | relevance=%s",
@@ -112,7 +140,6 @@ def implicit_feedback(request: ImplicitFeedbackRequest):
         query=request.query,
         doc_id=request.doc_id,
         event=request.event,
-        search_mode=request.search_mode,
     )
     logger.info(
         "Feedback implicito | query=\"%s\" | doc_id=%s | event=%s | counted=%s",

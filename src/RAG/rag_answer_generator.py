@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from typing import Any
@@ -13,9 +14,16 @@ class RAGAnswerGenerator:
     """
 
     def __init__(self) -> None:
+        """Inicializa la configuracion del generador.
+
+        No recibe parametros directos.
+
+        Returns:
+            None
+        """
         self.model = self._read_env("RAG_LLM_MODEL", "qwen3")
         self.ollama_cmd = self._read_env("RAG_OLLAMA_CMD", "ollama")
-        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 120)
+        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 180)
         self.enabled = self._read_bool_env("RAG_LLM_ENABLED", default=True)
         self._init_error = ""
 
@@ -26,6 +34,16 @@ class RAGAnswerGenerator:
             )
 
     def build_prompt(self, query: str, documents: list[Any]) -> str:
+        """Construye el prompt final para el LLM.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Lista de documentos recuperados o equivalentes con campos de cita, titulo,
+                URL, score y contenido.
+
+        Returns:
+            str: Prompt completo listo para enviarse al modelo.
+        """
         if not documents:
             context_block = "No se recuperaron documentos relevantes."
         else:
@@ -61,21 +79,37 @@ class RAGAnswerGenerator:
                 "3. Integra detalles concretos del contexto y ancla cada idea con citas [1], [2], etc.",
                 "4. Prioriza claridad, sintesis y fidelidad al contexto recuperado.",
                 "5. Responde en espanol.",
+                "6. No muestres razonamiento interno, pasos de analisis ni bloques tipo Thinking.",
+                "7. Cubre todos los documentos recuperados; no te limites a los primeros.",
                 "",
                 "Consulta del usuario:",
                 query.strip(),
+                "",
+                f"Cantidad de documentos recuperados: {len(documents)}",
                 "",
                 "Contexto recuperado:",
                 context_block,
                 "",
                 "Formato esperado:",
-                "- Un parrafo breve que responda la consulta.",
-                "- Uno o dos detalles complementarios si aportan valor.",
-                "- No extrapoles mas alla de la evidencia.",
+                f"- Una lista numerada con exactamente {len(documents)} entradas, una por cada documento del contexto recuperado.",
+                "- Cada entrada debe empezar con la cita correspondiente [1], [2], etc. y el titulo.",
+                "- Para cada documento, explica en una o dos oraciones que aporta a la consulta.",
+                "- Si un documento aporta poca evidencia, dilo brevemente en su propia entrada.",
+                "- No omitas documentos recuperados y no extrapoles mas alla de la evidencia.",
             ]
         )
 
     def generate(self, query: str, documents: list[Any], *, prompt: str | None = None) -> str:
+        """Genera una respuesta usando Ollama o una salida local de respaldo.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Lista de documentos recuperados.
+            prompt: Prompt ya construido. Si es ``None``, se construye automaticamente.
+
+        Returns:
+            str: Respuesta generada o un mensaje de error/control si el modelo no esta disponible.
+        """
         if self._init_error:
             return self._init_error
         if not self.enabled:
@@ -92,6 +126,14 @@ class RAGAnswerGenerator:
         return answer
 
     def _generate_with_ollama_run(self, prompt: str) -> str:
+        """Ejecuta el modelo configurado mediante `ollama run`.
+
+        Args:
+            prompt: Texto de entrada que se enviara al modelo.
+
+        Returns:
+            str: Respuesta del modelo o un mensaje explicando el fallo.
+        """
         try:
             result = subprocess.run(
                 [self.ollama_cmd, "run", self.model],
@@ -121,23 +163,50 @@ class RAGAnswerGenerator:
 
         output = (result.stdout or "").strip()
         if output:
-            return output
+            return self._strip_thinking_trace(output)
         return "Ollama devolvio una respuesta vacia."
 
+    def _strip_thinking_trace(self, output: str) -> str:
+        """Elimina razonamiento visible devuelto por modelos tipo Qwen/DeepSeek."""
+        cleaned = str(output or "").strip()
+        if not cleaned:
+            return cleaned
+
+        without_xml_think = re.sub(
+            r"(?is)<think>.*?</think>\s*",
+            "",
+            cleaned,
+        ).strip()
+        if without_xml_think:
+            cleaned = without_xml_think
+
+        without_text_think = re.sub(
+            r"(?is)^\s*thinking\.\.\.\s*.*?(?:\.\.\.\s*)?done thinking\.?\s*",
+            "",
+            cleaned,
+            count=1,
+        ).strip()
+        return without_text_think or cleaned
+
     def _generate_local_answer(self, query: str, documents: list[Any], *, error: str) -> str:
+        """Construye una respuesta local de respaldo cuando el LLM falla.
+
+        Args:
+            query: Consulta del usuario.
+            documents: Lista de documentos recuperados.
+            error: Mensaje de error devuelto por la ejecucion del LLM.
+
+        Returns:
+            str: Respuesta sintetizada localmente.
+        """
         if not documents:
             return (
                 "No encontre documentos suficientemente relevantes para responder con evidencia "
                 f"a la consulta: {query}."
             )
 
-        selected = documents[: min(3, len(documents))]
+        selected = documents
         parts: list[str] = []
-        prefixes = [
-            "Segun la informacion recuperada, ",
-            "Ademas, ",
-            "Tambien, ",
-        ]
 
         for index, doc in enumerate(selected):
             citation_id = self._get_doc_field(doc, "citation_id", index + 1)
@@ -148,19 +217,28 @@ class RAGAnswerGenerator:
             summary = self._to_text(self._get_doc_field(doc, "summary", ""), "")
             content_text = self._to_text(self._get_doc_field(doc, "content_text", ""), "")
             excerpt = self._best_excerpt(summary, content_text, title).rstrip(".!?")
-            prefix = prefixes[index] if index < len(prefixes) else ""
-            parts.append(f"{prefix}{excerpt} [{citation_id}].")
+            parts.append(f"[{citation_id}] {title}: {excerpt}.")
 
         sources = ", ".join(
             f"[{self._get_doc_field(doc, 'citation_id', idx + 1)}] "
             f"{self._to_text(self._get_doc_field(doc, 'title', f'Documento {idx + 1}'), f'Documento {idx + 1}') }"
             for idx, doc in enumerate(selected)
         )
-        parts.append(f"Se devolvio respuesta local porque Ollama fallo: {self._short_error(error)}")
+        parts.append(f"Se devolvio respuesta local porque Ollama fallo: {self._short_error(error)}.")
         parts.append(f"Fuentes usadas: {sources}.")
-        return " ".join(parts)
+        return "\n".join(parts)
 
     def _best_excerpt(self, summary: str, content_text: str, title: str) -> str:
+        """Selecciona el mejor fragmento disponible para mostrar como evidencia.
+
+        Args:
+            summary: Resumen del documento.
+            content_text: Contenido completo o parcial del documento.
+            title: Titulo del documento.
+
+        Returns:
+            str: Fragmento breve y normalizado.
+        """
         text = summary.strip() or content_text.strip() or title.strip()
         text = " ".join(text.split())
         if len(text) <= 280:
@@ -168,21 +246,58 @@ class RAGAnswerGenerator:
         return text[:277].rstrip() + "..."
 
     def _get_doc_field(self, doc: Any, field: str, default: Any) -> Any:
+        """Obtiene un campo de un documento tipo diccionario o atributo.
+
+        Args:
+            doc: Documento fuente, como diccionario u objeto con atributos.
+            field: Nombre del campo a extraer.
+            default: Valor por defecto si el campo no existe.
+
+        Returns:
+            Any: Valor del campo o el valor por defecto.
+        """
         if isinstance(doc, dict):
             return doc.get(field, default)
         return getattr(doc, field, default)
 
     def _to_text(self, value: Any, default: str) -> str:
+        """Convierte un valor cualquiera a texto seguro.
+
+        Args:
+            value: Valor de entrada.
+            default: Texto por defecto si el valor queda vacio tras normalizar.
+
+        Returns:
+            str: Texto limpio.
+        """
         text = str(value or "").strip()
         return text or default
 
     def _to_float(self, value: Any, default: float) -> float:
+        """Convierte un valor a punto flotante con respaldo.
+
+        Args:
+            value: Valor de entrada.
+            default: Valor por defecto cuando la conversion falla.
+
+        Returns:
+            float: Valor numerico valido.
+        """
         try:
             return float(value)
         except (TypeError, ValueError):
             return default
 
     def _read_env(self, key: str, default: str) -> str:
+        """Lee una variable de entorno como cadena.
+
+        Args:
+            key: Nombre de la variable de entorno.
+            default: Valor por defecto si la variable no existe o esta vacia.
+
+        Returns:
+            str: Valor limpio de la variable.
+        """
         value = os.getenv(key)
         if value is None:
             return default
@@ -190,6 +305,15 @@ class RAGAnswerGenerator:
         return cleaned or default
 
     def _read_bool_env(self, key: str, *, default: bool) -> bool:
+        """Lee una variable de entorno booleana.
+
+        Args:
+            key: Nombre de la variable de entorno.
+            default: Valor por defecto si no existe o es ambiguo.
+
+        Returns:
+            bool: Valor booleano interpretado.
+        """
         value = os.getenv(key)
         if value is None:
             return default
@@ -201,6 +325,15 @@ class RAGAnswerGenerator:
         return default
 
     def _read_int_env(self, key: str, default: int) -> int:
+        """Lee una variable de entorno entera positiva.
+
+        Args:
+            key: Nombre de la variable de entorno.
+            default: Valor por defecto si no existe o es invalido.
+
+        Returns:
+            int: Entero positivo valido.
+        """
         value = os.getenv(key)
         if value is None:
             return default
@@ -211,6 +344,14 @@ class RAGAnswerGenerator:
         return parsed if parsed > 0 else default
 
     def _short_error(self, text: str) -> str:
+        """Recorta un mensaje de error para mostrarlo de forma compacta.
+
+        Args:
+            text: Texto original del error.
+
+        Returns:
+            str: Mensaje reducido y normalizado.
+        """
         normalized = " ".join(str(text or "").split())
         if not normalized:
             return "sin detalle"

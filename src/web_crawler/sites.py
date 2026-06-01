@@ -1,3 +1,5 @@
+"""Presets de sitios para el modulo de crawling."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +8,8 @@ from .config import CrawlerConfig, DEFAULT_EXCLUDE_URL_PATTERNS
 
 
 class BaseSite:
+    """Clase base para describir el preset de un sitio web."""
+
     name = "base"
     seed_urls: list[str] = []
     allowed_domains: set[str] = set()
@@ -23,6 +27,11 @@ class BaseSite:
 
     @classmethod
     def build_config(cls) -> CrawlerConfig:
+        """Construye un `CrawlerConfig` a partir del preset del sitio.
+
+        Returns:
+            CrawlerConfig: Configuracion lista para ejecutar el crawler.
+        """
         exclude_patterns = DEFAULT_EXCLUDE_URL_PATTERNS.copy()
         if cls.exclude_url_patterns:
             exclude_patterns.extend(cls.exclude_url_patterns)
@@ -43,6 +52,8 @@ class BaseSite:
         )
 
 class VisitarCubaSite(BaseSite):
+    """Preset de crawling para el sitio Visitar Cuba."""
+
     name = "visitarcuba"
     seed_urls = [
         "https://www.visitarcuba.org/"
@@ -118,6 +129,8 @@ class VisitarCubaSite(BaseSite):
 
 
 class CubatravelSite(BaseSite):
+    """Preset de crawling para el sitio Cuba Travel."""
+
     name = "cubatravel"
     seed_urls = [
         "https://www.cuba.travel/",
@@ -194,6 +207,8 @@ class CubatravelSite(BaseSite):
 
 
 class InfoturSite(BaseSite):
+    """Preset de crawling para el sitio Infotur."""
+
     name = "infotur"
     seed_urls = [
         "https://infotur.cu/",
@@ -277,12 +292,31 @@ DEFAULT_SITE_NAME = InfoturSite.name
 
 
 def get_site_class(name: str) -> type[BaseSite] | None:
+    """Resuelve una clase de sitio por nombre.
+
+    Args:
+        name: Nombre logico del sitio.
+
+    Returns:
+        type[BaseSite] | None: Clase asociada o `None`.
+    """
     if not name:
         return None
     return SITE_REGISTRY.get(name.strip().lower())
 
 
 def build_default_config(site_name: str | None = None) -> CrawlerConfig:
+    """Construye la configuracion por defecto de un sitio.
+
+    Args:
+        site_name: Nombre del sitio. Si es `None`, usa el sitio por defecto.
+
+    Returns:
+        CrawlerConfig: Configuracion del preset elegido.
+
+    Raises:
+        ValueError: Si el sitio no existe en el registro.
+    """
     site_name = site_name or DEFAULT_SITE_NAME
     site_cls = get_site_class(site_name)
     if site_cls is None:

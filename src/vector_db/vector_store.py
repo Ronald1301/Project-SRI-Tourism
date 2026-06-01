@@ -18,6 +18,14 @@ except ImportError:  # pragma: no cover - dependencia opcional en tiempo de impo
 
 
 def _require_faiss() -> None:
+    """Verifica que FAISS este disponible en el entorno.
+
+    Returns:
+        None
+
+    Raises:
+        ImportError: Si la dependencia `faiss` no esta instalada.
+    """
     if faiss is None:
         raise ImportError(
             "Faiss no esta instalado. Instala la dependencia con: pip install faiss-cpu"
@@ -25,6 +33,14 @@ def _require_faiss() -> None:
 
 
 def iter_jsonl(path: Path) -> Iterable[dict]:
+    """Itera un archivo JSONL devolviendo un documento por linea.
+
+    Args:
+        path: Ruta del archivo `.jsonl` a leer.
+
+    Returns:
+        Iterable[dict]: Generador de diccionarios JSON decodificados.
+    """
     with path.open("r", encoding="utf-8") as file:
         for line in file:
             line = line.strip()
@@ -34,6 +50,16 @@ def iter_jsonl(path: Path) -> Iterable[dict]:
 
 
 def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+    """Divide un texto en fragmentos solapados por numero de palabras.
+
+    Args:
+        text: Texto de entrada a fragmentar.
+        chunk_size: Tamano maximo de cada fragmento en palabras.
+        chunk_overlap: Numero de palabras compartidas entre fragmentos consecutivos.
+
+    Returns:
+        list[str]: Lista de chunks generados a partir del texto original.
+    """
     if not text:
         return []
     words = text.split()
@@ -59,6 +85,13 @@ def _chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
 
 @dataclass
 class VectorDatabase:
+    """Base vectorial persistente basada en FAISS y embeddings de Sentence Transformers.
+
+    La clase mantiene tres capas sincronizadas:
+    - `embeddings`: matriz de vectores por chunk;
+    - `index`: indice FAISS persistible y consultable;
+    - `doc_id_to_meta` / `index_to_doc_id`: mapeos semanticos y posicionales.
+    """
     model_name: str
     embeddings: np.ndarray
     index_to_doc_id: list[str]
@@ -86,6 +119,11 @@ class VectorDatabase:
 
     @property
     def doc_ids(self) -> list[str]:
+        """Obtiene los identificadores documentales conocidos.
+
+        Returns:
+            list[str]: Lista de `doc_id` presentes en la base.
+        """
         return list(self.doc_id_to_meta.keys())
 
     @classmethod
@@ -96,7 +134,7 @@ class VectorDatabase:
         id_field: str = "doc_id",
         store_fields: Iterable[str] | None = None,
         min_text_length: int = 1,
-        model_name: str = "all-MiniLM-L6-v2",
+        model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
         batch_size: int = 32,
         normalize_embeddings: bool = True,
         show_progress_bar: bool = True,
@@ -108,6 +146,33 @@ class VectorDatabase:
         hnsw_ef_construction: int = 200,
         hnsw_ef_search: int = 64,
     ) -> "VectorDatabase":
+        """Construye la base vectorial a partir de un archivo JSONL.
+
+        Args:
+            jsonl_path: Ruta del corpus de entrada en formato JSONL.
+            text_fields: Campos del documento usados para formar el texto base.
+            id_field: Nombre del campo que contiene el identificador documental.
+            store_fields: Campos adicionales que se persistiran como metadatos.
+            min_text_length: Longitud minima del texto combinado para aceptar un documento.
+            model_name: Nombre del modelo de embeddings a utilizar.
+            batch_size: Tamano de lote para la codificacion de embeddings.
+            normalize_embeddings: Si se normalizan o no los vectores antes del indice.
+            show_progress_bar: Si se muestra barra de progreso al codificar.
+            chunk_size: Tamano de cada chunk en palabras.
+            chunk_overlap: Numero de palabras solapadas entre chunks consecutivos.
+            faiss_metric: Metricas FAISS soportada (`ip` o `l2`).
+            faiss_index_type: Tipo de indice FAISS (`hnsw` o `flat`).
+            hnsw_m: Numero de vecinos por nodo en HNSW.
+            hnsw_ef_construction: Parámetro de construccion de HNSW.
+            hnsw_ef_search: Parámetro de busqueda de HNSW.
+
+        Returns:
+            VectorDatabase: Instancia construida y validada.
+
+        Raises:
+            FileNotFoundError: Si el archivo JSONL no existe.
+            ValueError: Si no hay campos de texto validos o no se generan chunks.
+        """
         _require_faiss()
         if not jsonl_path.exists():
             raise FileNotFoundError(f"JSONL not found: {jsonl_path}")
@@ -186,11 +251,24 @@ class VectorDatabase:
         return db
 
     def get_model(self) -> SentenceTransformer:
+        """Carga y cachea el modelo de embeddings configurado.
+
+        Returns:
+            SentenceTransformer: Modelo listo para codificar textos.
+        """
         if self.model is None:
             self.model = SentenceTransformer(self.model_name)
         return self.model
 
     def ensure_index(self) -> object:
+        """Garantiza que el indice FAISS este construido en memoria.
+
+        Returns:
+            object: Indice FAISS listo para consultas y actualizaciones.
+
+        Raises:
+            ValueError: Si el estado interno no permite reconstruir el indice.
+        """
         _require_faiss()
         if self.index is None:
             if self.embeddings.ndim != 2:
@@ -210,6 +288,14 @@ class VectorDatabase:
         return self.index
 
     def save(self, output_dir: Path) -> None:
+        """Persiste la base vectorial y sus artefactos auxiliares.
+
+        Args:
+            output_dir: Directorio destino donde se escriben embeddings, indice y metadatos.
+
+        Returns:
+            None
+        """
         _require_faiss()
         output_dir.mkdir(parents=True, exist_ok=True)
         self._validate_state()
@@ -255,6 +341,17 @@ class VectorDatabase:
 
     @classmethod
     def load(cls, output_dir: Path) -> "VectorDatabase":
+        """Carga una base vectorial previamente persistida.
+
+        Args:
+            output_dir: Directorio donde residen los artefactos persistidos.
+
+        Returns:
+            VectorDatabase: Base vectorial reconstruida desde disco.
+
+        Raises:
+            FileNotFoundError: Si faltan los archivos obligatorios.
+        """
         _require_faiss()
         meta_path = output_dir / cls.META_FILENAME
         if not meta_path.exists():
@@ -326,7 +423,7 @@ class VectorDatabase:
                     doc_id_to_meta[doc_id] = {id_field: doc_id}
 
         db = cls(
-            model_name=str(meta.get("model_name", "all-MiniLM-L6-v2")),
+            model_name=str(meta.get("model_name", "paraphrase-multilingual-MiniLM-L12-v2")),
             embeddings=embeddings,
             index_to_doc_id=index_to_doc_id,
             doc_id_to_meta=doc_id_to_meta,
@@ -357,6 +454,23 @@ class VectorDatabase:
         persist: bool = True,
         output_dir: Path | None = None,
     ) -> int:
+        """Anade nuevos documentos al indice de forma incremental.
+
+        Args:
+            documents: Iterable de documentos crudos a incorporar.
+            store_fields: Campos que se conservaran como metadatos persistidos.
+            min_text_length: Longitud minima para aceptar un documento.
+            batch_size: Tamano de lote para codificacion de embeddings.
+            show_progress_bar: Si se muestra barra de progreso al codificar.
+            persist: Si se guarda la base vectorial despues de la insercion.
+            output_dir: Directorio destino para persistencia incremental.
+
+        Returns:
+            int: Cantidad de chunks realmente indexados.
+
+        Raises:
+            ValueError: Si `persist=True` y no existe un `output_dir` valido.
+        """
         _require_faiss()
         store_fields = list(store_fields or [])
         chunk_texts: list[str] = []
@@ -430,6 +544,16 @@ class VectorDatabase:
         top_k: int = 10,
         chunk_pool_factor: int = 8,
     ) -> list[dict]:
+        """Busca los documentos mas similares a una consulta textual.
+
+        Args:
+            query: Consulta del usuario.
+            top_k: Numero maximo de documentos a devolver.
+            chunk_pool_factor: Multiplicador para sobre-recuperar chunks antes de agrupar por documento.
+
+        Returns:
+            list[dict]: Resultados rankeados con `doc_id`, `score`, `rank` y metadatos.
+        """
         if not query:
             return []
         top_k = max(int(top_k), 0)
@@ -489,7 +613,15 @@ class VectorDatabase:
 
     @staticmethod
     def _distance_to_score(distance: float, metric: str) -> float:
-        # IP: mayor es mejor. L2: menor es mejor, se convierte a score creciente.
+        """Convierte una distancia FAISS a una puntuacion comparable.
+
+        Args:
+            distance: Distancia o similitud retornada por FAISS.
+            metric: Tipo de metrica usada por el indice (`ip` o `l2`).
+
+        Returns:
+            float: Score creciente donde un valor mayor indica mejor coincidencia.
+        """
         if metric.lower() == "l2":
             return -distance
         return distance
@@ -504,6 +636,22 @@ class VectorDatabase:
         hnsw_ef_construction: int,
         hnsw_ef_search: int,
     ) -> object:
+        """Crea un indice FAISS segun la metrica y el tipo solicitados.
+
+        Args:
+            dim: Dimensionalidad de los vectores.
+            metric: Metrica de similitud (`ip` o `l2`).
+            faiss_index_type: Tipo de indice (`hnsw` o `flat`).
+            hnsw_m: Vecinos por nodo para HNSW.
+            hnsw_ef_construction: Parametro de construccion de HNSW.
+            hnsw_ef_search: Parametro de busqueda de HNSW.
+
+        Returns:
+            object: Instancia del indice FAISS creado.
+
+        Raises:
+            ValueError: Si la metrica o el tipo de indice no son soportados.
+        """
         _require_faiss()
         index_type = faiss_index_type.lower()
         metric = metric.lower()
@@ -529,6 +677,18 @@ class VectorDatabase:
 
     @staticmethod
     def _prepare_vectors_for_index(vectors: np.ndarray, normalize: bool) -> np.ndarray:
+        """Normaliza y deja contiguos los vectores listos para FAISS.
+
+        Args:
+            vectors: Matriz de vectores a preparar.
+            normalize: Si debe aplicarse normalizacion L2.
+
+        Returns:
+            np.ndarray: Matriz `float32` contigua y valida para el indice.
+
+        Raises:
+            ValueError: Si la matriz no tiene dos dimensiones.
+        """
         _require_faiss()
         prepared = np.ascontiguousarray(np.asarray(vectors, dtype=np.float32))
         if prepared.ndim != 2:
@@ -540,6 +700,14 @@ class VectorDatabase:
         return prepared
 
     def _validate_state(self) -> None:
+        """Comprueba la consistencia interna entre vectores, indices y metadatos.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: Si hay desalineacion entre embeddings e indices.
+        """
         if self.embeddings.ndim != 2:
             raise ValueError(f"Embeddings must be 2D. Got shape={self.embeddings.shape}")
         if self.embeddings.shape[0] != len(self.index_to_doc_id):

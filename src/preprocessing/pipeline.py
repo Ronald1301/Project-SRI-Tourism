@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
 from dataclasses import dataclass, field
@@ -25,6 +26,8 @@ from bs4 import BeautifulSoup
 from docx import Document
 
 DEFAULT_EXTENSIONS: Tuple[str, ...] = (".csv", ".txt", ".md", ".html", ".docx", ".json", ".jsonl")
+
+logger = logging.getLogger("src.preprocessing.pipeline")
 
 try:
     from .cleaner import TextCleaner
@@ -168,6 +171,26 @@ def _iter_jsonl(path: Path) -> Iterable[dict]:
             except json.JSONDecodeError:
                 continue
 
+
+def _extract_jsonl_document_text(item: object) -> str:
+    """Extrae el texto util de un documento JSONL usando solo `title` y `content_text`.
+
+    Args:
+        item: Elemento JSON ya decodificado desde una linea del JSONL.
+
+    Returns:
+        str: Texto concatenado de `title` y `content_text`, o una cadena vacia si no hay
+            informacion util.
+    """
+    if not isinstance(item, dict):
+        return ""
+
+    title = str(item.get("title") or "").strip()
+    content_text = str(item.get("content_text") or "").strip()
+
+    parts = [part for part in (title, content_text) if part]
+    return "\n".join(parts)
+
 def guess_text_column_by_length(df: "pd.DataFrame", sample_size: int = 200) -> Optional[str]:
     """
     Heuristic fallback: pick the column whose values have the highest average length.
@@ -251,7 +274,15 @@ class PreprocessingPipeline:
         # Concatenate all rows of the chosen column into a single text blob.
         series = df[chosen_col].dropna().astype(str)
         full_text = "\n".join(series.tolist())
-        return {doc_id: self.process_text(full_text)}
+        tokens = self.process_text(full_text)
+        logger.info(
+            "DataFrame procesado | doc_id=%s | columna=%s | filas=%d | tokens=%d",
+            doc_id,
+            chosen_col,
+            len(series),
+            len(tokens),
+        )
+        return {doc_id: tokens}
 
     def process_csv(
         self,
@@ -270,6 +301,7 @@ class PreprocessingPipeline:
             kwargs.update(read_csv_kwargs)
 
         df = pd.read_csv(csv_path, **kwargs)
+        logger.info("CSV cargado | archivo=%s | filas=%d | columnas=%d", csv_path.name, len(df), len(df.columns))
         doc_id = doc_id_prefix or "doc_1"
         return self.process_dataframe(df, text_column=text_column, doc_id=doc_id)
 
@@ -279,7 +311,9 @@ class PreprocessingPipeline:
         *,
         doc_id: str = "doc_1",
     ) -> Dict[str, List[str]]:
-        return {doc_id: self.process_text(text)}
+        tokens = self.process_text(text)
+        logger.info("Texto procesado | doc_id=%s | tokens=%d", doc_id, len(tokens))
+        return {doc_id: tokens}
 
 
 def save_processed_documents(documents: Dict[str, List[str]], output_dir: Path) -> None:
@@ -332,6 +366,7 @@ def discover_sources(raw_dir: Path, extensions: Sequence[str]) -> List[Path]:
 def process_generic_file(path: Path, pipeline: PreprocessingPipeline, text_column: Optional[str] = None) -> Dict[str, List[str]]:
     suffix = path.suffix.lower()
     dataset_id = _slugify(path.stem)
+    logger.info("Procesando fuente %s | formato=%s | dataset_id=%s", path.name, suffix, dataset_id)
 
     if suffix == ".csv":
         try:
@@ -372,7 +407,7 @@ def process_generic_file(path: Path, pipeline: PreprocessingPipeline, text_colum
             if not doc_id:
                 doc_id = f"{dataset_id}_doc_{idx}"
 
-            text = "\n".join(_collect_json_strings(obj))
+            text = _extract_jsonl_document_text(obj)
             if not text.strip():
                 continue
             documents[doc_id] = pipeline.process_text(text)
@@ -400,26 +435,39 @@ def process_all_sources(
     ext_list = list(extensions) if extensions else list(DEFAULT_EXTENSIONS)
     sources = discover_sources(raw_dir, ext_list)
     if not sources:
-        print(f"[preprocessing] No se encontraron fuentes en: {raw_dir}", file=sys.stderr)
+        logger.warning("No se encontraron fuentes en: %s", raw_dir)
         return {}
+
+    logger.info(
+        "Iniciando preprocesamiento | raw_dir=%s | processed_dir=%s | fuentes=%d | idioma=%s",
+        raw_dir,
+        processed_dir,
+        len(sources),
+        language,
+    )
 
     for path in sources:
         dataset_id = _slugify(path.stem)
         try:
-            docs = (
-                process_generic_file(path, pipeline, text_column=text_column)
-            )
+            docs = process_generic_file(path, pipeline, text_column=text_column)
         except Exception as exc:
-            print(f"[preprocessing] {path.name}: error -> {exc}", file=sys.stderr)
+            logger.exception("Error procesando %s: %s", path.name, exc)
             continue
 
         save_source_documents(dataset_id, docs, processed_dir)
         all_documents.update(docs)
-        print(
-            f"[preprocessing] {path.name}: {len(docs)} documentos -> {processed_dir}/{dataset_id}.json",
-            file=sys.stderr,
+        logger.info(
+            "Fuente procesada | archivo=%s | documentos=%d | salida=%s",
+            path.name,
+            len(docs),
+            processed_dir / f"{dataset_id}.json",
         )
 
+    logger.info(
+        "Preprocesamiento completado | documentos_totales=%d | fuentes_exitosas=%d",
+        len(all_documents),
+        len(sources),
+    )
     return all_documents
 
 

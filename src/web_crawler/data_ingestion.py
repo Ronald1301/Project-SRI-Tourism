@@ -1,3 +1,5 @@
+"""Orquestador concurrente de crawling multi-sitio."""
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +19,14 @@ CONSOLIDATED_DOCUMENTS_PATH = Path("data/raw/documents.jsonl")
 SHARED_VISITED_URLS_PATH = Path(__file__).resolve().parent / "visited_urls.txt"
 
 def _run_site_crawler(site_name: str) -> dict[str, object]:
+    """Ejecuta el crawler de un sitio concreto.
+
+    Args:
+        site_name: Nombre del sitio registrado en `SITE_REGISTRY`.
+
+    Returns:
+        dict[str, object]: Resultado con `site_name` y `report`.
+    """
     config = build_default_config(site_name=site_name)
     config.output_dir = Path("data/raw")
     config.visited_urls_path = SHARED_VISITED_URLS_PATH
@@ -30,6 +40,11 @@ def _run_site_crawler(site_name: str) -> dict[str, object]:
 
 
 def main() -> int:
+    """Lanza el crawling concurrente para todos los sitios registrados.
+
+    Returns:
+        int: `0` si todo termina bien, `1` si algun sitio falla.
+    """
     site_names = sorted(SITE_REGISTRY.keys())
     if not site_names:
         print("No hay sitios registrados para crawling.")

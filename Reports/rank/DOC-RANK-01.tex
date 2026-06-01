@@ -1,0 +1,342 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+\definecolor{codegray}{RGB}{245,245,245}
+\definecolor{codeborder}{RGB}{210,210,210}
+\definecolor{codeblue}{RGB}{20,70,140}
+\definecolor{darkgray}{RGB}{80,80,80}
+
+\lstdefinestyle{technical}{
+    backgroundcolor=\color{codegray},
+    frame=single,
+    rulecolor=\color{codeborder},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{darkgray},
+    stringstyle=\color{codeblue},
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b
+}
+
+\lstset{style=technical}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue,
+    pdftitle={DOC-RANK-01 -- Justificación técnica del posicionamiento},
+    pdfauthor={Equipo de Arquitectura de Software},
+    pdfsubject={Ranking, recuperación de información y posicionamiento visual},
+    pdfkeywords={ranking, search, information retrieval, UX, scoring, arquitectura}
+}
+
+\title{
+    \textbf{DOC-RANK-01}\\
+    Justificación técnica del posicionamiento\\
+    \large Documento de arquitectura para ranking, recuperación y presentación visual de resultados
+}
+
+\author{Equipo de Arquitectura de Software}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este documento justifica formalmente las decisiones técnicas adoptadas para el módulo de ranking y posicionamiento visual de resultados dentro de un sistema de información que presenta múltiples tipos de contenido en una misma interfaz. El documento describe la arquitectura general, las señales utilizadas para calcular relevancia, la estrategia de ordenamiento, la relación entre backend y frontend, los criterios de calidad, las limitaciones conocidas y las métricas de evaluación aplicables. Su propósito es servir como referencia oficial para revisión técnica, defensa académica y alineación entre equipos de ingeniería, producto y experiencia de usuario.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+
+
+\section{Arquitectura general del módulo de posicionamiento}
+
+\subsection{Visión general}
+
+El módulo de posicionamiento se divide en dos responsabilidades principales:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Ranking lógico}: cálculo de relevancia, ordenamiento, normalización y aplicación de reglas.
+    \item \textbf{Posicionamiento visual}: transformación del ranking en una interfaz escaneable, consistente y útil.
+\end{itemize}
+
+La separación de responsabilidades permite que el backend conserve control sobre la relevancia y que el frontend conserve control sobre jerarquía visual, densidad, agrupación y consistencia de presentación.
+
+\subsection{Pipeline de recuperación}
+
+El flujo de recuperación propuesto es el siguiente:
+
+\begin{enumerate}[noitemsep]
+    \item Recepción de la consulta o intención del usuario.
+    \item Normalización lingüística y semántica de la entrada.
+    \item Recuperación inicial de candidatos.
+    \item Extracción de señales por candidato.
+    \item Normalización de señales.
+    \item Cálculo de score compuesto.
+    \item Aplicación de reglas de negocio.
+    \item Deduplicación y diversificación.
+    \item Ordenamiento final.
+    \item Envío de resultados enriquecidos al frontend.
+    \item Renderizado según política visual.
+\end{enumerate}
+
+\section{Señales utilizadas en el ranking}
+
+\subsection{Principio general}
+
+El ranking se basa en un modelo de scoring compuesto. Cada resultado candidato recibe un conjunto de señales normalizadas en el rango $[0,1]$. El score final combina dichas señales mediante pesos configurables.
+
+\subsection{Relevancia textual}
+
+La relevancia textual mide la correspondencia entre la consulta del usuario y el contenido indexado. Puede calcularse mediante BM25, TF-IDF, embeddings semánticos o una combinación híbrida.
+
+\[
+S_{textual}(d,q) = \alpha \cdot BM25(d,q) + (1-\alpha) \cdot Sim_{semantic}(d,q)
+\]
+
+Donde:
+
+\begin{itemize}[noitemsep]
+    \item $d$ representa el documento o entidad candidata.
+    \item $q$ representa la consulta.
+    \item $BM25(d,q)$ captura coincidencia léxica.
+    \item $Sim_{semantic}(d,q)$ captura proximidad semántica.
+    \item $\alpha$ controla el balance entre precisión textual y similitud semántica.
+\end{itemize}
+
+\subsection{Coincidencia exacta}
+
+La coincidencia exacta otorga prioridad a resultados cuyo título, identificador, categoría o campo principal coincide directamente con la consulta.
+
+\[
+S_{exact}(d,q) =
+\begin{cases}
+1.0 & \text{si existe coincidencia exacta en campo principal}\\
+0.7 & \text{si existe coincidencia exacta parcial}\\
+0.0 & \text{si no existe coincidencia relevante}
+\end{cases}
+\]
+
+Esta señal es importante porque los usuarios suelen esperar que una búsqueda específica recupere primero el elemento nombrado explícitamente.
+
+\subsection{Popularidad}
+
+La popularidad representa aceptación colectiva o frecuencia de consumo global. Puede calcularse a partir de visitas, clics, reservas, compras, guardados o valoraciones.
+
+Para evitar que la popularidad domine el ranking, se recomienda una transformación logarítmica:
+
+\[
+S_{popularity}(d) = \frac{\log(1 + views_d)}{\log(1 + views_{max})}
+\]
+
+\subsection{Frecuencia de interacción}
+
+La frecuencia de interacción mide patrones recientes de comportamiento: clics, aperturas, conversiones, favoritos o tiempo de permanencia. A diferencia de la popularidad global, esta señal puede segmentarse por contexto, perfil o sesión.
+
+\[
+S_{interaction}(d) = w_c \cdot CTR_d + w_t \cdot DwellTime_d + w_v \cdot ConversionRate_d
+\]
+
+\subsection{Recencia o frescura}
+
+La recencia favorece contenido nuevo cuando la frescura es relevante para la intención de búsqueda. Se recomienda utilizar una función de decaimiento temporal:
+
+\[
+S_{recency}(d) = e^{-\lambda \cdot age(d)}
+\]
+
+Donde $age(d)$ es la antigüedad del contenido y $\lambda$ controla la velocidad de decaimiento.
+
+\subsection{Preferencias del usuario}
+
+Las preferencias del usuario permiten personalizar resultados según historial, ubicación, idioma, categorías de interés o interacciones previas.
+
+\[
+S_{user}(d,u) = Sim(Profile_u, Metadata_d)
+\]
+
+Esta señal debe aplicarse con límites para evitar burbujas de filtro y pérdida de diversidad.
+
+\subsection{Reglas de negocio}
+
+Las reglas de negocio representan restricciones o prioridades funcionales: disponibilidad, vigencia, cumplimiento editorial, campañas, acuerdos comerciales o seguridad.
+
+Ejemplos:
+
+\begin{itemize}[noitemsep]
+    \item Penalizar contenido vencido.
+    \item Excluir resultados no disponibles.
+    \item Promover contenido verificado.
+    \item Insertar contenido patrocinado con etiquetado explícito.
+\end{itemize}
+
+\subsection{Scoring compuesto}
+
+El score final se calcula como una combinación ponderada:
+
+\[
+\begin{aligned}
+Score(d,q,u) ={}&
+w_t S_{textual} +
+w_e S_{exact} +
+w_p S_{popularity} +
+w_i S_{interaction} \\
+&+
+w_r S_{recency} +
+w_u S_{user} +
+w_b S_{business}
+\end{aligned}
+\]
+
+Sujeto a:
+
+\[
+\sum_{k=1}^{n} w_k = 1
+\]
+
+\subsection{Pesos y normalización}
+
+\begin{longtable}{p{4cm}p{3cm}p{3cm}p{4cm}}
+\toprule
+\textbf{Señal} & \textbf{Rango} & \textbf{Peso inicial} & \textbf{Justificación} \\
+\midrule
+\endhead
+
+Relevancia textual & $[0,1]$ & 0.35 & Principal indicador de correspondencia con la intención explícita. \\
+
+Coincidencia exacta & $[0,1]$ & 0.15 & Protege búsquedas navegacionales o altamente específicas. \\
+
+Popularidad & $[0,1]$ & 0.10 & Refleja aceptación colectiva sin dominar la relevancia. \\
+
+Interacción & $[0,1]$ & 0.10 & Incorpora señales de utilidad observada. \\
+
+Recencia & $[0,1]$ & 0.10 & Favorece contenido actualizado cuando aplica. \\
+
+Preferencias de usuario & $[0,1]$ & 0.10 & Mejora personalización manteniendo control de diversidad. \\
+
+Reglas de negocio & $[0,1]$ & 0.10 & Alinea el ranking con objetivos funcionales explícitos. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Estrategia de ordenamiento}
+
+\subsection{Ranking principal}
+
+El ranking principal usa el score compuesto como criterio base:
+
+\[
+Rank(d_i) < Rank(d_j) \iff Score(d_i) > Score(d_j)
+\]
+
+Esta regla es simple, reproducible e interpretable.
+
+\subsection{Desempates}
+
+Cuando dos resultados tienen scores similares, se aplican criterios de desempate en orden:
+
+\begin{enumerate}[noitemsep]
+    \item Mayor coincidencia exacta.
+    \item Mayor relevancia textual.
+    \item Mayor disponibilidad o vigencia.
+    \item Mayor recencia.
+    \item Mayor identificador estable para garantizar reproducibilidad.
+\end{enumerate}
+
+\subsection{Boosting}
+
+El boosting permite aumentar la visibilidad de resultados que cumplen condiciones específicas. Debe aplicarse de forma acotada:
+
+\[
+Score'(d) = min(1, Score(d) + Boost(d))
+\]
+
+Ejemplos de boosting:
+
+\begin{itemize}[noitemsep]
+    \item Contenido verificado.
+    \item Resultado localmente relevante.
+    \item Coincidencia exacta con entidad principal.
+    \item Contenido con alta conversión histórica.
+\end{itemize}
+
+\subsection{Degradación controlada}
+
+La degradación controlada penaliza contenido menos confiable o menos útil sin excluirlo completamente.
+
+\[
+Score'(d) = Score(d) \cdot (1 - Penalty(d))
+\]
+
+Se utiliza para contenido incompleto, poco actualizado o con baja calidad de metadata.
+
+\subsection{Diversificación}
+
+La diversificación evita que los primeros resultados sean excesivamente similares. Una estrategia práctica consiste en aplicar Maximum Marginal Relevance:
+
+\[
+MMR(d) = \lambda Rel(d,q) - (1-\lambda) \max_{d' \in S} Sim(d,d')
+\]
+
+Donde $S$ es el conjunto de resultados ya seleccionados.
+
+\subsection{Deduplicación}
+
+La deduplicación se aplica antes del renderizado final. Dos resultados se consideran duplicados si comparten identificador canónico, URL normalizada, entidad primaria o alta similitud textual.
+
+\subsection{Balance entre precisión y exploración}
+
+El sistema debe priorizar precisión en consultas específicas y exploración en consultas ambiguas. Para ello se puede ajustar dinámicamente el peso de diversificación según la entropía o amplitud de la consulta.
+
+\section{Ventajas de la estrategia adoptada}
+
+\begin{longtable}{p{4cm}p{10cm}}
+\toprule
+\textbf{Ventaja} & \textbf{Justificación} \\
+\midrule
+\endhead
+
+Escalabilidad & El pipeline separa recuperación inicial y ranking, reduciendo el volumen de candidatos que requieren scoring avanzado. \\
+
+Mantenibilidad & Las señales, pesos y reglas están desacopladas, lo que permite modificar una dimensión sin reescribir todo el sistema. \\
+
+Flexibilidad & El modelo permite incorporar nuevas señales, tipos de contenido o reglas de negocio. \\
+
+Interpretabilidad & El score puede descomponerse en señales individuales, facilitando debugging y explicación. \\
+
+Facilidad de ajuste & Los pesos pueden configurarse por dominio, intención, segmento o experimento A/B. \\
+
+Experiencia de usuario & La política visual transforma relevancia técnica en una interfaz comprensible y escaneable. \\
+
+\bottomrule
+\end{longtable}
+
+
+\end{document}

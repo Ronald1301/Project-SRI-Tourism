@@ -1,3 +1,5 @@
+"""Motor principal de crawling y scraping del proyecto."""
+
 from __future__ import annotations
 import logging
 import time
@@ -17,12 +19,23 @@ logger = logging.getLogger("src.web_crawler.crawler")
 
 
 class WebCrawler:
+    """Ejecuta crawling BFS con politicas, persistencia y filtros de calidad."""
+
     _VISITED_PATH_LOCKS: dict[str, Lock] = {}
     _VISITED_PATH_LOCKS_GUARD = Lock()
     _ALLOWED_LANGUAGE_PREFIXES = ("es", "en")
     _MIN_WORD_COUNT = 50
 
     def __init__(self, config: CrawlerConfig, site_name: str = "default"):
+        """Inicializa el crawler para un sitio concreto.
+
+        Args:
+            config: Configuracion completa de crawling.
+            site_name: Nombre logico del sitio para logging.
+
+        Returns:
+            None
+        """
         self.config = config
         self.site_name = site_name
         self.logger = logging.getLogger(f"src.web_crawler.crawler.{site_name}")
@@ -57,6 +70,14 @@ class WebCrawler:
 
     @classmethod
     def _visited_lock_for_path(cls, path: Path) -> Lock:
+        """Obtiene un lock compartido para el archivo de URLs visitadas.
+
+        Args:
+            path: Ruta del archivo a sincronizar.
+
+        Returns:
+            Lock: Lock asociado a la ruta.
+        """
         key = str(path.resolve())
         with cls._VISITED_PATH_LOCKS_GUARD:
             lock = cls._VISITED_PATH_LOCKS.get(key)
@@ -66,6 +87,14 @@ class WebCrawler:
             return lock
 
     def respect_delay(self, url: str) -> None:
+        """Respeta el retraso entre requests para un host.
+
+        Args:
+            url: URL destino de la solicitud.
+
+        Returns:
+            None
+        """
         host = urlparse(url).netloc.lower()
         now = time.monotonic()
         last = self.last_request_at.get(host)
@@ -76,10 +105,30 @@ class WebCrawler:
         self.last_request_at[host] = time.monotonic()
 
     def record_error(self, url: str, depth: int, reason: str, detail: str | None = None) -> None:
+        """Registra un error del crawler y actualiza estadisticas.
+
+        Args:
+            url: URL afectada.
+            depth: Profundidad de exploracion.
+            reason: Codigo corto del error.
+            detail: Detalle adicional opcional.
+
+        Returns:
+            None
+        """
         self.stats["errors"] += 1
         self.logger.warning("Error [%s] %s (depth=%d): %s", reason, url, depth, detail or "")
 
     def fetch(self, url: str, depth: int) -> tuple[str, str, str] | None:
+        """Descarga una URL y devuelve URL final, HTML y content-type.
+
+        Args:
+            url: URL original a descargar.
+            depth: Profundidad de la URL en el arbol de crawling.
+
+        Returns:
+            tuple[str, str, str] | None: URL final, HTML y content-type, o `None`.
+        """
         self.respect_delay(url)
         try:
             response = self.session.get(url, timeout=self.config.timeout, allow_redirects=True)
@@ -106,6 +155,11 @@ class WebCrawler:
         return final_url, response.text, content_type
 
     def crawl(self) -> dict[str, int]:
+        """Ejecuta el crawl completo y devuelve estadisticas agregadas.
+
+        Returns:
+            dict[str, int]: Conteos de paginas, errores, enlaces y documentos.
+        """
         start_time = datetime.now(UTC)
         queue: deque[tuple[str, int, str | None]] = deque()
         visited: set[str] = set()
@@ -222,6 +276,14 @@ class WebCrawler:
         return self.stats
 
     def _has_supported_language(self, document: dict[str, object]) -> bool:
+        """Verifica si el documento esta en espanol o ingles.
+
+        Args:
+            document: Documento extraido del HTML.
+
+        Returns:
+            bool: `True` si el idioma es soportado.
+        """
         language = str(document.get("language") or "").strip().lower()
         if not language:
             return False
@@ -229,6 +291,14 @@ class WebCrawler:
         return normalized in self._ALLOWED_LANGUAGE_PREFIXES
 
     def _has_minimum_words(self, document: dict[str, object]) -> bool:
+        """Verifica si el documento supera el umbral minimo de palabras.
+
+        Args:
+            document: Documento extraido del HTML.
+
+        Returns:
+            bool: `True` si el conteo es suficiente.
+        """
         raw_count = document.get("word_count")
         try:
             count = int(raw_count) if raw_count is not None else 0
@@ -237,6 +307,11 @@ class WebCrawler:
         return count >= self._MIN_WORD_COUNT
 
     def print_progress(self) -> None:
+        """Imprime progreso periodico del crawl.
+
+        Returns:
+            None
+        """
         pages = self.stats["pages_fetched"]
         if pages <= 0:
             return
@@ -256,6 +331,14 @@ class WebCrawler:
         )
 
     def load_visited_urls(self, path: Path) -> set[str]:
+        """Carga URLs visitadas desde disco.
+
+        Args:
+            path: Archivo de URLs visitadas.
+
+        Returns:
+            set[str]: URLs ya procesadas.
+        """
         urls: set[str] = set()
         file_lock = self._visited_lock_for_path(path)
         try:
@@ -272,6 +355,14 @@ class WebCrawler:
         return urls
 
     def append_visited_url(self, url: str) -> None:
+        """Agrega una URL al archivo compartido de visitadas.
+
+        Args:
+            url: URL a persistir.
+
+        Returns:
+            None
+        """
         if not url or url in self.visited_urls:
             return
         self.visited_urls.add(url)

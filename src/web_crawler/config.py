@@ -1,3 +1,8 @@
+"""Configuracion base del crawler web.
+
+Este modulo define el contrato de entrada para cada ejecucion de crawling.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass,field
@@ -28,6 +33,12 @@ DEFAULT_VISITED_URLS_PATH = Path(__file__).resolve().parent / "visited_urls.txt"
 
 @dataclass(slots=True)
 class CrawlerConfig:
+    """Contenedor de parametros del crawler.
+
+    Cada atributo configura un aspecto del rastreo: semillas, dominios,
+    limites de profundidad, persistencia y politicas de red.
+    """
+
     seed_urls : list[str]
     allowed_domains : set[str] = field(default_factory=set)
     max_depth : int = 2
@@ -53,6 +64,19 @@ class CrawlerConfig:
         allowed_domains: Iterable[str] | None = None,
         **kwargs: object,
     ) -> "CrawlerConfig":
+        """Construye un `CrawlerConfig` a partir de iterables.
+
+        Args:
+            seed_urls: Secuencia de URLs semilla.
+            allowed_domains: Dominios permitidos. Puede ser `None`.
+            **kwargs: Parametros adicionales del dataclass.
+
+        Returns:
+            CrawlerConfig: Configuracion normalizada y valida.
+
+        Raises:
+            ValueError: Si no se proporciona al menos una URL semilla valida.
+        """
         clean_seeds = [url.strip() for url in seed_urls if url and url.strip()]
         if not clean_seeds:
             msg = "At least one seed URL is required"
