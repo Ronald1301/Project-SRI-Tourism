@@ -94,6 +94,7 @@ class RAGSearchService:
             top_k=preview_k,
             include_explanations=include_explanations,
         )
+        raw_preview = self._apply_feedback_bias(query, raw_preview)
         if not raw_preview:
             web_event = self._stage_event("searching_web", "Buscando en la web...", progress=0.7)
             events.append(web_event)
@@ -112,6 +113,7 @@ class RAGSearchService:
                 top_k=preview_k,
                 include_explanations=include_explanations,
             )
+            expanded_preview = self._apply_feedback_bias(query, expanded_preview)
             if self._should_use_expanded_results(raw_preview, expanded_preview):
                 selected_query = expansion.expanded_query
                 expansion.selected_strategy = "expanded"
@@ -127,6 +129,7 @@ class RAGSearchService:
             top_k=top_k,
             include_explanations=include_explanations,
             event_sink=event_sink,
+            document_ranker=self._apply_feedback_bias,
         )
         done_event = self._stage_event("done", "Busqueda completada.", progress=1.0)
         events.append(done_event)
@@ -284,6 +287,61 @@ class RAGSearchService:
             logger.warning("No se pudo leer la configuracion de domain detection (%s): %s", threshold_path, exc)
             return None
         return payload if isinstance(payload, dict) else None
+
+    def _apply_feedback_bias(self, query: str, documents: list[RetrievedDocument]) -> list[RetrievedDocument]:
+        if not documents:
+            return documents
+
+        try:
+            feedback = self.query_expander.feedback_store.query_feedback(query)
+        except Exception as exc:
+            logger.warning("No se pudo leer feedback para sesgar el ranking: %s", exc)
+            return documents
+
+        explicit_rows = feedback.get("explicit", []) or []
+        implicit_rows = feedback.get("implicit", []) or []
+        negative_doc_ids = {
+            str(item.get("doc_id") or "").strip()
+            for item in explicit_rows
+            if int(item.get("relevance") or 0) <= 0 and str(item.get("doc_id") or "").strip()
+        }
+        positive_bias: dict[str, float] = {}
+
+        for item in explicit_rows:
+            doc_id = str(item.get("doc_id") or "").strip()
+            if not doc_id:
+                continue
+            relevance = int(item.get("relevance") or 0)
+            if relevance > 0:
+                positive_bias[doc_id] = positive_bias.get(doc_id, 0.0) + (0.25 * float(relevance))
+
+        for item in implicit_rows:
+            doc_id = str(item.get("doc_id") or "").strip()
+            if not doc_id:
+                continue
+            weight = float(item.get("weight") or 0.0)
+            positive_bias[doc_id] = positive_bias.get(doc_id, 0.0) + (0.15 * weight)
+
+        biased_documents: list[RetrievedDocument] = []
+        for doc in documents:
+            if doc.doc_id in negative_doc_ids:
+                continue
+            adjusted_score = float(doc.score) + positive_bias.get(doc.doc_id, 0.0)
+            biased_documents.append(
+                RetrievedDocument(
+                    citation_id=doc.citation_id,
+                    doc_id=doc.doc_id,
+                    title=doc.title,
+                    url=doc.url,
+                    score=adjusted_score,
+                    summary=doc.summary,
+                    content_text=doc.content_text,
+                    metadata=doc.metadata,
+                )
+            )
+
+        biased_documents.sort(key=lambda item: item.score, reverse=True)
+        return biased_documents
 
     def _stage_event(
         self,

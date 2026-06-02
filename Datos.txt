@@ -8,33 +8,77 @@ Agustin Alberto Carbajal Romero - 312 - Computación
 Dylan Ramsés Cabrera Morales - 312 - Computación
 
 # Definición del sistema
-D: {d₁, d₂, ..., dₙ} donde cada dᵢ es un documento sobre turismo en Cuba 
-   representado como un conjunto de tokens procesados mediante:
+D: {{d₁, d₂, ..., dₙ} Es el conjunto de documentos del dominio turístico en Cuba. 
+   Cada documento se representa mediante una representación vectorial obtenida 
+   a partir de un pipeline de preprocesamiento que incluye:
    - Limpieza de texto (remoción de caracteres especiales)
    - Tokenización (división en palabras)
    - Remoción de stopwords
    - Stemming (reducción a raíces)
-   
-Q: {q₁, q₂, ..., qₘ} donde cada qⱼ es una consulta en lenguaje natural 
-   del usuario sobre información turística (ej: "¿Qué playas hay en Cayo Guillermo?")
-   también procesada con el mismo pipeline de preprocesamiento.
 
-F: Framework híbrido que integra múltiples modelos de representación:
-   - Modelo Lexical: TF-IDF (term frequency - inverse document frequency)
-   - Modelo Semántico: LSI (Latent Semantic Indexing)
-   - Modelo Vectorial: Embeddings de SentenceTransformers con índice FAISS
-   - Estos modelos capturan tanto similitud léxica como semántica
-
-R: R(qⱼ, dᵢ) es una función de ranking combinada que calcula la relevancia
-   como una composición ponderada de múltiples señales:
-   R(qⱼ, dᵢ) = α·similitud_coseno(qⱼ, dᵢ) 
-               + β·phrase_match(qⱼ, dᵢ)
-               + γ·recency(dᵢ)
-               + δ·content_type_boost(dᵢ)
-               + ε·authority(dᵢ)
-               + ζ·specificity(qⱼ, dᵢ)
-               + η·lexical_overlap(qⱼ, dᵢ)
-               + θ·title_match(qⱼ, dᵢ)
-               + ι·length_signal(dᵢ)
+Q: {q₁, q₂, ..., qₘ} Es el conjunto de consultas de los usuarios en lenguaje natural del usuario. 
    
-   Donde los pesos se optimizan para ordenar documentos por relevancia
+   también procesada con el mismo pipeline de normalización que los documentos.
+   Incluye consultas originales y sus versiones expandidas mediante técnicas de 
+   query_expansion para mejorar la recuperación de información
+
+F: Define los modelos y procesos que permiten representar y relacionar documentos y consultas. 
+   Este sistema implementa un enfoque híbrido que incluye:
+
+   - preprocesamiento textual
+   - detección de dominio (filtrado de consultas)
+   - expansión de consultas (PRF, Rocchio, sinónimos, n-grams)
+   - modelos de representación:
+      • TF-IDF (léxico)
+      • LSI (semántico)
+      • embeddings densos
+   - índice vectorial (FAISS)
+   - función de ranking híbrida
+   - retroalimentación del usuario
+   - evaluación con métricas IR
+   - RAG para generación de respuestas
+
+R: mide la relevancia del documento d respecto a la consulta q.
+   - combina señales léxicas y semánticas
+   - fusiona múltiples modelos
+   - incorpora feedback del usuario
+   - produce rankings robustos y adaptativos
+   
+   Se calcula en varias etapas:
+
+   * FUSIÓN DE RANKINGS (RRF)
+
+      score_rrf(d) = 1 / (60 + rank_vec(d)) + 1 / (60 + rank_lsi(d))
+
+      donde:
+      - rank_vec(d): posición en ranking por embeddings
+      - rank_lsi(d): posición en ranking LSI
+
+
+   * RE-RANKING SEMÁNTICO
+
+      score_refined(q, d) =
+         score_lsi(q, d)
+         + 0.08 * phrase_match
+         + 0.03 * recency
+         + 0.04 * content_type
+         + 0.04 * authority
+         + 0.07 * specificity
+
+
+   * RETROALIMENTACIÓN
+
+      bias_feedback(d, q) =
+         0.25 * sum(relevance_positiva)
+         + 0.15 * sum(weight_implicito)
+
+      Si existe dislike explícito, el documento se elimina.
+
+
+   * SCORE FINAL
+
+      R(q, d) = score_rrf(d) + bias_feedback(d, q)
+
+      y puede aplicarse sobre la consulta expandida:
+
+      R(q, d) = R(q', d)

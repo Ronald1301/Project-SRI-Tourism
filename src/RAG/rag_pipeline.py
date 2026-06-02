@@ -208,6 +208,7 @@ class RAGPipeline:
         include_explanations: bool = False,
         web_query: str | None = None,
         event_sink: Callable[[dict[str, Any]], None] | None = None,
+        document_ranker: Callable[[str, list[RetrievedDocument]], list[RetrievedDocument]] | None = None,
     ) -> RAGResult:
         """Responde una consulta ejecutando recuperacion hibrida y generacion.
 
@@ -247,6 +248,13 @@ class RAGPipeline:
             top_k=top_k,
             include_explanations=include_explanations,
         )
+        if document_ranker is not None:
+            try:
+                ranked_documents = document_ranker(user_query, list(local_documents))
+                if isinstance(ranked_documents, list):
+                    local_documents = ranked_documents
+            except Exception as exc:
+                logger.warning("document_ranker fallo; se conservaran los documentos sin sesgo: %s", exc)
         logger.info("Recuperacion local: %d documentos", len(local_documents))
         self._emit_event(
             events,
@@ -296,6 +304,14 @@ class RAGPipeline:
         else:
             documents = local_documents
             logger.info("Recuperacion local suficiente")
+
+        if document_ranker is not None:
+            try:
+                ranked_documents = document_ranker(user_query, list(documents))
+                if isinstance(ranked_documents, list):
+                    documents = ranked_documents
+            except Exception as exc:
+                logger.warning("document_ranker fallo sobre documentos finales; se conserva el orden actual: %s", exc)
 
         logger.info("Generando respuesta con LLM...")
         self._emit_event(
