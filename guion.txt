@@ -1,0 +1,92 @@
+Guion del video de defensa tecnica
+Sistema de Recuperacion de Informacion para Turismo
+
+[Inicio - 0:00 a 0:40]
+
+Hola. En este video voy a presentar el sistema de Recuperacion de Informacion para turismo que desarrollamos, explicando su dominio, su arquitectura, sus modulos principales y el flujo completo que sigue una consulta desde que el usuario la escribe hasta que obtiene una respuesta. Tambien voy a mostrar como se construye el corpus inicial, como funciona la recuperacion clasica y la recuperacion hibrida, como se activa la busqueda web cuando el corpus local no es suficiente, y como se integra todo en una interfaz visual sencilla.
+
+[1. Dominio tematico y corpus inicial - 0:40 a 2:00]
+
+El dominio tematico que elegimos fue turismo en Cuba. La razon principal es que se trata de un dominio con mucha informacion textual relevante, pero tambien con bastante variacion semantica: un mismo lugar puede describirse de formas distintas, y una misma intencion de busqueda puede expresarse con vocabulario muy diferente. Eso hace que sea un dominio adecuado para probar tecnicas de recuperacion clasica, modelos semanticos y recuperacion hibrida.
+
+Los documentos iniciales representan fuentes turisticas confiables y relativamente estables. Se construyo un corpus base a partir de sitios especializados como Visitar Cuba, Cuba Travel e Infotur, porque concentran informacion directamente relacionada con destinos, servicios, atractivos, regiones y contenidos utiles para un viajero. En general, esos documentos son de tipo textual, no imagenes ni audio, y se depuraron para trabajar solo con contenido util para indexacion.
+
+[2. Modelo de recuperacion no basico - 2:00 a 3:20]
+
+El modelo de recuperacion no basico que implementamos es un enfoque hibrido que combina recuperacion vectorial semantica con recuperacion clasica basada en LSI y TF-IDF, fusionadas mediante Reciprocal Rank Fusion, o RRF. La ventaja frente a los modelos basicos es que ya no dependemos solamente de coincidencias lexicas exactas. En turismo, eso es importante porque el usuario puede preguntar por "playas", "balnearios", "zonas de buceo" o "destinos de sol y playa" y esperar resultados relacionados aunque no usen exactamente las mismas palabras.
+
+La parte clasica de la recuperacion esta alineada con el enfoque de semantica latente de Deerwester et al., 1990, mientras que la parte semantica usa embeddings generados con Sentence Transformers, en particular con el modelo paraphrase-multilingual-MiniLM-L12-v2, que esta inspirado en la idea de Reimers y Gurevych sobre representaciones densas multilingues para similitud semantica.
+
+[3. Modulos opcionales - 3:20 a 4:20]
+
+Ademas del recuperador principal, implementamos modulos opcionales que enriquecen el sistema. Tenemos expansion de consultas, retroalimentacion explicita e implicita, evaluacion offline, busqueda web dinamica y una capa de RAG para generar respuestas. Todos esos modulos se relacionan directamente con el dominio turistico porque ayudan a resolver consultas ambiguas, a ampliar evidencia cuando el corpus local no basta y a devolver respuestas mas utiles al usuario.
+
+[4. Crawler y scraper - 4:20 a 6:20]
+
+Ahora muestro el crawler y scraper. El sistema no extrae informacion de cualquier sitio sin control. Se definieron semillas turisticas concretas y fuentes especializadas, y el crawler respeta politicas de profundidad, rate limiting y robots.txt. La busqueda no sale de forma indiscriminada del dominio semilla, porque eso degradaria la calidad del corpus y aumentaria el ruido. Si se siguen enlaces, es solo hasta profundidad acotada y bajo politicas de importancia e importancia semantica.
+
+Las fuentes escogidas son utiles porque son representativas del dominio turistico cubano y tienen contenido especializado. Ademas, la busqueda web dinamica usa DuckDuckGo como motor de descubrimiento, pero solo como ampliacion acotada, no como reemplazo completo del corpus local.
+
+Cuando el crawler extrae contenido, aplica filtros para evitar texto poco util: minimo de palabras, idioma en espanol o ingles, densidad de enlaces, proporción de boilerplate y relevancia de la URL. Eso evita guardar paginas de navegacion, publicidad o contenido marginal.
+
+[5. Cantidad y representatividad del corpus - 6:20 a 7:10]
+
+Actualmente el sistema trabaja con un corpus textual inicial suficientemente representativo para el dominio turistico porque cubre diferentes zonas, servicios y tipos de contenido. No mezclamos tipos como audio o imagen en la recuperacion principal; el corpus esta enfocado en texto, que es el formato mas util para este tipo de sistema de busqueda. La representatividad se garantiza al combinar varias fuentes turisticas y al complementar la informacion con busqueda web cuando hace falta.
+
+[6. Indexacion y normalizacion - 7:10 a 8:30]
+
+Para la indexacion usamos estructuras distintas segun el tipo de recuperacion. En la parte clasica se construye TF-IDF y luego LSI como modelo de semantica latente. En la parte vectorial, los textos se parten en fragmentos y se convierten en embeddings densos. Antes de indexar, los datos pasan por normalizacion: limpieza, tokenizacion, stopwords y stemming cuando aplica. Esto reduce ruido y permite que los textos con la misma idea, pero expresados de forma diferente, queden mas cercanos en el espacio de busqueda.
+
+En la base de datos vectorial, la estructura principal es un indice FAISS HNSW, porque permite busqueda aproximada de vecinos cercanos de forma muy eficiente. Eso es mucho mas rapido que comparar contra todo el corpus.
+
+[7. Embeddings, almacenamiento y similitud - 8:30 a 10:10]
+
+Cuando llega informacion nueva desde la web, primero se filtra, luego se normaliza y despues se genera un embedding con paraphrase-multilingual-MiniLM-L12-v2. Escogimos ese modelo porque es multilingue, compacto y muy adecuado para similitud semantica en dos idiomas, que es justamente lo que necesitamos para contenido turistico en espanol e ingles.
+
+La informacion nueva se guarda y se indexa incrementalmente, sin reconstruir toda la base desde cero. Para la busqueda por similitud usamos FAISS con HNSW, que organiza los vectores como un grafo de proximidad multinivel. Eso permite navegar por regiones relevantes del espacio semantico sin comparar contra todos los vectores almacenados. El costo es que consume mas memoria y la busqueda es aproximada, pero vale la pena porque mejora mucho la latencia y la escalabilidad.
+
+[8. Deteccion de insuficiencia - 10:10 a 11:00]
+
+El sistema detecta que la informacion es insuficiente cuando la recuperacion local no alcanza un umbral minimo de evidencia. Para eso se evaluan el numero de resultados y sus puntajes de recuperacion. Si la evidencia local es debil, se activa automaticamente la busqueda web. Es decir, el sistema no depende de que el usuario lo pida manualmente; la ampliacion es automatica.
+
+[9. Flujo completo end-to-end - 11:00 a 12:15]
+
+El flujo completo comienza en la interfaz visual. El usuario escribe una consulta y la envia al backend. Primero se ejecuta la recuperacion local hibrida. Luego, si es necesario, se activa la busqueda web. Los documentos recuperados se ordenan, se priorizan y se usan para construir el prompt. Finalmente, el generador produce la respuesta. Todo el proceso termina devolviendo resultados al frontend, que los presenta de forma ordenada y legible.
+
+[10. RAG y control de alucinaciones - 12:15 a 13:45]
+
+En el modulo RAG, el sistema toma documentos relevantes del corpus local y, si es necesario, los complementa con documentos web filtrados. La clave para evitar alucinaciones es que el generador no recibe informacion libre, sino evidencia seleccionada y ordenada por relevancia. El prompt le indica que responda solo con el contexto recuperado y que no invente hechos, precios ni ubicaciones que no esten en los documentos.
+
+La informacion que se pasa al generador no es toda la recuperada indiscriminadamente. Se prioriza primero por ranking, luego por merge de resultados locales y web, y por ultimo se trunca a un maximo de documentos relevantes para no saturar el contexto.
+
+[11. Activacion de busqueda web e indexacion futura - 13:45 a 15:00]
+
+Cuando la base vectorial no tiene suficiente informacion, el sistema activa la busqueda web automaticamente. Los resultados web pasan por varios filtros: importancia de URL, robots.txt, profundidad acotada, calidad del texto, idioma, densidad de enlaces, y relevancia semantica. Si superan esos filtros, se incorporan al ranking final junto con los documentos locales y tambien se indexan para uso futuro. Eso significa que el sistema no solo responde mejor en el momento, sino que tambien mejora su corpus para consultas posteriores.
+
+[12. Interfaz visual y posicionamiento - 15:00 a 16:10]
+
+La interfaz se diseño para que la informacion mas importante este visible primero. La consulta del usuario va arriba, luego aparece la respuesta generada, y despues se muestran los documentos recuperados en orden de relevancia. Ese posicionamiento es intencional: el usuario primero necesita ver la respuesta sintetica y luego el soporte documental.
+
+Visualmente, los resultados se organizan como tarjetas para facilitar lectura rapida y comparacion. Los documentos mas relevantes aparecen antes porque el ranking ya combina las señales mas utiles. No usamos un diseño decorativo, sino uno orientado a claridad y trazabilidad.
+
+[13. Factores de ranking - 16:10 a 17:00]
+
+En el ranking actual, el factor principal es la relevancia. No tenemos personalizacion por usuario ni popularidad global del contenido. Tampoco usamos frescura como señal principal de ranking local. Lo que si hacemos es combinar diferentes señales de recuperacion, y en la busqueda web conservamos puntajes semanticos de filtrado para evitar que documentos debiles dominen el resultado. En otras palabras, el ranking esta guiado por relevancia semantica y fusion de recuperadores, no por factores sociales o historicos.
+
+[14. Expansion de consultas y retroalimentacion - 17:00 a 18:00]
+
+La expansion de consultas se usa para mejorar la cobertura semantica, pero no de forma ciega. Primero se recuperan resultados preliminares, luego se genera una consulta expandida y se compara su comportamiento con la original. Si la expansion produce resultados debiles o demasiado alejados del ranking inicial, el sistema conserva la consulta original como estrategia de respaldo. La retroalimentacion, por su parte, permite registrar juicios explicitamente marcados por el usuario y tambien señales implicitas de uso.
+
+[15. Evaluacion offline - 18:00 a 18:40]
+
+El sistema tambien contempla evaluacion offline con metricas clasicas de recuperacion como Precision, Recall, F1, NDCG y MRR. Eso permite comparar estrategias y no depender solo de sensaciones visuales. La idea es medir si realmente recuperamos mejores documentos para consultas de prueba.
+
+[16. Deficiencias y mejoras futuras - 18:40 a 20:00]
+
+Como deficiencias, identificamos que el sistema sigue siendo sensible a la calidad del corpus de entrada y que la busqueda web puede aumentar el tiempo total de respuesta. Tambien hay un costo computacional importante en el procesamiento, especialmente en la generacion de embeddings y en la construccion de indices.
+
+Si empezaramos desde cero, priorizariamos desde el inicio una estructura de corpus mas homogena, mas metadatos semanticos por documento, y una capa de evaluacion automatizada mas robusta. Tambien ampliariamos el control de dominio y los filtros para reducir ruido desde el primer momento.
+
+[Cierre]
+
+En resumen, este proyecto integra recuperacion clasica, recuperacion semantica, ampliacion web y generacion de lenguaje en un solo sistema orientado a turismo en Cuba. La propuesta no solo responde consultas, sino que tambien puede ampliar su propio corpus y mejorar progresivamente la calidad de la informacion recuperada.
