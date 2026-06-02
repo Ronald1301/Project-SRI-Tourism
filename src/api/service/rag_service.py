@@ -58,6 +58,7 @@ class RAGSearchService:
         query: str,
         top_k: int = 5,
         include_explanations: bool = False,
+        generate_answer: bool = True,
         event_sink: Callable[[dict[str, Any]], None] | None = None,
     ) -> tuple[list[RetrievedDocument], str | None, dict, dict[str, Any], list[dict[str, Any]]]:
         logger.info("service.search | query=\"%s\" | hybrid | top_k=%d", query, top_k)
@@ -130,6 +131,7 @@ class RAGSearchService:
             include_explanations=include_explanations,
             event_sink=event_sink,
             document_ranker=self._apply_feedback_bias,
+            generate_answer=generate_answer,
         )
         done_event = self._stage_event("done", "Busqueda completada.", progress=1.0)
         events.append(done_event)

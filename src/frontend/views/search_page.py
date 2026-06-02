@@ -136,13 +136,14 @@ def SearchPage(page: ft.Page):
         page.update()
         return cards_to_reveal
 
-    async def handle_search(query, top_k):
+    async def handle_search(query, top_k, rag_enabled):
         if not query.strip():
             state.set_error("Consulta vacía")
             update_ui()
             return
 
         state.reset_search(query, top_k)
+        state.rag_enabled = bool(rag_enabled)
         state.set_loading()
         update_ui()
 
@@ -156,7 +157,12 @@ def SearchPage(page: ft.Page):
                 loop.call_soon_threadsafe(event_queue.put_nowait, payload)
 
         def worker() -> None:
-            result = stream_search(query, top_k, on_event=enqueue_status)
+            result = stream_search(
+                query,
+                top_k,
+                generate_answer=state.rag_enabled,
+                on_event=enqueue_status,
+            )
             loop.call_soon_threadsafe(event_queue.put_nowait, {"type": "__final__", "data": result})
 
         threading.Thread(target=worker, daemon=True).start()
@@ -197,7 +203,7 @@ def SearchPage(page: ft.Page):
             return
 
         if final_payload.get("error"):
-            fallback = await asyncio.to_thread(search, query, top_k)
+            fallback = await asyncio.to_thread(search, query, top_k, state.rag_enabled)
             if fallback.get("error"):
                 state.set_error(str(fallback.get("error")))
                 update_ui()

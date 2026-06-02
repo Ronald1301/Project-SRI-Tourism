@@ -29,10 +29,10 @@ def _friendly_request_error(response_text: str) -> str:
     )
 
 
-def search(query, top_k=5):
+def search(query, top_k=5, generate_answer=True):
 
     if USE_MOCK:
-        return mock_search(query, top_k)
+        return mock_search(query, top_k, generate_answer=generate_answer)
 
     try:
         response = requests.post(
@@ -41,6 +41,7 @@ def search(query, top_k=5):
                 "query": query,
                 "top_k": top_k,
                 "explanations": True,
+                "generate_answer": bool(generate_answer),
             },
             timeout=SEARCH_TIMEOUT_SECONDS,
         )
@@ -81,9 +82,15 @@ def search(query, top_k=5):
         return {"error": "No se pudo completar la comunicacion con el servidor de busqueda."}
 
 
-def stream_search(query: str, top_k: int = 5, *, on_event: Callable[[dict[str, Any]], None] | None = None):
+def stream_search(
+    query: str,
+    top_k: int = 5,
+    *,
+    generate_answer: bool = True,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
+):
     if USE_MOCK:
-        payload = mock_search(query, top_k)
+        payload = mock_search(query, top_k, generate_answer=generate_answer)
         if on_event is not None:
             on_event(
                 {
@@ -100,6 +107,7 @@ def stream_search(query: str, top_k: int = 5, *, on_event: Callable[[dict[str, A
                 "q": query,
                 "top_k": top_k,
                 "explanations": True,
+                "generate_answer": bool(generate_answer),
             },
             stream=True,
             timeout=(10, SEARCH_TIMEOUT_SECONDS),

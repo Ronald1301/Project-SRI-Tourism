@@ -119,6 +119,16 @@ def StatusBanner(state):
             help_text="Prueba con otros terminos o un destino mas concreto para obtener evidencias más cercanas.",
         )
 
+    if state.ui_state == UIState.SHOWING_RESULTS and not getattr(state, "rag_enabled", True):
+        return _message_container(
+            ft.Icons.AUTO_AWESOME,
+            "RAG desactivado",
+            "La respuesta se genero solo con la evidencia local recuperada.",
+            bgcolor="#121b24",
+            icon_color="#93c5fd",
+            help_text="El sistema recupero documentos locales, pero no envio el contexto a Ollama.",
+        )
+
     if state.ui_state == UIState.ERROR:
         title, subtitle, help_text = _friendly_error_copy(state.error_message)
         return _message_container(

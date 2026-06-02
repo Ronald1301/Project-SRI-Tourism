@@ -52,6 +52,8 @@ class RetrievedDocument:
     summary: str
     content_text: str
     metadata: dict
+    vector_score: float | None = None
+    lsi_score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -209,6 +211,7 @@ class RAGPipeline:
         web_query: str | None = None,
         event_sink: Callable[[dict[str, Any]], None] | None = None,
         document_ranker: Callable[[str, list[RetrievedDocument]], list[RetrievedDocument]] | None = None,
+        generate_answer: bool = True,
     ) -> RAGResult:
         """Responde una consulta ejecutando recuperacion hibrida y generacion.
 
@@ -217,6 +220,8 @@ class RAGPipeline:
             top_k: Numero maximo de documentos finales a recuperar.
             include_explanations: Si se deben incluir explicaciones en la parte LSI.
             web_query: Consulta original que se debe usar para la ampliacion web.
+            generate_answer: Si es `True`, se usa Ollama para generar la respuesta.
+                Si es `False`, se devuelve una respuesta local construida solo con la evidencia recuperada.
 
         Returns:
             RAGResult: Resultado final con prompt, respuesta y documentos usados.
@@ -313,18 +318,31 @@ class RAGPipeline:
             except Exception as exc:
                 logger.warning("document_ranker fallo sobre documentos finales; se conserva el orden actual: %s", exc)
 
-        logger.info("Generando respuesta con LLM...")
+        prompt = self.answer_generator.build_prompt(user_query, documents)
         self._emit_event(
             events,
             "generation_started",
             "Iniciando generacion final.",
             stage="generation",
             progress=0.85,
-            data={"documents": len(documents)},
+            data={"documents": len(documents), "mode": "llm" if generate_answer else "local"},
             event_sink=event_sink,
         )
-        prompt = self.answer_generator.build_prompt(user_query, documents)
-        answer = self.answer_generator.generate(user_query, documents, prompt=prompt)
+        if generate_answer:
+            logger.info("Generando respuesta con LLM...")
+            answer = self.answer_generator.generate(user_query, documents, prompt=prompt)
+        else:
+            logger.info("Generacion con LLM desactivada; usando respuesta local")
+            self._emit_event(
+                events,
+                "generation_skipped",
+                "La generacion con LLM fue desactivada; se devolvio una respuesta local.",
+                stage="generation",
+                progress=0.9,
+                data={"documents": len(documents), "mode": "local"},
+                event_sink=event_sink,
+            )
+            answer = self.generate_answer(user_query, documents)
         logger.info("Respuesta generada | answer_len=%d", len(answer))
         self._emit_event(
             events,
@@ -332,7 +350,7 @@ class RAGPipeline:
             "Consulta completada.",
             stage="done",
             progress=1.0,
-            data={"documents": len(documents), "answer_length": len(answer)},
+            data={"documents": len(documents), "answer_length": len(answer), "generation_mode": "llm" if generate_answer else "local"},
             event_sink=event_sink,
         )
         return RAGResult(
@@ -430,6 +448,8 @@ class RAGPipeline:
                     title=title,
                     url=url,
                     score=score,
+                    vector_score=float(item.get("vector_score")) if item.get("vector_score") is not None else None,
+                    lsi_score=float(item.get("lsi_score")) if item.get("lsi_score") is not None else None,
                     summary=summary,
                     content_text=content_text,
                     metadata=merged,
@@ -543,8 +563,8 @@ class RAGPipeline:
                     accumulator[doc_id] = base_payload
 
                 accumulator[doc_id]["rrf_score"] = float(accumulator[doc_id]["rrf_score"]) + contribution
-                accumulator[doc_id]["semantic_score"] = max(
-                    float(accumulator[doc_id].get("semantic_score", 0.0)),
+                accumulator[doc_id]["semantic_score"] = min(
+                    float(accumulator[doc_id].get("semantic_score", source_score)),
                     source_score,
                 )
                 accumulator[doc_id]["score"] = float(accumulator[doc_id]["semantic_score"])

@@ -16,6 +16,11 @@ def SearchBar(on_search):
         value="5"
     )
 
+    rag_toggle = ft.Switch(
+        label="RAG",
+        value=True,
+    )
+
     search_button = ft.ElevatedButton("Buscar")
 
     def normalized_query() -> str:
@@ -39,11 +44,13 @@ def SearchBar(on_search):
         loading_state["value"] = bool(is_loading)
         query_input.disabled = bool(is_loading)
         topk_selector.disabled = bool(is_loading)
+        rag_toggle.disabled = bool(is_loading)
         search_button.disabled = bool(is_loading)
         refresh_button_label()
         try:
             query_input.update()
             topk_selector.update()
+            rag_toggle.update()
             search_button.update()
         except AssertionError:
             pass
@@ -54,7 +61,8 @@ def SearchBar(on_search):
         try:
             result = on_search(
                 query_input.value,
-                int(topk_selector.value)
+                int(topk_selector.value),
+                bool(rag_toggle.value),
             )
             if inspect.isawaitable(result):
                 await result
@@ -83,6 +91,7 @@ def SearchBar(on_search):
         controls=[
             query_input,
             topk_selector,
+            rag_toggle,
             search_button
         ]
     )

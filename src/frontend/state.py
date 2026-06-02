@@ -15,6 +15,7 @@ class AppState:
     def __init__(self):
         self.query = ""
         self.top_k = 5
+        self.rag_enabled = True
 
         self.results = []
         self.answer_rag = None

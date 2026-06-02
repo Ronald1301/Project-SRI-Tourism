@@ -123,6 +123,7 @@ def search(request: SearchRequest):
         query=request.query,
         top_k=request.top_k,
         include_explanations=request.explanations,
+        generate_answer=request.generate_answer,
     )
 
     if domain.get("status") == "OUT_OF_DOMAIN":
@@ -136,7 +137,12 @@ def search(request: SearchRequest):
 
 
 @app.get("/query-stream")
-async def query_stream(q: str, top_k: int = 5, explanations: bool = False):
+async def query_stream(
+    q: str,
+    top_k: int = 5,
+    explanations: bool = False,
+    generate_answer: bool = True,
+):
     logger.info("GET /query-stream | query=\"%s\" | top_k=%d", q, top_k)
     service = get_rag_service()
     event_queue: Queue[dict[str, object]] = Queue()
@@ -151,6 +157,7 @@ async def query_stream(q: str, top_k: int = 5, explanations: bool = False):
                 query=q,
                 top_k=top_k,
                 include_explanations=explanations,
+                generate_answer=generate_answer,
                 event_sink=publish,
             )
             response = _build_search_response(documents, answer, expansion, domain, events)

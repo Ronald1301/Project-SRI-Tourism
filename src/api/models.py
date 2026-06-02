@@ -7,6 +7,7 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
     explanations: bool = False
+    generate_answer: bool = True
 
 
 class ProcessingEvent(BaseModel):
