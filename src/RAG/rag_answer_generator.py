@@ -189,6 +189,8 @@ class RAGAnswerGenerator:
                 [self.ollama_cmd, "run", self.model],
                 input=prompt,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 capture_output=True,
                 timeout=max(self.timeout_seconds, 5),
                 check=False,

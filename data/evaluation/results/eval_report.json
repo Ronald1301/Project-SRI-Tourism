@@ -5,11 +5,63 @@
   "top_k": 5,
   "systems_requested": [
     "lsi_baseline",
-    "lsi_refined"
+    "lsi_refined",
+    "lsi_expanded",
+    "vectorial",
+    "hybrid_search"
   ],
   "baseline_system": "lsi_baseline",
   "validation": {
-    "warnings": [],
+    "warnings": [
+      "hybrid_search/q10: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q10: sin resultados.",
+      "hybrid_search/q11: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q11: sin resultados.",
+      "hybrid_search/q12: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q12: sin resultados.",
+      "hybrid_search/q1: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q1: sin resultados.",
+      "hybrid_search/q2: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q2: sin resultados.",
+      "hybrid_search/q3: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q3: sin resultados.",
+      "hybrid_search/q4: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q4: sin resultados.",
+      "hybrid_search/q5: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q5: sin resultados.",
+      "hybrid_search/q6: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q6: sin resultados.",
+      "hybrid_search/q7: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q7: sin resultados.",
+      "hybrid_search/q8: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q8: sin resultados.",
+      "hybrid_search/q9: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "hybrid_search/q9: sin resultados.",
+      "vectorial/q10: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q10: sin resultados.",
+      "vectorial/q11: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q11: sin resultados.",
+      "vectorial/q12: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q12: sin resultados.",
+      "vectorial/q1: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q1: sin resultados.",
+      "vectorial/q2: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q2: sin resultados.",
+      "vectorial/q3: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q3: sin resultados.",
+      "vectorial/q4: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q4: sin resultados.",
+      "vectorial/q5: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q5: sin resultados.",
+      "vectorial/q6: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q6: sin resultados.",
+      "vectorial/q7: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q7: sin resultados.",
+      "vectorial/q8: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q8: sin resultados.",
+      "vectorial/q9: error recuperando resultados: RAGPipeline.retrieve() got an unexpected keyword argument 'search_mode'",
+      "vectorial/q9: sin resultados."
+    ],
     "skipped_systems": {}
   },
   "systems": {
@@ -18,68 +70,225 @@
       "label": "TF-IDF + LSI baseline",
       "status": "ok",
       "summary": {
-        "precision_at_k": 0.05,
-        "recall_at_k": 0.07638888888888888,
-        "f1_at_k": 0.06018518518518519,
-        "map": 0.0625,
-        "mrr_at_k": 0.19444444444444445,
-        "ndcg_at_k": 0.13575773660316678,
-        "r_precision": 0.07638888888888888,
+        "precision_at_3": 0.1388888888888889,
+        "precision_at_5": 0.1,
+        "recall_at_5": 0.12777777777777777,
+        "recall_at_10": 0.29444444444444445,
+        "map": 0.09925595238095238,
+        "ndcg_at_5": 0.13526169104944827,
+        "mrr": 0.28908730158730156,
+        "precision_at_k": 0.1,
+        "recall_at_k": 0.12777777777777777,
+        "f1_at_k": 0.11052188552188552,
+        "ap": 0.09925595238095238,
+        "mrr_at_k": 0.2569444444444444,
+        "ndcg_at_k": 0.13526169104944827,
+        "r_precision": 0.12777777777777777,
         "k": 5.0
+      },
+      "statistics": {
+        "precision_at_3": {
+          "mean": 0.1388888888888889,
+          "stddev": 0.16433554953054488,
+          "ci95": {
+            "low": 0.05555555555555555,
+            "high": 0.2222222222222222
+          }
+        },
+        "precision_at_5": {
+          "mean": 0.1,
+          "stddev": 0.1,
+          "ci95": {
+            "low": 0.05,
+            "high": 0.15000000000000002
+          }
+        },
+        "recall_at_5": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        },
+        "recall_at_10": {
+          "mean": 0.29444444444444445,
+          "stddev": 0.20404852969118842,
+          "ci95": {
+            "low": 0.18055555555555555,
+            "high": 0.40555555555555556
+          }
+        },
+        "map": {
+          "mean": 0.09925595238095238,
+          "stddev": 0.09558187666615915,
+          "ci95": {
+            "low": 0.051140873015873015,
+            "high": 0.156630291005291
+          }
+        },
+        "ndcg_at_5": {
+          "mean": 0.13526169104944827,
+          "stddev": 0.1575588584028148,
+          "ci95": {
+            "low": 0.05618957651748209,
+            "high": 0.23377333554642615
+          }
+        },
+        "mrr": {
+          "mean": 0.28908730158730156,
+          "stddev": 0.28454200369093047,
+          "ci95": {
+            "low": 0.14821428571428572,
+            "high": 0.4593253968253968
+          }
+        },
+        "precision_at_k": {
+          "mean": 0.1,
+          "stddev": 0.1,
+          "ci95": {
+            "low": 0.05,
+            "high": 0.15000000000000002
+          }
+        },
+        "recall_at_k": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        },
+        "f1_at_k": {
+          "mean": 0.11052188552188552,
+          "stddev": 0.11189363892654251,
+          "ci95": {
+            "low": 0.05265151515151515,
+            "high": 0.17302188552188552
+          }
+        },
+        "ap": {
+          "mean": 0.09925595238095238,
+          "stddev": 0.09558187666615915,
+          "ci95": {
+            "low": 0.051140873015873015,
+            "high": 0.156630291005291
+          }
+        },
+        "mrr_at_k": {
+          "mean": 0.2569444444444444,
+          "stddev": 0.3070512634643631,
+          "ci95": {
+            "low": 0.10416666666666667,
+            "high": 0.4444444444444444
+          }
+        },
+        "ndcg_at_k": {
+          "mean": 0.13526169104944827,
+          "stddev": 0.1575588584028148,
+          "ci95": {
+            "low": 0.05618957651748209,
+            "high": 0.23377333554642615
+          }
+        },
+        "r_precision": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        }
       },
       "queries": [
         {
           "query_id": "q1",
           "query": "que ver en la habana vieja",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
+            "3925df83e6d615826996f43c08aac0b33838fa1b",
+            "4e40003ace3706a1e1b7210bd67e78a1100f5f71",
             "61e636a74d0026edcf5780402220d31c76028eb6",
+            "ece01919d6efedefe030a9620e51b06686051d6d",
+            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
+            "f7db409ff804e2386402104f10f627d5933d45d7",
             "d3c9cbe8cb8f7634fdc11fa3953cec772c91ddd4",
-            "898296ad26f9ae13b519b2b7bd1b18d5d3a103c4",
-            "15509c27bef08518aa3e674dee5756669a55f7dc"
+            "6d8ff6b6566feb406f04976e2dfc44ce32bdb457",
+            "0c8238c1aa0fdac6d083d1f97c076f09809b288e",
+            "368cc5d98af4a8e3fdd46977f7f46e9e79cef06a"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.5,
+          "map": 0.1875,
+          "ndcg_at_5": 0.24630238874073,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.25,
+          "f1_at_k": 0.22222222222222224,
+          "ap": 0.1875,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.24630238874073,
+          "r_precision": 0.25
         },
         {
           "query_id": "q2",
           "query": "senderismo en cuba",
           "relevant_count": 5,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
             "633ab3ce88b95b3a91e6884747c64cbfacc25328",
+            "d7369df9b98717d8665d64c41dd0b52fbec53c19",
+            "646cfa896b220ed7e54a11caad3e74b5745f5585",
+            "6b7decff7c3b1420ee44e92407470056c7465b96",
             "fb43f6dd1201cdd45d836c6a2fe58ee520ab69c0",
-            "c5686ba69ef85d0eb0243bc036e334de1e6134b1",
-            "5dfb0c675ffd88e5ce7ea0a5c902bedc80ed2839",
-            "8a1548ca1fc5d422a5dfba227c7bb829b8557716"
+            "23faff2d483cdbe4cdfec070d50883b2f24ec801",
+            "4c74889d0d00dc2d35ab41b8a1b8d6729acaa51d",
+            "01d4a24b7300b3e89e9cf8c18bcf279f261d6038",
+            "12962b5c6c631616a8c85e9767a47699664ad0ec",
+            "72e42c9a142fde443024a2640f8372231a678574"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.2,
+          "recall_at_10": 0.2,
+          "map": 0.05,
+          "ndcg_at_5": 0.14606834984270645,
+          "mrr": 0.25,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.2,
+          "f1_at_k": 0.20000000000000004,
+          "ap": 0.05,
+          "mrr_at_k": 0.25,
+          "ndcg_at_k": 0.14606834984270645,
+          "r_precision": 0.2
         },
         {
           "query_id": "q3",
           "query": "luna de miel en cuba",
           "relevant_count": 5,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "e7d6f6ca23d1930ebfeaa65619888de1191157da",
             "82628eb5948146218b507e6762cf7d76502dda72",
             "3af330cb85b0aac823f39241d55f38d7bf412808",
             "979fc361b6c09f7f6fa54ab1bd01592cac9b8f48",
             "27a6cb1672a5a55dabe27b1d145e481eb250e02a",
-            "1fbf848f060b4982d3fcd231cdee83c9ead55288"
+            "bd927bf50dbdea1334a5563d352235e477ecdb11",
+            "7c1f6dba93f4f4220552de02f778c835dc7fc751",
+            "0d2c42204ff7189beab5a73190c5abc43afe0c81",
+            "18b36186714de70cab3060a9c0a15303e1f3b512",
+            "707e33f7e9f9e2e9a26cf787eee09dfd97e926bb"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
@@ -92,14 +301,26 @@
           "query_id": "q4",
           "query": "internet en cuba",
           "relevant_count": 1,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "5b1be97f38b0a1ffb0a65da5acb68aac96fa51b8",
-            "9887191dc206644135b5ed1704d8e79a71fcde04",
+            "4cd5456bde9665ebf8055594a092fc404bebeeb1",
             "476e8caf4d73c6a58d5ffb1261f1d5a2a2dcd9ef",
+            "05c6952fb239507516236e3ba41b83d8225d7280",
+            "9887191dc206644135b5ed1704d8e79a71fcde04",
+            "62017b13ec73ab3ad7554f08d7afd064ae01281c",
             "79823afa981644ef6b5ecb31a73a615986f350c9",
-            "c40892034b14c583967fc9710e4ed52037b4d61a"
+            "1f9b8e145a9aa6b392dc373f821265572350ce33",
+            "5b1be97f38b0a1ffb0a65da5acb68aac96fa51b8",
+            "c40892034b14c583967fc9710e4ed52037b4d61a",
+            "a9960c7f3216e955261b85d7c1e8ed2c2e200541"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
@@ -112,18 +333,30 @@
           "query_id": "q5",
           "query": "casas particulares en trinidad",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "b934b4ea55a8b471117872dd90eb63e0fae8670a",
+            "559c2b86fa61e8a5b6e5c226170c3f337ed06f78",
+            "e37d0ed40e22faa7bf86d62833363ea1fc68fca6",
+            "trinidad_doc_1",
+            "3d1b982a2fa2067e7dc26f5491a670dacc9d8470",
+            "5ee9ce3829022159c568d84a9b776d89fa647722",
+            "f8713ae0928b0a58728c7e335597cb08c919e12b",
+            "6c8616f8f756b6f05124d834a4bdebf909d01581",
+            "080812450f712a52ff8f46fc048c37982ba0b2ff",
             "b3168daa232d3ef8656ce0d84244e618a99b77f7",
-            "cdca1fe31deb88c4f9ac32a6a692004d8303cb43",
-            "cae4307a977e960f2e2ce4c81f0ce9af8d660ecb",
-            "996f91a9569894af331d20a339b95e4acea5b5fe"
+            "c08873d70af5430789249b0adfb7738b12fd9784"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.047619047619047616,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.14285714285714285,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
-          "ap": 0.0,
+          "ap": 0.047619047619047616,
           "mrr_at_k": 0.0,
           "ndcg_at_k": 0.0,
           "r_precision": 0.0
@@ -132,18 +365,30 @@
           "query_id": "q6",
           "query": "playas en cayo coco",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "87a31fc1a407e00729674b5f6583b130363c6911",
+            "51c6f52f422851a348e93eddadb2523fa4a6927f",
+            "73a7e0550466ca432e796fb5197f912f7d74816f",
+            "d048c995e2b7027b11cda439340db90e88863dc4",
             "cd9560872a6af0eab09c6dca214d1239f6bdc912",
+            "6ea0a35acdbeb2a42348404c78ec06c8368dcbcd",
+            "bad3a91e09ad0524a2a402eaad17421fe838109c",
+            "0d80482014ab0e1921885043ab0bb5fc91afc0b6",
             "cayo_guillermo_doc_1",
-            "b14076d933bb78b5e9ec0f0bdcc143105adc8265",
-            "6df09ad5e0feb3c3569ae9391b3bdd2349a83c6b",
-            "8f563d683eaf0c1aa9153cc23d6c894c6cc39d0b"
+            "76bfa3fa918f6d4cc81b29efef5e7005364838ff"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.6666666666666666,
+          "map": 0.13095238095238096,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.14285714285714285,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
-          "ap": 0.0,
+          "ap": 0.13095238095238096,
           "mrr_at_k": 0.0,
           "ndcg_at_k": 0.0,
           "r_precision": 0.0
@@ -152,54 +397,90 @@
           "query_id": "q7",
           "query": "alojamiento en varadero",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "816edbf58845f156eaf069a50f5f394dd9219f15",
+            "d0e28034fbda304640c22bbafec451a7a253abd4",
+            "7f4f2a98f84fe37f7a02b82ec694e3e54c9b844d",
+            "cae5dfed4086d7d3c734fbd5f3ee3845e47e7b5d",
             "7b3acb286696eaf76f6b343931706e8370403b3a",
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
+            "dde5638ea266babe766eb5ab52b5f592d0db66fd",
             "c7f2a90b4791c56e44d999b0457b25f6a029f2ac",
             "3a4895bcc41a5150b373d015378194fb2338f62d",
-            "8fd0631fa8e128b554717779d721d50f2d1c1939",
-            "d292d5384a1fad721ef156827122efe2a45672ba"
+            "33542178a6d893e815ab7df4b86c554d4155e93b"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.3333333333333333,
+          "ndcg_at_5": 0.46927872602275644,
+          "mrr": 1.0,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.3333333333333333,
+          "f1_at_k": 0.25,
+          "ap": 0.3333333333333333,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.46927872602275644,
+          "r_precision": 0.3333333333333333
         },
         {
           "query_id": "q8",
           "query": "parques naturales en cuba",
           "relevant_count": 6,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "b19d4b04fdf0f4fe3e05a5464b18e871e14bf5a6",
+            "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
             "2d795b559efec1fafedd6e3162bf54f62a73a1c1",
-            "9f859766fc974ec4624ed21f0c091a2e8db8d453",
             "41f5cefa7567022c1c2e29c2ab731320ffe18292",
             "551458a916550ca8ec12eea540d4aa7a0eb32962",
-            "05c260c2a71a4a328e0563ab8729fcd12bf3e51e"
+            "7d08a0c407011f2dec95fcdb383aecdbfdcaf70b",
+            "907286ffaaf00c512d6abeb0b8576bb3f99f0748",
+            "3703147d9dfbe0b9099338dcf32e15d2d71e8dc9",
+            "112b0d689c7005673ad21e67f1fb905ac1a3d05c",
+            "9fb9cd71aa0494227c52845a8a597be625a6c1f2"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.16666666666666666,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.11666666666666665,
+          "ndcg_at_5": 0.21398626473452756,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.16666666666666666,
+          "f1_at_k": 0.1818181818181818,
+          "ap": 0.11666666666666665,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.21398626473452756,
+          "r_precision": 0.16666666666666666
         },
         {
           "query_id": "q9",
           "query": "lugares historicos en santiago de cuba",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "f19cfb96d71deb1bcc92e95dc9d3d3e058478a26",
             "91cfa746add04a4bd4a69e91f2f1c460527ac611",
             "7052f527697fb7607df4dd440e0327f94935ab21",
             "0267acbe30b6211fdfb392a22722c4b1b7cf1777",
-            "4e3a4e45ef1d3bf4aa85422f4b028b0dc40357f7",
-            "9cbe6afea3214800a9ff9e93a9d5bbb1d856ca20"
+            "355f40b9f724c8c4ad20d359f17c99f1916bc9cd",
+            "9cbe6afea3214800a9ff9e93a9d5bbb1d856ca20",
+            "1366411a16d22a31039d0a8a8c081b4edc80f0fa",
+            "8477b07fbec43262f09132599917ec0837415cdd",
+            "aba021e1ba9dd4da1e65eb902f9fbe39a0f60218",
+            "ff6c36681f6d9020525e909c6ffee0c09dd60e17"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
@@ -212,60 +493,96 @@
           "query_id": "q10",
           "query": "transporte turistico en varadero",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "d292d5384a1fad721ef156827122efe2a45672ba",
-            "c7f2a90b4791c56e44d999b0457b25f6a029f2ac",
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
+            "816edbf58845f156eaf069a50f5f394dd9219f15",
             "matanzas_doc_1",
+            "d0e28034fbda304640c22bbafec451a7a253abd4",
+            "cae5dfed4086d7d3c734fbd5f3ee3845e47e7b5d",
             "7b3acb286696eaf76f6b343931706e8370403b3a",
-            "3a4895bcc41a5150b373d015378194fb2338f62d"
+            "7f4f2a98f84fe37f7a02b82ec694e3e54c9b844d",
+            "c7f2a90b4791c56e44d999b0457b25f6a029f2ac",
+            "dde5638ea266babe766eb5ab52b5f592d0db66fd",
+            "d292d5384a1fad721ef156827122efe2a45672ba"
           ],
-          "precision_at_k": 0.2,
-          "recall_at_k": 0.3333333333333333,
-          "f1_at_k": 0.25,
-          "ap": 0.3333333333333333,
-          "mrr_at_k": 1.0,
-          "ndcg_at_k": 0.7452525342261976,
-          "r_precision": 0.3333333333333333
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.03333333333333333,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.1,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.03333333333333333,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
         },
         {
           "query_id": "q11",
           "query": "museos y cultura en la habana",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
             "3925df83e6d615826996f43c08aac0b33838fa1b",
             "eb5994fd4fca1b5f746b7b3b238fba34eca87586",
-            "898296ad26f9ae13b519b2b7bd1b18d5d3a103c4",
-            "117f370873aac173d0ead7abc5cfc398a42d5bef"
+            "6c8a7201dc93b60fadaa10fa9c6b7de19adb2d5e",
+            "1d2d9eeb5ff719a36e6d5bfe33f770fac9c93b1a",
+            "f3764c713c3918f6934e5c320ecd5a570a3f3d98",
+            "1ccb0f2890d55a58550a2d79bc3e869aedccf6d3",
+            "cbfc67244f7105af6b6d79e4e2d1d959ff6bcff1",
+            "8717c3fcd78c413e53bdb55d9bdc7d844888cc4c",
+            "e27dc686d3b734e37972d29504ef9c6ad599485a",
+            "2458b1f1a9ad5650d759a9be9e5df7470acbbf48"
           ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.5,
+          "map": 0.18055555555555555,
+          "ndcg_at_5": 0.17487829613956002,
+          "mrr": 0.5,
           "precision_at_k": 0.2,
           "recall_at_k": 0.25,
           "f1_at_k": 0.22222222222222224,
-          "ap": 0.08333333333333333,
-          "mrr_at_k": 0.3333333333333333,
-          "ndcg_at_k": 0.138587770785606,
+          "ap": 0.18055555555555555,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.17487829613956002,
           "r_precision": 0.25
         },
         {
           "query_id": "q12",
           "query": "baracoa naturaleza y cultura",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "7865a4d8b3fb1dca99a28aad5c77e012810b5870",
-            "bb114d3c29ee29626de11490f2bdd761845f7841",
-            "c5beb9e8222573853a8401510ad8a069d5dce03c",
             "baracoa_doc_1",
-            "46bdd234221c8109d8adaf94b727efb4df2a5a1f"
+            "7180ffb01a6d988d88e0817c285922dd00dddcf4",
+            "7865a4d8b3fb1dca99a28aad5c77e012810b5870",
+            "2f41c8cc8d8eb24290a3727400287a4e1c9ab1ed",
+            "c5beb9e8222573853a8401510ad8a069d5dce03c",
+            "bb114d3c29ee29626de11490f2bdd761845f7841",
+            "96c473adee8f086f04921bb4d0f1bae1b018c0cd",
+            "8592f75bf838e292d1c4ed7c8f2267027cb98bad",
+            "67be55a34bc626da86292ce1a485830d94f920f3",
+            "0df38b59316bcf304c36733cfb9169ded2d5dcc5"
           ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.1111111111111111,
+          "ndcg_at_5": 0.3726262671130988,
+          "mrr": 0.3333333333333333,
           "precision_at_k": 0.2,
           "recall_at_k": 0.3333333333333333,
           "f1_at_k": 0.25,
-          "ap": 0.3333333333333333,
-          "mrr_at_k": 1.0,
-          "ndcg_at_k": 0.7452525342261976,
+          "ap": 0.1111111111111111,
+          "mrr_at_k": 0.3333333333333333,
+          "ndcg_at_k": 0.3726262671130988,
           "r_precision": 0.3333333333333333
         }
       ]
@@ -275,68 +592,225 @@
       "label": "TF-IDF + LSI + reranking",
       "status": "ok",
       "summary": {
-        "precision_at_k": 0.05,
-        "recall_at_k": 0.07638888888888888,
-        "f1_at_k": 0.06018518518518519,
-        "map": 0.05972222222222222,
-        "mrr_at_k": 0.18333333333333335,
-        "ndcg_at_k": 0.13314426706716442,
-        "r_precision": 0.05555555555555555,
+        "precision_at_3": 0.16666666666666666,
+        "precision_at_5": 0.1,
+        "recall_at_5": 0.12777777777777777,
+        "recall_at_10": 0.37777777777777777,
+        "map": 0.09925595238095238,
+        "ndcg_at_5": 0.1294995479273802,
+        "mrr": 0.28214285714285714,
+        "precision_at_k": 0.1,
+        "recall_at_k": 0.12777777777777777,
+        "f1_at_k": 0.11052188552188552,
+        "ap": 0.09925595238095238,
+        "mrr_at_k": 0.2361111111111111,
+        "ndcg_at_k": 0.1294995479273802,
+        "r_precision": 0.12777777777777777,
         "k": 5.0
+      },
+      "statistics": {
+        "precision_at_3": {
+          "mean": 0.16666666666666666,
+          "stddev": 0.16666666666666666,
+          "ci95": {
+            "low": 0.08333333333333333,
+            "high": 0.25
+          }
+        },
+        "precision_at_5": {
+          "mean": 0.1,
+          "stddev": 0.1,
+          "ci95": {
+            "low": 0.05,
+            "high": 0.15000000000000002
+          }
+        },
+        "recall_at_5": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        },
+        "recall_at_10": {
+          "mean": 0.37777777777777777,
+          "stddev": 0.26258449551325497,
+          "ci95": {
+            "low": 0.22777777777777777,
+            "high": 0.5305555555555556
+          }
+        },
+        "map": {
+          "mean": 0.09925595238095238,
+          "stddev": 0.061318947420921144,
+          "ci95": {
+            "low": 0.0658068783068783,
+            "high": 0.1326388888888889
+          }
+        },
+        "ndcg_at_5": {
+          "mean": 0.1294995479273802,
+          "stddev": 0.14655246005231884,
+          "ci95": {
+            "low": 0.05693874922977367,
+            "high": 0.21456772798440912
+          }
+        },
+        "mrr": {
+          "mean": 0.28214285714285714,
+          "stddev": 0.20092496803920878,
+          "ci95": {
+            "low": 0.17579365079365078,
+            "high": 0.3896825396825397
+          }
+        },
+        "precision_at_k": {
+          "mean": 0.1,
+          "stddev": 0.1,
+          "ci95": {
+            "low": 0.05,
+            "high": 0.15000000000000002
+          }
+        },
+        "recall_at_k": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        },
+        "f1_at_k": {
+          "mean": 0.11052188552188552,
+          "stddev": 0.11189363892654251,
+          "ci95": {
+            "low": 0.05265151515151515,
+            "high": 0.17302188552188552
+          }
+        },
+        "ap": {
+          "mean": 0.09925595238095238,
+          "stddev": 0.061318947420921144,
+          "ci95": {
+            "low": 0.0658068783068783,
+            "high": 0.1326388888888889
+          }
+        },
+        "mrr_at_k": {
+          "mean": 0.2361111111111111,
+          "stddev": 0.24016133980264698,
+          "ci95": {
+            "low": 0.1111111111111111,
+            "high": 0.375
+          }
+        },
+        "ndcg_at_k": {
+          "mean": 0.1294995479273802,
+          "stddev": 0.14655246005231884,
+          "ci95": {
+            "low": 0.05693874922977367,
+            "high": 0.21456772798440912
+          }
+        },
+        "r_precision": {
+          "mean": 0.12777777777777777,
+          "stddev": 0.13511540563350344,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.20833333333333331
+          }
+        }
       },
       "queries": [
         {
           "query_id": "q1",
           "query": "que ver en la habana vieja",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
+            "3925df83e6d615826996f43c08aac0b33838fa1b",
+            "4e40003ace3706a1e1b7210bd67e78a1100f5f71",
             "61e636a74d0026edcf5780402220d31c76028eb6",
+            "ece01919d6efedefe030a9620e51b06686051d6d",
+            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
+            "f7db409ff804e2386402104f10f627d5933d45d7",
             "d3c9cbe8cb8f7634fdc11fa3953cec772c91ddd4",
+            "6d8ff6b6566feb406f04976e2dfc44ce32bdb457",
             "898296ad26f9ae13b519b2b7bd1b18d5d3a103c4",
-            "f42a5cd53aff49bd51d1eb443adf1b0c047a10c3"
+            "368cc5d98af4a8e3fdd46977f7f46e9e79cef06a"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.5,
+          "map": 0.1875,
+          "ndcg_at_5": 0.24630238874073,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.25,
+          "f1_at_k": 0.22222222222222224,
+          "ap": 0.1875,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.24630238874073,
+          "r_precision": 0.25
         },
         {
           "query_id": "q2",
           "query": "senderismo en cuba",
           "relevant_count": 5,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
             "633ab3ce88b95b3a91e6884747c64cbfacc25328",
+            "6b7decff7c3b1420ee44e92407470056c7465b96",
+            "d7369df9b98717d8665d64c41dd0b52fbec53c19",
+            "646cfa896b220ed7e54a11caad3e74b5745f5585",
+            "23faff2d483cdbe4cdfec070d50883b2f24ec801",
+            "4c74889d0d00dc2d35ab41b8a1b8d6729acaa51d",
             "fb43f6dd1201cdd45d836c6a2fe58ee520ab69c0",
-            "c5686ba69ef85d0eb0243bc036e334de1e6134b1",
-            "5dfb0c675ffd88e5ce7ea0a5c902bedc80ed2839",
-            "8a1548ca1fc5d422a5dfba227c7bb829b8557716"
+            "42fecaf164d6e75147fccea2ae2278d502d47e55",
+            "72e42c9a142fde443024a2640f8372231a678574",
+            "01d4a24b7300b3e89e9cf8c18bcf279f261d6038"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.2,
+          "recall_at_10": 0.2,
+          "map": 0.1,
+          "ndcg_at_5": 0.21398626473452756,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.2,
+          "f1_at_k": 0.20000000000000004,
+          "ap": 0.1,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.21398626473452756,
+          "r_precision": 0.2
         },
         {
           "query_id": "q3",
           "query": "luna de miel en cuba",
           "relevant_count": 5,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "e7d6f6ca23d1930ebfeaa65619888de1191157da",
             "82628eb5948146218b507e6762cf7d76502dda72",
-            "3af330cb85b0aac823f39241d55f38d7bf412808",
             "27a6cb1672a5a55dabe27b1d145e481eb250e02a",
+            "3af330cb85b0aac823f39241d55f38d7bf412808",
             "979fc361b6c09f7f6fa54ab1bd01592cac9b8f48",
-            "1fbf848f060b4982d3fcd231cdee83c9ead55288"
+            "bd927bf50dbdea1334a5563d352235e477ecdb11",
+            "7c1f6dba93f4f4220552de02f778c835dc7fc751",
+            "0d2c42204ff7189beab5a73190c5abc43afe0c81",
+            "707e33f7e9f9e2e9a26cf787eee09dfd97e926bb",
+            "117f370873aac173d0ead7abc5cfc398a42d5bef"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
@@ -349,18 +823,30 @@
           "query_id": "q4",
           "query": "internet en cuba",
           "relevant_count": 1,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "4cd5456bde9665ebf8055594a092fc404bebeeb1",
             "476e8caf4d73c6a58d5ffb1261f1d5a2a2dcd9ef",
-            "5b1be97f38b0a1ffb0a65da5acb68aac96fa51b8",
-            "79823afa981644ef6b5ecb31a73a615986f350c9",
+            "05c6952fb239507516236e3ba41b83d8225d7280",
             "9887191dc206644135b5ed1704d8e79a71fcde04",
-            "c40892034b14c583967fc9710e4ed52037b4d61a"
+            "62017b13ec73ab3ad7554f08d7afd064ae01281c",
+            "1f9b8e145a9aa6b392dc373f821265572350ce33",
+            "79823afa981644ef6b5ecb31a73a615986f350c9",
+            "5b1be97f38b0a1ffb0a65da5acb68aac96fa51b8",
+            "a9960c7f3216e955261b85d7c1e8ed2c2e200541",
+            "95f38fcb3711e3de2751ebd02ae68530b28fd28d"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "map": 0.1,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.1,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
-          "ap": 0.0,
+          "ap": 0.1,
           "mrr_at_k": 0.0,
           "ndcg_at_k": 0.0,
           "r_precision": 0.0
@@ -369,18 +855,30 @@
           "query_id": "q5",
           "query": "casas particulares en trinidad",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "b934b4ea55a8b471117872dd90eb63e0fae8670a",
+            "559c2b86fa61e8a5b6e5c226170c3f337ed06f78",
+            "e37d0ed40e22faa7bf86d62833363ea1fc68fca6",
+            "3d1b982a2fa2067e7dc26f5491a670dacc9d8470",
+            "5ee9ce3829022159c568d84a9b776d89fa647722",
+            "f8713ae0928b0a58728c7e335597cb08c919e12b",
+            "080812450f712a52ff8f46fc048c37982ba0b2ff",
+            "6c8616f8f756b6f05124d834a4bdebf909d01581",
+            "trinidad_doc_1",
             "b3168daa232d3ef8656ce0d84244e618a99b77f7",
-            "cae4307a977e960f2e2ce4c81f0ce9af8d660ecb",
-            "cdca1fe31deb88c4f9ac32a6a692004d8303cb43",
-            "f8713ae0928b0a58728c7e335597cb08c919e12b"
+            "64c39e9eb5143575212e99f9b35fbee4dd01d985"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.047619047619047616,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.14285714285714285,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
-          "ap": 0.0,
+          "ap": 0.047619047619047616,
           "mrr_at_k": 0.0,
           "ndcg_at_k": 0.0,
           "r_precision": 0.0
@@ -389,18 +887,30 @@
           "query_id": "q6",
           "query": "playas en cayo coco",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "87a31fc1a407e00729674b5f6583b130363c6911",
+            "51c6f52f422851a348e93eddadb2523fa4a6927f",
+            "73a7e0550466ca432e796fb5197f912f7d74816f",
             "cd9560872a6af0eab09c6dca214d1239f6bdc912",
-            "b14076d933bb78b5e9ec0f0bdcc143105adc8265",
-            "cayo_guillermo_doc_1",
-            "8f563d683eaf0c1aa9153cc23d6c894c6cc39d0b",
-            "4fa55ab4eb0512fd0756355c619d5b4d242e6c51"
+            "d048c995e2b7027b11cda439340db90e88863dc4",
+            "bad3a91e09ad0524a2a402eaad17421fe838109c",
+            "6ea0a35acdbeb2a42348404c78ec06c8368dcbcd",
+            "0d80482014ab0e1921885043ab0bb5fc91afc0b6",
+            "507913150135cbca030c64c67f5726ccbfa53856",
+            "6cee50202e15fa91ecca0aa5372361f72d8af815"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.6666666666666666,
+          "map": 0.13888888888888887,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.16666666666666666,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
-          "ap": 0.0,
+          "ap": 0.13888888888888887,
           "mrr_at_k": 0.0,
           "ndcg_at_k": 0.0,
           "r_precision": 0.0
@@ -409,54 +919,90 @@
           "query_id": "q7",
           "query": "alojamiento en varadero",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "d0e28034fbda304640c22bbafec451a7a253abd4",
+            "7f4f2a98f84fe37f7a02b82ec694e3e54c9b844d",
+            "816edbf58845f156eaf069a50f5f394dd9219f15",
+            "cae5dfed4086d7d3c734fbd5f3ee3845e47e7b5d",
             "7b3acb286696eaf76f6b343931706e8370403b3a",
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
             "c7f2a90b4791c56e44d999b0457b25f6a029f2ac",
-            "3a4895bcc41a5150b373d015378194fb2338f62d",
-            "d292d5384a1fad721ef156827122efe2a45672ba",
-            "8fd0631fa8e128b554717779d721d50f2d1c1939"
+            "dde5638ea266babe766eb5ab52b5f592d0db66fd",
+            "33542178a6d893e815ab7df4b86c554d4155e93b",
+            "3a4895bcc41a5150b373d015378194fb2338f62d"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.1111111111111111,
+          "ndcg_at_5": 0.23463936301137822,
+          "mrr": 0.3333333333333333,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.3333333333333333,
+          "f1_at_k": 0.25,
+          "ap": 0.1111111111111111,
+          "mrr_at_k": 0.3333333333333333,
+          "ndcg_at_k": 0.23463936301137822,
+          "r_precision": 0.3333333333333333
         },
         {
           "query_id": "q8",
           "query": "parques naturales en cuba",
           "relevant_count": 6,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "b19d4b04fdf0f4fe3e05a5464b18e871e14bf5a6",
+            "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
             "2d795b559efec1fafedd6e3162bf54f62a73a1c1",
             "41f5cefa7567022c1c2e29c2ab731320ffe18292",
-            "9f859766fc974ec4624ed21f0c091a2e8db8d453",
+            "7d08a0c407011f2dec95fcdb383aecdbfdcaf70b",
             "551458a916550ca8ec12eea540d4aa7a0eb32962",
-            "05c260c2a71a4a328e0563ab8729fcd12bf3e51e"
+            "3703147d9dfbe0b9099338dcf32e15d2d71e8dc9",
+            "112b0d689c7005673ad21e67f1fb905ac1a3d05c",
+            "907286ffaaf00c512d6abeb0b8576bb3f99f0748",
+            "9fb9cd71aa0494227c52845a8a597be625a6c1f2"
           ],
-          "precision_at_k": 0.0,
-          "recall_at_k": 0.0,
-          "f1_at_k": 0.0,
-          "ap": 0.0,
-          "mrr_at_k": 0.0,
-          "ndcg_at_k": 0.0,
-          "r_precision": 0.0
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.16666666666666666,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.11666666666666665,
+          "ndcg_at_5": 0.21398626473452756,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.16666666666666666,
+          "f1_at_k": 0.1818181818181818,
+          "ap": 0.11666666666666665,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.21398626473452756,
+          "r_precision": 0.16666666666666666
         },
         {
           "query_id": "q9",
           "query": "lugares historicos en santiago de cuba",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "f19cfb96d71deb1bcc92e95dc9d3d3e058478a26",
             "91cfa746add04a4bd4a69e91f2f1c460527ac611",
             "7052f527697fb7607df4dd440e0327f94935ab21",
             "0267acbe30b6211fdfb392a22722c4b1b7cf1777",
+            "355f40b9f724c8c4ad20d359f17c99f1916bc9cd",
             "9cbe6afea3214800a9ff9e93a9d5bbb1d856ca20",
-            "4e3a4e45ef1d3bf4aa85422f4b028b0dc40357f7"
+            "8477b07fbec43262f09132599917ec0837415cdd",
+            "1366411a16d22a31039d0a8a8c081b4edc80f0fa",
+            "aba021e1ba9dd4da1e65eb902f9fbe39a0f60218",
+            "8ee7b2ffa3ca90e54bd46cfb7c6b68c51ee0dec7"
           ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
           "precision_at_k": 0.0,
           "recall_at_k": 0.0,
           "f1_at_k": 0.0,
@@ -469,80 +1015,1473 @@
           "query_id": "q10",
           "query": "transporte turistico en varadero",
           "relevant_count": 3,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
+            "cae5dfed4086d7d3c734fbd5f3ee3845e47e7b5d",
+            "d0e28034fbda304640c22bbafec451a7a253abd4",
+            "7f4f2a98f84fe37f7a02b82ec694e3e54c9b844d",
+            "7b3acb286696eaf76f6b343931706e8370403b3a",
+            "816edbf58845f156eaf069a50f5f394dd9219f15",
             "d292d5384a1fad721ef156827122efe2a45672ba",
             "c7f2a90b4791c56e44d999b0457b25f6a029f2ac",
-            "7b3acb286696eaf76f6b343931706e8370403b3a",
-            "fdc8cd37ba0355753181325cabdc9210d9318fa2",
-            "aad2860d803bf5230ed7602f3f1dfee1c875491e"
+            "dde5638ea266babe766eb5ab52b5f592d0db66fd",
+            "c894dcbddc3aecf4e62c27d93577e72d3d706147"
           ],
-          "precision_at_k": 0.2,
-          "recall_at_k": 0.3333333333333333,
-          "f1_at_k": 0.25,
-          "ap": 0.3333333333333333,
-          "mrr_at_k": 1.0,
-          "ndcg_at_k": 0.7452525342261976,
-          "r_precision": 0.3333333333333333
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.047619047619047616,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.047619047619047616,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
         },
         {
           "query_id": "q11",
           "query": "museos y cultura en la habana",
           "relevant_count": 4,
-          "retrieved_count": 5,
+          "retrieved_count": 10,
           "retrieved_doc_ids": [
-            "f6a923ffd209b6682d1d5930cd3004f842ec185c",
-            "898296ad26f9ae13b519b2b7bd1b18d5d3a103c4",
             "3925df83e6d615826996f43c08aac0b33838fa1b",
-            "117f370873aac173d0ead7abc5cfc398a42d5bef",
-            "eb5994fd4fca1b5f746b7b3b238fba34eca87586"
+            "eb5994fd4fca1b5f746b7b3b238fba34eca87586",
+            "6c8a7201dc93b60fadaa10fa9c6b7de19adb2d5e",
+            "1d2d9eeb5ff719a36e6d5bfe33f770fac9c93b1a",
+            "cbfc67244f7105af6b6d79e4e2d1d959ff6bcff1",
+            "f3764c713c3918f6934e5c320ecd5a570a3f3d98",
+            "8717c3fcd78c413e53bdb55d9bdc7d844888cc4c",
+            "1ccb0f2890d55a58550a2d79bc3e869aedccf6d3",
+            "2458b1f1a9ad5650d759a9be9e5df7470acbbf48",
+            "e27dc686d3b734e37972d29504ef9c6ad599485a"
           ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.5,
+          "map": 0.175,
+          "ndcg_at_5": 0.17487829613956002,
+          "mrr": 0.5,
           "precision_at_k": 0.2,
           "recall_at_k": 0.25,
           "f1_at_k": 0.22222222222222224,
-          "ap": 0.05,
+          "ap": 0.175,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.17487829613956002,
+          "r_precision": 0.25
+        },
+        {
+          "query_id": "q12",
+          "query": "baracoa naturaleza y cultura",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "7180ffb01a6d988d88e0817c285922dd00dddcf4",
+            "7865a4d8b3fb1dca99a28aad5c77e012810b5870",
+            "c5beb9e8222573853a8401510ad8a069d5dce03c",
+            "2f41c8cc8d8eb24290a3727400287a4e1c9ab1ed",
+            "bb114d3c29ee29626de11490f2bdd761845f7841",
+            "8592f75bf838e292d1c4ed7c8f2267027cb98bad",
+            "96c473adee8f086f04921bb4d0f1bae1b018c0cd",
+            "53dedbd53cafdf9ec4a3c8c788cdb11b1a19bfa1",
+            "0df38b59316bcf304c36733cfb9169ded2d5dcc5",
+            "67be55a34bc626da86292ce1a485830d94f920f3"
+          ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.16666666666666666,
+          "ndcg_at_5": 0.47020199776783905,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.3333333333333333,
+          "f1_at_k": 0.25,
+          "ap": 0.16666666666666666,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.47020199776783905,
+          "r_precision": 0.3333333333333333
+        }
+      ]
+    },
+    "lsi_expanded": {
+      "system": "lsi_expanded",
+      "label": "TF-IDF + LSI + expansion + reranking",
+      "status": "ok",
+      "summary": {
+        "precision_at_3": 0.1111111111111111,
+        "precision_at_5": 0.08333333333333334,
+        "recall_at_5": 0.1,
+        "recall_at_10": 0.1486111111111111,
+        "map": 0.06699074074074074,
+        "ndcg_at_5": 0.09706259862705638,
+        "mrr": 0.2388888888888889,
+        "precision_at_k": 0.08333333333333334,
+        "recall_at_k": 0.1,
+        "f1_at_k": 0.08968855218855219,
+        "ap": 0.06699074074074074,
+        "mrr_at_k": 0.225,
+        "ndcg_at_k": 0.09706259862705638,
+        "r_precision": 0.1,
+        "k": 5.0
+      },
+      "statistics": {
+        "precision_at_3": {
+          "mean": 0.1111111111111111,
+          "stddev": 0.15713484026367722,
+          "ci95": {
+            "low": 0.027777777777777776,
+            "high": 0.19444444444444442
+          }
+        },
+        "precision_at_5": {
+          "mean": 0.08333333333333334,
+          "stddev": 0.09860132971832694,
+          "ci95": {
+            "low": 0.03333333333333333,
+            "high": 0.13333333333333333
+          }
+        },
+        "recall_at_5": {
+          "mean": 0.1,
+          "stddev": 0.12379044419531773,
+          "ci95": {
+            "low": 0.030555555555555555,
+            "high": 0.16944444444444445
+          }
+        },
+        "recall_at_10": {
+          "mean": 0.1486111111111111,
+          "stddev": 0.1676993470102204,
+          "ci95": {
+            "low": 0.0625,
+            "high": 0.24305555555555555
+          }
+        },
+        "map": {
+          "mean": 0.06699074074074074,
+          "stddev": 0.087301349556755,
+          "ci95": {
+            "low": 0.020833333333333332,
+            "high": 0.11791666666666667
+          }
+        },
+        "ndcg_at_5": {
+          "mean": 0.09706259862705638,
+          "stddev": 0.12079830392679818,
+          "ci95": {
+            "low": 0.02876594518723911,
+            "high": 0.1638395621959968
+          }
+        },
+        "mrr": {
+          "mean": 0.2388888888888889,
+          "stddev": 0.30726792908944073,
+          "ci95": {
+            "low": 0.08333333333333333,
+            "high": 0.4305555555555556
+          }
+        },
+        "precision_at_k": {
+          "mean": 0.08333333333333334,
+          "stddev": 0.09860132971832694,
+          "ci95": {
+            "low": 0.03333333333333333,
+            "high": 0.13333333333333333
+          }
+        },
+        "recall_at_k": {
+          "mean": 0.1,
+          "stddev": 0.12379044419531773,
+          "ci95": {
+            "low": 0.030555555555555555,
+            "high": 0.16944444444444445
+          }
+        },
+        "f1_at_k": {
+          "mean": 0.08968855218855219,
+          "stddev": 0.10715831225119335,
+          "ci95": {
+            "low": 0.03181818181818182,
+            "high": 0.14675925925925928
+          }
+        },
+        "ap": {
+          "mean": 0.06699074074074074,
+          "stddev": 0.087301349556755,
+          "ci95": {
+            "low": 0.020833333333333332,
+            "high": 0.11791666666666667
+          }
+        },
+        "mrr_at_k": {
+          "mean": 0.225,
+          "stddev": 0.3139134700306227,
+          "ci95": {
+            "low": 0.058333333333333334,
+            "high": 0.4166666666666667
+          }
+        },
+        "ndcg_at_k": {
+          "mean": 0.09706259862705638,
+          "stddev": 0.12079830392679818,
+          "ci95": {
+            "low": 0.02876594518723911,
+            "high": 0.1638395621959968
+          }
+        },
+        "r_precision": {
+          "mean": 0.1,
+          "stddev": 0.12379044419531773,
+          "ci95": {
+            "low": 0.030555555555555555,
+            "high": 0.16944444444444445
+          }
+        }
+      },
+      "queries": [
+        {
+          "query_id": "q1",
+          "query": "que ver en la habana vieja",
+          "relevant_count": 4,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "3925df83e6d615826996f43c08aac0b33838fa1b",
+            "4e40003ace3706a1e1b7210bd67e78a1100f5f71",
+            "eb5994fd4fca1b5f746b7b3b238fba34eca87586",
+            "2458b1f1a9ad5650d759a9be9e5df7470acbbf48",
+            "1d2d9eeb5ff719a36e6d5bfe33f770fac9c93b1a",
+            "6d8ff6b6566feb406f04976e2dfc44ce32bdb457",
+            "d3c9cbe8cb8f7634fdc11fa3953cec772c91ddd4",
+            "eae0c52f68d3c41968be6246ac9b538808e23e54",
+            "61e636a74d0026edcf5780402220d31c76028eb6",
+            "56898ecb1096e1cad77c58d654bfdd8def008af3"
+          ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.5,
+          "map": 0.20833333333333331,
+          "ndcg_at_5": 0.24630238874073,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.25,
+          "f1_at_k": 0.22222222222222224,
+          "ap": 0.20833333333333331,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.24630238874073,
+          "r_precision": 0.25
+        },
+        {
+          "query_id": "q2",
+          "query": "senderismo en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "633ab3ce88b95b3a91e6884747c64cbfacc25328",
+            "fb43f6dd1201cdd45d836c6a2fe58ee520ab69c0",
+            "23faff2d483cdbe4cdfec070d50883b2f24ec801",
+            "646cfa896b220ed7e54a11caad3e74b5745f5585",
+            "6b7decff7c3b1420ee44e92407470056c7465b96",
+            "0795d71a52001e5fd3e8a11d620224ae8087af15",
+            "d7369df9b98717d8665d64c41dd0b52fbec53c19",
+            "12962b5c6c631616a8c85e9767a47699664ad0ec",
+            "c5686ba69ef85d0eb0243bc036e334de1e6134b1",
+            "a2a10699da0a0a2db7d0c1d89b51ccd6974cea9e"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.2,
+          "recall_at_10": 0.2,
+          "map": 0.04,
+          "ndcg_at_5": 0.13120507751234178,
+          "mrr": 0.2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.2,
+          "f1_at_k": 0.20000000000000004,
+          "ap": 0.04,
           "mrr_at_k": 0.2,
-          "ndcg_at_k": 0.10722613635357774,
+          "ndcg_at_k": 0.13120507751234178,
+          "r_precision": 0.2
+        },
+        {
+          "query_id": "q3",
+          "query": "luna de miel en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "e7d6f6ca23d1930ebfeaa65619888de1191157da",
+            "27a6cb1672a5a55dabe27b1d145e481eb250e02a",
+            "3af330cb85b0aac823f39241d55f38d7bf412808",
+            "82628eb5948146218b507e6762cf7d76502dda72",
+            "979fc361b6c09f7f6fa54ab1bd01592cac9b8f48",
+            "bd927bf50dbdea1334a5563d352235e477ecdb11",
+            "117f370873aac173d0ead7abc5cfc398a42d5bef",
+            "7c1f6dba93f4f4220552de02f778c835dc7fc751",
+            "707e33f7e9f9e2e9a26cf787eee09dfd97e926bb",
+            "7d5c1c13be70d73525d29d3f7c830076f0173c67"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q4",
+          "query": "internet en cuba",
+          "relevant_count": 1,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "476e8caf4d73c6a58d5ffb1261f1d5a2a2dcd9ef",
+            "4cd5456bde9665ebf8055594a092fc404bebeeb1",
+            "05c6952fb239507516236e3ba41b83d8225d7280",
+            "9887191dc206644135b5ed1704d8e79a71fcde04",
+            "62017b13ec73ab3ad7554f08d7afd064ae01281c",
+            "1f9b8e145a9aa6b392dc373f821265572350ce33",
+            "79823afa981644ef6b5ecb31a73a615986f350c9",
+            "5b1be97f38b0a1ffb0a65da5acb68aac96fa51b8",
+            "a9960c7f3216e955261b85d7c1e8ed2c2e200541",
+            "c40892034b14c583967fc9710e4ed52037b4d61a"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q5",
+          "query": "casas particulares en trinidad",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "e37d0ed40e22faa7bf86d62833363ea1fc68fca6",
+            "559c2b86fa61e8a5b6e5c226170c3f337ed06f78",
+            "3d1b982a2fa2067e7dc26f5491a670dacc9d8470",
+            "080812450f712a52ff8f46fc048c37982ba0b2ff",
+            "5ee9ce3829022159c568d84a9b776d89fa647722",
+            "6c8616f8f756b6f05124d834a4bdebf909d01581",
+            "853272549f57186e6a9e1a26222736ec5bdbf2bf",
+            "dccaf763c1a00393c37f135438285a8f486ccc5a",
+            "2ff45895a91429c38f45eb82b2088f41a29c077c",
+            "c08873d70af5430789249b0adfb7738b12fd9784"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.05555555555555555,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.16666666666666666,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.05555555555555555,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q6",
+          "query": "playas en cayo coco",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "87a31fc1a407e00729674b5f6583b130363c6911",
+            "51c6f52f422851a348e93eddadb2523fa4a6927f",
+            "cd9560872a6af0eab09c6dca214d1239f6bdc912",
+            "507913150135cbca030c64c67f5726ccbfa53856",
+            "95aca889f0c43800a8cef75a3a6a5b6b5961f651",
+            "73a7e0550466ca432e796fb5197f912f7d74816f",
+            "8c40dfe727d8063a038bb6bd1ca726cd3dd1fb3b",
+            "6cee50202e15fa91ecca0aa5372361f72d8af815",
+            "6245055743658a359b4b41004dcd98985ed003d7",
+            "a0a357f78fef958dc4a0e6500d98017d17624ee7"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q7",
+          "query": "alojamiento en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "d0e28034fbda304640c22bbafec451a7a253abd4",
+            "816edbf58845f156eaf069a50f5f394dd9219f15",
+            "eaf5cc823f94f4ff215ad766bdc6848d91476903",
+            "c894dcbddc3aecf4e62c27d93577e72d3d706147",
+            "7f4f2a98f84fe37f7a02b82ec694e3e54c9b844d",
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
+            "cd24476c68d2033cadd3a3a31fdfde938da76770",
+            "cae5dfed4086d7d3c734fbd5f3ee3845e47e7b5d",
+            "7b3acb286696eaf76f6b343931706e8370403b3a",
+            "c7f2a90b4791c56e44d999b0457b25f6a029f2ac"
+          ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.3333333333333333,
+          "recall_at_10": 0.3333333333333333,
+          "map": 0.16666666666666666,
+          "ndcg_at_5": 0.2960819109658652,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.3333333333333333,
+          "f1_at_k": 0.25,
+          "ap": 0.16666666666666666,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.2960819109658652,
+          "r_precision": 0.3333333333333333
+        },
+        {
+          "query_id": "q8",
+          "query": "parques naturales en cuba",
+          "relevant_count": 6,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "b19d4b04fdf0f4fe3e05a5464b18e871e14bf5a6",
+            "ff705f99d44ca75af7aea1d00d13e6d49db278e2",
+            "2d795b559efec1fafedd6e3162bf54f62a73a1c1",
+            "41f5cefa7567022c1c2e29c2ab731320ffe18292",
+            "551458a916550ca8ec12eea540d4aa7a0eb32962",
+            "7d08a0c407011f2dec95fcdb383aecdbfdcaf70b",
+            "0355516e6dae18305fc1528e2fd39d7294b78619",
+            "112b0d689c7005673ad21e67f1fb905ac1a3d05c",
+            "3703147d9dfbe0b9099338dcf32e15d2d71e8dc9",
+            "05c260c2a71a4a328e0563ab8729fcd12bf3e51e"
+          ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.16666666666666666,
+          "recall_at_10": 0.16666666666666666,
+          "map": 0.08333333333333333,
+          "ndcg_at_5": 0.21398626473452756,
+          "mrr": 0.5,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.16666666666666666,
+          "f1_at_k": 0.1818181818181818,
+          "ap": 0.08333333333333333,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.21398626473452756,
+          "r_precision": 0.16666666666666666
+        },
+        {
+          "query_id": "q9",
+          "query": "lugares historicos en santiago de cuba",
+          "relevant_count": 4,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "f19cfb96d71deb1bcc92e95dc9d3d3e058478a26",
+            "91cfa746add04a4bd4a69e91f2f1c460527ac611",
+            "7052f527697fb7607df4dd440e0327f94935ab21",
+            "0267acbe30b6211fdfb392a22722c4b1b7cf1777",
+            "9cbe6afea3214800a9ff9e93a9d5bbb1d856ca20",
+            "355f40b9f724c8c4ad20d359f17c99f1916bc9cd",
+            "8477b07fbec43262f09132599917ec0837415cdd",
+            "8ee7b2ffa3ca90e54bd46cfb7c6b68c51ee0dec7",
+            "1366411a16d22a31039d0a8a8c081b4edc80f0fa",
+            "2dc517ec5f052d38521dcfc78e7af6365a097c63"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q10",
+          "query": "transporte turistico en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "e31754572c1cbb474e0f745fda20d82a7ca7da62",
+            "970b5560cc3ca64c1d2dc4cbf2ca295544e35760",
+            "7a0c26933ad53524b568399c2715beef05679fb0",
+            "fdc8cd37ba0355753181325cabdc9210d9318fa2",
+            "c894dcbddc3aecf4e62c27d93577e72d3d706147",
+            "54c4023a06a31724fe561d80174baadb7de1e978",
+            "8fd0631fa8e128b554717779d721d50f2d1c1939",
+            "ca56241e970dbd06348561af78c7c01981b416fb",
+            "matanzas_doc_1",
+            "9423c0151c7110cdcb38cd8c9f18e5c3e4f4cad6"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q11",
+          "query": "museos y cultura en la habana",
+          "relevant_count": 4,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "eb5994fd4fca1b5f746b7b3b238fba34eca87586",
+            "1ccb0f2890d55a58550a2d79bc3e869aedccf6d3",
+            "1d2d9eeb5ff719a36e6d5bfe33f770fac9c93b1a",
+            "3925df83e6d615826996f43c08aac0b33838fa1b",
+            "cbfc67244f7105af6b6d79e4e2d1d959ff6bcff1",
+            "8717c3fcd78c413e53bdb55d9bdc7d844888cc4c",
+            "f3764c713c3918f6934e5c320ecd5a570a3f3d98",
+            "6c8a7201dc93b60fadaa10fa9c6b7de19adb2d5e",
+            "2458b1f1a9ad5650d759a9be9e5df7470acbbf48",
+            "b0c07ef8a024cd7ed50dd4a05b7c880b81a0ead3"
+          ],
+          "precision_at_3": 0.3333333333333333,
+          "precision_at_5": 0.2,
+          "recall_at_5": 0.25,
+          "recall_at_10": 0.25,
+          "map": 0.25,
+          "ndcg_at_5": 0.277175541571212,
+          "mrr": 1.0,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.25,
+          "f1_at_k": 0.22222222222222224,
+          "ap": 0.25,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.277175541571212,
+          "r_precision": 0.25
+        },
+        {
+          "query_id": "q12",
+          "query": "baracoa naturaleza y cultura",
+          "relevant_count": 3,
+          "retrieved_count": 10,
+          "retrieved_doc_ids": [
+            "26d0a614d8f70d53c837400aa5c3b504b18030ac",
+            "67be55a34bc626da86292ce1a485830d94f920f3",
+            "c5beb9e8222573853a8401510ad8a069d5dce03c",
+            "bae1bc3e3e685ce001ebb81a3c8f388e0e6dfaf8",
+            "cee98820f553ea0044033a282622695d8294b730",
+            "5577abe02850483bf4437a466d4b394234abf424",
+            "8f8cbc263bf2f85caf28e4469dd22a2b66e2efb4",
+            "df805348a5cee7041065ee0d6e43e04e3b9bef4d",
+            "13ffd83776d457e2705855bbaaf8f984328497d9",
+            "17d71575174353707e5ab2f41ff9cbfbddd22343"
+          ],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        }
+      ]
+    },
+    "vectorial": {
+      "system": "vectorial",
+      "label": "Vectorial embeddings",
+      "status": "ok",
+      "summary": {
+        "precision_at_3": 0.0,
+        "precision_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "map": 0.0,
+        "ndcg_at_5": 0.0,
+        "mrr": 0.0,
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "f1_at_k": 0.0,
+        "ap": 0.0,
+        "mrr_at_k": 0.0,
+        "ndcg_at_k": 0.0,
+        "r_precision": 0.0,
+        "k": 5.0
+      },
+      "statistics": {
+        "precision_at_3": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "precision_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_10": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "map": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ndcg_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "mrr": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "precision_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "f1_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ap": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "mrr_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ndcg_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "r_precision": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        }
+      },
+      "queries": [
+        {
+          "query_id": "q1",
+          "query": "que ver en la habana vieja",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q2",
+          "query": "senderismo en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q3",
+          "query": "luna de miel en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q4",
+          "query": "internet en cuba",
+          "relevant_count": 1,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q5",
+          "query": "casas particulares en trinidad",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q6",
+          "query": "playas en cayo coco",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q7",
+          "query": "alojamiento en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q8",
+          "query": "parques naturales en cuba",
+          "relevant_count": 6,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q9",
+          "query": "lugares historicos en santiago de cuba",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q10",
+          "query": "transporte turistico en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q11",
+          "query": "museos y cultura en la habana",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
           "r_precision": 0.0
         },
         {
           "query_id": "q12",
           "query": "baracoa naturaleza y cultura",
           "relevant_count": 3,
-          "retrieved_count": 5,
-          "retrieved_doc_ids": [
-            "7865a4d8b3fb1dca99a28aad5c77e012810b5870",
-            "c5beb9e8222573853a8401510ad8a069d5dce03c",
-            "bb114d3c29ee29626de11490f2bdd761845f7841",
-            "df805348a5cee7041065ee0d6e43e04e3b9bef4d",
-            "46bdd234221c8109d8adaf94b727efb4df2a5a1f"
-          ],
-          "precision_at_k": 0.2,
-          "recall_at_k": 0.3333333333333333,
-          "f1_at_k": 0.25,
-          "ap": 0.3333333333333333,
-          "mrr_at_k": 1.0,
-          "ndcg_at_k": 0.7452525342261976,
-          "r_precision": 0.3333333333333333
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        }
+      ]
+    },
+    "hybrid_search": {
+      "system": "hybrid_search",
+      "label": "Hybrid search RRF",
+      "status": "ok",
+      "summary": {
+        "precision_at_3": 0.0,
+        "precision_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "map": 0.0,
+        "ndcg_at_5": 0.0,
+        "mrr": 0.0,
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "f1_at_k": 0.0,
+        "ap": 0.0,
+        "mrr_at_k": 0.0,
+        "ndcg_at_k": 0.0,
+        "r_precision": 0.0,
+        "k": 5.0
+      },
+      "statistics": {
+        "precision_at_3": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "precision_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_10": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "map": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ndcg_at_5": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "mrr": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "precision_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "recall_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "f1_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ap": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "mrr_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "ndcg_at_k": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        },
+        "r_precision": {
+          "mean": 0.0,
+          "stddev": 0.0,
+          "ci95": {
+            "low": 0.0,
+            "high": 0.0
+          }
+        }
+      },
+      "queries": [
+        {
+          "query_id": "q1",
+          "query": "que ver en la habana vieja",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q2",
+          "query": "senderismo en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q3",
+          "query": "luna de miel en cuba",
+          "relevant_count": 5,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q4",
+          "query": "internet en cuba",
+          "relevant_count": 1,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q5",
+          "query": "casas particulares en trinidad",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q6",
+          "query": "playas en cayo coco",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q7",
+          "query": "alojamiento en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q8",
+          "query": "parques naturales en cuba",
+          "relevant_count": 6,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q9",
+          "query": "lugares historicos en santiago de cuba",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q10",
+          "query": "transporte turistico en varadero",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q11",
+          "query": "museos y cultura en la habana",
+          "relevant_count": 4,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
+        },
+        {
+          "query_id": "q12",
+          "query": "baracoa naturaleza y cultura",
+          "relevant_count": 3,
+          "retrieved_count": 0,
+          "retrieved_doc_ids": [],
+          "precision_at_3": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "map": 0.0,
+          "ndcg_at_5": 0.0,
+          "mrr": 0.0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "f1_at_k": 0.0,
+          "ap": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "r_precision": 0.0
         }
       ]
     }
   },
   "delta_vs_baseline": {
     "lsi_refined": {
+      "precision_at_3": 0.027777777777777762,
+      "precision_at_5": 0.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.08333333333333331,
+      "map": 0.0,
+      "ndcg_at_5": -0.005762143122068075,
+      "mrr": -0.00694444444444442,
       "precision_at_k": 0.0,
       "recall_at_k": 0.0,
       "f1_at_k": 0.0,
-      "map": -0.002777777777777782,
-      "mrr_at_k": -0.0111111111111111,
-      "ndcg_at_k": -0.0026134695360023608,
-      "r_precision": -0.02083333333333333
+      "ap": 0.0,
+      "mrr_at_k": -0.020833333333333315,
+      "ndcg_at_k": -0.005762143122068075,
+      "r_precision": 0.0
+    },
+    "lsi_expanded": {
+      "precision_at_3": -0.02777777777777779,
+      "precision_at_5": -0.016666666666666663,
+      "recall_at_5": -0.027777777777777762,
+      "recall_at_10": -0.14583333333333334,
+      "map": -0.032265211640211636,
+      "ndcg_at_5": -0.03819909242239189,
+      "mrr": -0.05019841269841266,
+      "precision_at_k": -0.016666666666666663,
+      "recall_at_k": -0.027777777777777762,
+      "f1_at_k": -0.02083333333333333,
+      "ap": -0.032265211640211636,
+      "mrr_at_k": -0.031944444444444414,
+      "ndcg_at_k": -0.03819909242239189,
+      "r_precision": -0.027777777777777762
+    },
+    "vectorial": {
+      "precision_at_3": -0.1388888888888889,
+      "precision_at_5": -0.1,
+      "recall_at_5": -0.12777777777777777,
+      "recall_at_10": -0.29444444444444445,
+      "map": -0.09925595238095238,
+      "ndcg_at_5": -0.13526169104944827,
+      "mrr": -0.28908730158730156,
+      "precision_at_k": -0.1,
+      "recall_at_k": -0.12777777777777777,
+      "f1_at_k": -0.11052188552188552,
+      "ap": -0.09925595238095238,
+      "mrr_at_k": -0.2569444444444444,
+      "ndcg_at_k": -0.13526169104944827,
+      "r_precision": -0.12777777777777777
+    },
+    "hybrid_search": {
+      "precision_at_3": -0.1388888888888889,
+      "precision_at_5": -0.1,
+      "recall_at_5": -0.12777777777777777,
+      "recall_at_10": -0.29444444444444445,
+      "map": -0.09925595238095238,
+      "ndcg_at_5": -0.13526169104944827,
+      "mrr": -0.28908730158730156,
+      "precision_at_k": -0.1,
+      "recall_at_k": -0.12777777777777777,
+      "f1_at_k": -0.11052188552188552,
+      "ap": -0.09925595238095238,
+      "mrr_at_k": -0.2569444444444444,
+      "ndcg_at_k": -0.13526169104944827,
+      "r_precision": -0.12777777777777777
     }
   },
   "analysis": [
-    "El mejor compromiso Precision/Recall segun F1@k lo obtiene `lsi_baseline` con 0.0602.",
-    "El mejor ordenamiento global segun NDCG@k lo obtiene `lsi_baseline` con 0.1358.",
-    "La mejor ubicacion temprana del primer relevante segun MRR@k la obtiene `lsi_baseline` con 0.1944.",
+    "El mejor compromiso Precision/Recall segun F1@k lo obtiene `lsi_baseline` con 0.1105.",
+    "El mejor ordenamiento global segun NDCG@k lo obtiene `lsi_baseline` con 0.1353.",
+    "La mejor ubicacion temprana del primer relevante segun MRR@k la obtiene `lsi_baseline` con 0.2569.",
     "Ningun sistema evaluado supera al baseline en F1@k con este conjunto de consultas."
   ]
 }

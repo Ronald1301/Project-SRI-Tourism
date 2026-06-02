@@ -276,6 +276,85 @@ La primera vez que levantes `docker compose up` puede tardar más porque el cont
 - `POST /feedback`
 - `POST /feedback/implicit`
 
+## Modulo de evaluacion
+
+El modulo de evaluacion permite medir la calidad de la recuperacion con qrels y comparar varias configuraciones del sistema. No evalua la generacion final del RAG, sino la parte de recuperacion de documentos.
+
+### Sistemas que puede comparar
+
+- `lsi_baseline`: TF-IDF + LSI baseline
+- `lsi_refined`: TF-IDF + LSI + reranking
+- `lsi_expanded`: TF-IDF + LSI + expansion + reranking
+- `vectorial`: embeddings vectoriales
+- `hybrid_search`: fusion hibrida RRF
+
+### Metricas calculadas
+
+- `Precision@3`
+- `Precision@5`
+- `Recall@5`
+- `Recall@10`
+- `MAP`
+- `NDCG@5`
+- `MRR`
+- `Precision@k`
+- `Recall@k`
+- `F1@k`
+- `AP`
+- `MRR@k`
+- `NDCG@k`
+- `R-Precision`
+
+Ademas, el reporte incluye:
+
+- media por metrica
+- desviacion estandar
+- intervalo de confianza bootstrap al 95%
+- comparacion contra baseline
+- analisis de mejores y peores consultas por sistema
+
+### Como ejecutarlo
+
+Para comparar todos los sistemas disponibles:
+
+```powershell
+.\venv\Scripts\python.exe -m src.evaluation.cli --systems all --top-k 5
+```
+
+Para comparar sistemas especificos:
+
+```powershell
+.\venv\Scripts\python.exe -m src.evaluation.cli --systems lsi_baseline,lsi_refined,lsi_expanded,vectorial,hybrid_search --top-k 5
+```
+
+Para usar otro archivo de qrels:
+
+```powershell
+.\venv\Scripts\python.exe -m src.evaluation.cli --qrels data/evaluation/rec01_qrels.json --top-k 5
+```
+
+Si quieres forzar las rutas de salida:
+
+```powershell
+.\venv\Scripts\python.exe -m src.evaluation.cli --systems all --top-k 5 --report-out data/evaluation/results/eval_report.json --markdown-out data/evaluation/results/eval_report.md
+```
+
+### Archivos que exporta
+
+- `data/evaluation/results/eval_report.json`
+- `data/evaluation/results/eval_report.md`
+
+Durante la auditoria tambien se generaron:
+
+- `data/evaluation/results/audit_comparison.json`
+- `data/evaluation/results/audit_comparison.md`
+
+### Importante
+
+- `evaluate_searcher(...)` es una funcion legacy de compatibilidad y solo compara `lsi_baseline` vs `lsi_refined`.
+- Para comparar todos los sistemas hay que usar `evaluate_systems(...)` o la CLI.
+- Si ejecutas `--systems all`, el comando si hace trabajo: evalua todos los sistemas soportados y escribe los reportes en las rutas indicadas.
+
 ## Módulos implementados
 
 - **web_crawler**: descarga y extrae contenido turístico desde distintas fuentes para alimentar el corpus.

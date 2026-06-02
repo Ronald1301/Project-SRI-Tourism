@@ -78,3 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nReporte JSON: {args.report_out}")
     print(f"Reporte Markdown: {args.markdown_out}")
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
