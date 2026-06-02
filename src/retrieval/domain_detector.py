@@ -91,6 +91,11 @@ class DomainDetector:
         )
         self.domain_keywords = raw_keywords
         self._domain_keyword_tokens = self._build_keyword_token_set(raw_keywords)
+        self._domain_keyword_phrases = frozenset(
+            self._normalize_text(keyword)
+            for keyword in raw_keywords
+            if isinstance(keyword, str) and " " in keyword.strip()
+        )
         self._non_domain_keyword_tokens = self._build_keyword_token_set(
             (
                 "dolar",
@@ -188,11 +193,27 @@ class DomainDetector:
             raise ValueError("llm_client is required to call llm_decision")
 
         prompt = (
-            "Eres un clasificador de consultas.\n"
-            "Dominio: turismo en Cuba.\n"
-            "Responde SOLO YES o NO.\n"
+            "Eres un clasificador de consultas especializado en turismo.\n"
+            "Dominio: turismo en Cuba.\n\n"
+            
+            "Tu tarea es determinar si la consulta pertenece al dominio.\n\n"
+            
+            "Reglas:\n"
+            "- Responde YES si:\n"
+            "  • implica claramente un lugar turístico cubano aunque no diga 'Cuba'\n\n"
+            
+            "- Responde NO si:\n"
+            "  • No está relacionado con turismo\n"
+            "  • O pertenece a otro país\n\n"
+            
+            "IMPORTANTE:\n"
+            "- Debes inferir el país si el lugar es conocido\n"
+            "- No expliques nada\n"
+            "- Responde SOLO: YES o NO\n\n"
+            
             f"Consulta: {query}"
         )
+        
         response_text = self._invoke_llm(prompt)
         normalized = self._normalize_text(response_text)
 
@@ -295,11 +316,21 @@ class DomainDetector:
         return self._cosine_similarity(query_lsi, self._corpus_centroid)
 
     def _compute_keyword_overlap(self, query_tokens: Sequence[str]) -> int:
-        if not self._domain_keyword_tokens:
+        if not self._domain_keyword_tokens and not self._domain_keyword_phrases:
             return 0
 
         query_token_set = {token for token in query_tokens if token}
-        return int(len(query_token_set & self._domain_keyword_tokens))
+        overlap = len(query_token_set & self._domain_keyword_tokens)
+
+        if self._domain_keyword_phrases:
+            normalized_query = self._normalize_text(" ".join(query_tokens))
+            overlap += sum(
+                1
+                for phrase in self._domain_keyword_phrases
+                if phrase and phrase in normalized_query
+            )
+
+        return int(overlap)
 
     def _compute_non_domain_hint(self, query_tokens: Sequence[str]) -> int:
         if not self._non_domain_keyword_tokens:
