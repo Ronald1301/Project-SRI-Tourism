@@ -129,6 +129,22 @@ La estrategia híbrida resulta especialmente útil cuando una consulta mezcla vo
 
 Una vez obtenida la evidencia, el sistema estima si el conjunto recuperado es suficiente. Si lo es, la respuesta se genera directamente a partir del contexto local. Si no lo es, se activa la ampliación dinámica con búsqueda web, se incorporan nuevos documentos al flujo de recuperación y se vuelve a consultar antes de producir la respuesta final. La generación final se apoya en un modelo local para mantener independencia operativa y reproducibilidad.
 
+\subsection{Expansión y retroalimentación de consulta}
+
+El sistema incorpora un módulo de expansión y retroalimentación de consulta para mejorar la cobertura cuando la formulación inicial es ambigua, corta o poco informativa. El procedimiento toma la consulta original, extrae términos de mayor peso, identifica variantes semánticas y propone una versión expandida con vocabulario relacionado al dominio turístico.
+
+La retroalimentación se apoya en la evidencia recuperada: si los primeros resultados muestran baja consistencia, el sistema ajusta la consulta con términos observados en documentos relevantes, nombres alternativos de destinos, servicios o atributos geográficos. Este ciclo no sustituye la búsqueda principal; la refina. Su objetivo es aumentar la probabilidad de recuperar documentos pertinentes sin introducir ruido excesivo.
+
+En términos operativos, el módulo actúa como un puente entre la consulta del usuario y el índice. Primero normaliza la intención de búsqueda, luego amplía el espacio de términos candidatos y finalmente reinyecta la consulta al flujo de recuperación híbrida. Esto resulta útil en preguntas muy breves, consultas con sinónimos frecuentes o casos donde el usuario omite el nombre exacto de un lugar.
+
+\subsection{Evaluación}
+
+La evaluación del sistema se plantea por módulos para aislar el impacto de cada componente. Se consideran cuatro niveles: calidad del crawling, calidad de recuperación, calidad de la respuesta generada y latencia de respuesta. Esta separación permite identificar si un problema proviene de la ingesta, del indexado, del ranking o de la síntesis final.
+
+Para la recuperación, las métricas más útiles son precisión@k, cobertura y MRR, porque capturan tanto la calidad del orden como la capacidad de devolver evidencia relevante en los primeros puestos. En la parte generativa, la evaluación es principalmente cualitativa: coherencia con el contexto, fidelidad a la evidencia y ausencia de alucinaciones. La latencia se mide como tiempo total desde la consulta hasta la respuesta final, incluyendo expansión cuando se activa.
+
+El criterio operativo es simple: una consulta se considera bien resuelta si recupera documentos pertinentes en posiciones altas, la respuesta generada se mantiene alineada con esos documentos y el tiempo de procesamiento se conserva dentro de un rango interactivo. Esta evaluación es suficiente para iterar sobre el sistema sin sobrecargar el informe con detalles experimentales extensos.
+
 \subsubsection{Recuperación híbrida}
 La recuperación híbrida combina dos familias de señales complementarias: una señal léxica basada en TF-IDF y LSI, y una señal semántica basada en embeddings densos. La motivación principal es que ambas estrategias capturan aspectos distintos de una consulta. La recuperación léxica es fuerte cuando existe coincidencia terminológica clara, mientras que la recuperación semántica resulta superior cuando la misma intención se expresa con vocabulario diferente.
 
