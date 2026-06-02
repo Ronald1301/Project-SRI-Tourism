@@ -11,8 +11,8 @@ class InsufficiencyPolicy:
     """Heuristicas basicas de suficiencia para la recuperacion local."""
 
     min_local_results: int = 3
-    min_top_score: float = 0.28
-    min_avg_score_top3: float = 0.22
+    min_top_score: float = 0.50
+    min_avg_score_top3: float = 0.40
 
     def is_insufficient(self, local_results: list[dict[str, Any]]) -> bool:
         """Determina si la lista de resultados locales es insuficiente.

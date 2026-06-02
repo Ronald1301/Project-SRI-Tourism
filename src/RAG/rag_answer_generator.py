@@ -5,6 +5,8 @@ import re
 import shutil
 import subprocess
 from typing import Any
+from src.api.config import DEFAULT_DOMAIN_LLM_MODEL
+from src.api.config import DEFAULT_OLLAMA_TIMEOUT_SECONDS
 
 import requests
 
@@ -20,10 +22,10 @@ class RAGAnswerGenerator:
         Returns:
             None
         """
-        self.model = self._read_env("RAG_LLM_MODEL", "qwen3")
+        self.model = self._read_env("RAG_LLM_MODEL", DEFAULT_DOMAIN_LLM_MODEL )
         self.ollama_cmd = self._read_env("RAG_OLLAMA_CMD", "ollama")
         self.ollama_base_url = self._read_env("RAG_OLLAMA_BASE_URL", "").rstrip("/")
-        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", 180)
+        self.timeout_seconds = self._read_int_env("RAG_LLM_TIMEOUT_SECONDS", DEFAULT_OLLAMA_TIMEOUT_SECONDS)
         self.enabled = self._read_bool_env("RAG_LLM_ENABLED", default=True)
         self._init_error = ""
 
