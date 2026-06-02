@@ -24,7 +24,7 @@ services:
       PYTHONUNBUFFERED: "1"
       RAG_OLLAMA_BASE_URL: "http://ollama:11434"
       RAG_LLM_MODEL: "qwen3:1.7b"
-      RAG_LLM_TIMEOUT_SECONDS: "180"
+      RAG_LLM_TIMEOUT_SECONDS: "300"
     ports:
       - "8000:8000"
     volumes:
