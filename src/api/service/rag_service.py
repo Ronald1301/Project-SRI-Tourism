@@ -122,13 +122,11 @@ class RAGSearchService:
                 expansion.selected_strategy = "raw_fallback"
             expansion.selected_query = selected_query
 
-        web_query = query
-        # Si quieres que la busqueda web use la consulta expandida, cambia esta linea a:
-        # web_query = selected_query
         rag_result = self.rag_pipeline.answer_query(
             query=selected_query,
             top_k=top_k,
             include_explanations=include_explanations,
+            web_query=query,
             event_sink=event_sink,
             document_ranker=self._apply_feedback_bias,
             generate_answer=generate_answer,
@@ -255,6 +253,8 @@ class RAGSearchService:
             "viajes",
             "destino",
             "destinos",
+            "bar",
+            "discoteca"
         }
 
         for document in self.searcher.documents_by_id.values():
